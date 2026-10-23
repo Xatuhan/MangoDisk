@@ -83,7 +83,7 @@ const { t } = useI18n({ useScope: 'global' });
   @apply text-muted-foreground rounded-md;
   display: block;
   min-width: 4rem;
-  padding: 5px 12px;
+  padding: 3px 12px;
   text-align: center;
   white-space: nowrap;
   line-height: 20px;

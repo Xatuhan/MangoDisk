@@ -149,4 +149,19 @@ watch(
 .settings-tab-panel > :deep(* + *) {
   margin-top: 14px;
 }
+/* Keep this editor compact without changing settings rows in other dialogs.
+   Descriptions and translated labels can still grow their rows naturally. */
+.settings-tab-panel :deep(.setting-row--compact) {
+  min-height: 36px;
+  padding-block: 2px;
+}
+.settings-tab-panel :deep(.setting-row--compact > .setting-controls [data-slot='select-trigger']) {
+  height: 32px;
+}
+.settings-tab-panel :deep(.settings-section--plain > .settings-list) {
+  gap: 4px;
+}
+.settings-tab-panel :deep(.settings-section--plain > h2) {
+  margin-bottom: 6px;
+}
 </style>
