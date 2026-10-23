@@ -34,6 +34,50 @@ impl Bounds {
     }
 }
 
+/// The shell HWND can include space above or beside its visible content.
+/// Only borrow the content's cross axis; the layout lease still owns its edge.
+pub fn content_band(host: Bounds, content: Option<Bounds>) -> Bounds {
+    let Some(content) = content.filter(|r| r.width() > 0 && r.height() > 0) else {
+        return host;
+    };
+    if host.width() < host.height() {
+        if content.left >= host.left && content.right <= host.right {
+            return Bounds {
+                left: content.left,
+                right: content.right,
+                ..host
+            };
+        }
+    } else if content.top >= host.top && content.bottom <= host.bottom {
+        return Bounds {
+            top: content.top,
+            bottom: content.bottom,
+            ..host
+        };
+    }
+    host
+}
+
+/// Apply the same content alignment to reserved slots and ordinary safe gaps.
+pub fn align_cross_axis(placed: Bounds, band: Bounds) -> Option<Bounds> {
+    let aligned = if band.width() < band.height() {
+        let left = band.left + (band.width() - placed.width()) / 2;
+        Bounds {
+            left,
+            right: left + placed.width(),
+            ..placed
+        }
+    } else {
+        let top = band.top + (band.height() - placed.height()) / 2;
+        Bounds {
+            top,
+            bottom: top + placed.height(),
+            ..placed
+        }
+    };
+    (placed.width() > 0 && placed.height() > 0 && aligned.fits_in(band)).then_some(aligned)
+}
+
 /// Choose the first/last available gap. Exclude a margin around controls, including
 /// widgets and task buttons, rather than relying on undocumented Explorer widths.
 pub fn place(
@@ -114,6 +158,57 @@ mod tests {
             top: 1040,
             bottom: 1080,
         }
+    }
+    #[test]
+    fn content_alignment_corrects_inset_shells_at_fractional_and_integer_dpi() {
+        for dpi in [96, 120, 144, 192, 240] {
+            let px = |value| value * dpi / 96;
+            let shell = Bounds {
+                left: px(-1920),
+                top: px(1008),
+                right: 0,
+                bottom: px(1080),
+            };
+            let tray = Bounds {
+                left: px(-300),
+                top: px(1032),
+                ..shell
+            };
+            let placed = place(shell, &[], px(120), px(36), px(4), Edge::Right, false).unwrap();
+            let band = content_band(shell, Some(tray));
+            let aligned = align_cross_axis(placed, band).unwrap();
+            assert_eq!(
+                aligned.top,
+                tray.top + (tray.height() - placed.height()) / 2
+            );
+            assert_ne!(aligned.top, placed.top);
+            assert_eq!((aligned.left, aligned.right), (placed.left, placed.right));
+            assert!(aligned.fits_in(shell));
+            assert_eq!(
+                align_cross_axis(placed.transpose(), band.transpose()),
+                Some(aligned.transpose())
+            );
+        }
+    }
+
+    #[test]
+    fn content_alignment_preserves_normal_hosts_and_rejects_unusable_geometry() {
+        let host = rect(0, 1920);
+        let placed = place(host, &[], 120, 36, 4, Edge::Left, false).unwrap();
+        for content in [
+            None,
+            Some(host),
+            Some(Bounds::default()),
+            Some(Bounds { top: 1030, ..host }),
+        ] {
+            assert_eq!(content_band(host, content), host);
+            assert_eq!(
+                align_cross_axis(placed, content_band(host, content)),
+                Some(placed)
+            );
+        }
+        let narrow = Bounds { top: 1060, ..host };
+        assert!(align_cross_axis(placed, narrow).is_none());
     }
     #[test]
     fn centered_shell_gaps_exclude_foreign_panels_at_either_edge() {

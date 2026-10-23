@@ -606,6 +606,12 @@ thread performs no inspection while resident display is disabled.
 Placement stays within the parent client area and excludes occupied controls with
 a margin. During taskbar orientation changes, empty or inconsistent parent bounds
 wait for the shell layout to settle instead of activating no-space fallback.
+When a valid notification-area rectangle is available inside the shell, its cross
+axis defines the visible content band for surface sizing and centering. Both
+reserved slots and gap placement retain their original horizontal/vertical edge
+allocation, then align within that band. Missing or inconsistent content geometry
+retains the host bounds; no fixed pixel correction or process DPI override is used.
+Layout diagnostics include shell, host, content and resulting native HWND bounds.
 Windows 10 manual left/right reserves the start/end of the task-button container
 (top/bottom on a vertical taskbar). Button crowding does not activate tray fallback.
 The lease remains allocated during fullscreen/auto-hide, avoiding needless button

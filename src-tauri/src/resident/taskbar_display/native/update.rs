@@ -209,7 +209,9 @@ impl Window {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         let columns = presentation::columns(&model.entries, geometry.dpi, model.compact);
-        let Some(surface) = Surface::arrange(&columns, geometry.bar, geometry.dpi) else {
+        let content_band = layout::content_band(geometry.bar, geometry.content);
+        let placement_host = layout::content_band(parent_bounds, geometry.content);
+        let Some(surface) = Surface::arrange(&columns, content_band, geometry.dpi) else {
             self.release_reservation();
             self.hide(hwnd, Visibility::UnsupportedLayout);
             self.service.publish(DisplayStatus::UnsupportedLayout);
@@ -233,7 +235,7 @@ impl Window {
         occupied.extend(peers.occupied);
         let find_gap = || {
             layout::place(
-                parent_bounds,
+                placement_host,
                 &occupied,
                 surface.width,
                 surface.height,
@@ -356,7 +358,9 @@ impl Window {
                 }
             }
         };
-        let Some(bounds) = placed else {
+        let Some(bounds) =
+            placed.and_then(|bounds| layout::align_cross_axis(bounds, placement_host))
+        else {
             if self.visibility != Some(Visibility::NoSpace) {
                 log::info!(
                     "resident_taskbar_no_space bar={:?} parent={parent_bounds:?} width={} height={} occupied_count={}",
@@ -385,7 +389,7 @@ impl Window {
             || self.paint_failed;
         if self.bounds != bounds || self.surface.vertical != surface.vertical {
             log::info!(
-                "resident_taskbar_layout vertical={} preference={:?} compact={} width={} height={} left={} top={} dpi={}",
+                "resident_taskbar_layout vertical={} preference={:?} compact={} width={} height={} left={} top={} dpi={} bar={:?} host={parent_bounds:?} content={:?} placement_host={placement_host:?}",
                 surface.vertical,
                 model.position,
                 model.compact,
@@ -393,7 +397,9 @@ impl Window {
                 surface.height,
                 bounds.left,
                 bounds.top,
-                geometry.dpi
+                geometry.dpi,
+                geometry.bar,
+                geometry.content
             );
         }
         if self.background != model.background {
@@ -446,6 +452,26 @@ impl Window {
                 self.hide(hwnd, Visibility::PositionFailed);
                 self.service.publish(DisplayStatus::ShellUnavailable);
                 return;
+            }
+            if layout_changed || restoring {
+                let mut actual = RECT::default();
+                if GetWindowRect(hwnd, &mut actual) != 0 {
+                    log::info!(
+                    "resident_taskbar_positioned requested={bounds:?} actual=({},{},{},{}) parent={:?} dpi={}",
+                    actual.left,
+                    actual.top,
+                    actual.right,
+                    actual.bottom,
+                    self.parent,
+                    GetDpiForWindow(hwnd)
+                );
+                } else {
+                    log::warn!(
+                        "resident_taskbar_position_inspection_failed code={} parent={:?}",
+                        GetLastError(),
+                        self.parent
+                    );
+                }
             }
             let radius = (8 * geometry.dpi / 96) as i32;
             let region = CreateRoundRectRgn(

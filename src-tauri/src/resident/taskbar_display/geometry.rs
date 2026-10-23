@@ -27,6 +27,7 @@ pub struct Geometry {
     pub sampled: Instant,
     pub shell: usize,
     pub bar: Bounds,
+    pub content: Option<Bounds>,
     pub occupied: Vec<Bounds>,
     pub dpi: u32,
     pub hidden: bool,
@@ -131,6 +132,7 @@ unsafe fn inspect(automation: &IUIAutomation) -> windows::core::Result<Geometry>
             sampled,
             shell: shell as usize,
             bar: bounds,
+            content: None,
             occupied: Vec::new(),
             dpi: GetDpiForWindow(shell).max(96),
             hidden,
@@ -183,15 +185,20 @@ unsafe fn inspect(automation: &IUIAutomation) -> windows::core::Result<Geometry>
     }
     // Notification containers include blank inter-icon spacing and the clock.
     let tray = FindWindowExW(shell, ptr::null_mut(), w!("TrayNotifyWnd"), ptr::null());
+    let mut content = None;
     if !tray.is_null() {
         let mut r = RECT::default();
         if GetWindowRect(tray, &mut r) != 0 {
-            occupied.push(Bounds {
+            let tray_bounds = Bounds {
                 left: r.left,
                 top: r.top,
                 right: r.right,
                 bottom: r.bottom,
-            });
+            };
+            occupied.push(tray_bounds);
+            if tray_bounds.width() > 0 && tray_bounds.height() > 0 && tray_bounds.fits_in(bounds) {
+                content = Some(tray_bounds);
+            }
         }
     }
     Ok(Geometry {
@@ -204,6 +211,7 @@ unsafe fn inspect(automation: &IUIAutomation) -> windows::core::Result<Geometry>
             bottom: bar.bottom,
         },
         occupied,
+        content,
         hidden: false,
         environment,
         dpi: GetDpiForWindow(shell).max(96),
@@ -225,8 +233,8 @@ mod tests {
             let geometry = inspect(&automation).unwrap();
             // Geometry only: never dump control names, window titles or tray tooltips.
             println!(
-                "bar={:?} dpi={} occupied={:?}",
-                geometry.bar, geometry.dpi, geometry.occupied
+                "bar={:?} content={:?} dpi={} occupied={:?}",
+                geometry.bar, geometry.content, geometry.dpi, geometry.occupied
             );
             assert!(geometry.bar.width() > 0 && geometry.bar.height() > 0);
             drop(automation);
