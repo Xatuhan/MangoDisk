@@ -1,3 +1,5 @@
+import type { CommandErrorReason } from '@/lib/models/diagnostics/command-error';
+
 export type CommandErrorCode =
   | 'invalidInput'
   | 'operationBusy'
@@ -12,22 +14,6 @@ export interface CommandError {
   details: Readonly<Record<string, string>>;
   retryable: boolean;
 }
-
-export type CommandErrorReason =
-  | 'systemManagedFile'
-  | 'resourceBusy'
-  | 'accessDeniedOrBusy'
-  | 'itemChanged'
-  | 'scanResourcesReleasing'
-  | 'quickScanUnavailable'
-  | 'folderUnavailable'
-  | 'folderSelectionLimitExceeded'
-  | 'analysisRootExcluded'
-  | 'scanExclusionsChanged'
-  | 'preferencesConflict'
-  | 'directoryNotEmpty'
-  | 'deleteIncomplete'
-  | 'deleteRecoveryFailed';
 
 const COMMAND_ERROR_CODES: ReadonlySet<string> = new Set<CommandErrorCode>([
   'invalidInput',

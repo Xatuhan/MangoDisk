@@ -2013,6 +2013,29 @@ mod permanent_delete_tests {
     }
 
     #[test]
+    fn platform_name_guard_restores_reserved_directory_created_after_preflight() {
+        let sandbox = DeleteSandbox::new();
+        let path = sandbox.0.join("guarded-directory");
+        fs::create_dir(&path).unwrap();
+        let prepared = prepare_path_for_permanent_delete(&path).unwrap();
+        let mut names = mangodisk_platform::NameExclusions::default();
+        names.protect_folder_names(&[".Spotlight-V100"]);
+        let protected = path.join(".spotlight-v100");
+        fs::create_dir(&protected).unwrap();
+        fs::write(protected.join("payload.bin"), b"protected").unwrap();
+
+        let error = delete_directory_tree_with_name_exclusions(prepared, 0, 0, &names, &|| false)
+            .unwrap_err();
+        assert!(error.to_string().contains("excluded name"));
+        assert!(protected.join("payload.bin").exists());
+        assert!(sandbox.0.read_dir().unwrap().all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".mangodisk-delete-")));
+    }
+
+    #[test]
     fn cancellable_directory_delete_reports_live_removed_content() {
         let sandbox = DeleteSandbox::new();
         let path = sandbox.0.join("cancellable-directory");

@@ -5,17 +5,20 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { EVENT_NAMES } from '@/lib/models/diagnostics/telemetry';
 import {
   ANALYSIS_DELETE_SCHEMA_VERSION,
+  ANALYSIS_DELETE_BATCH_SCHEMA_VERSION,
   ANALYSIS_REMAINDER_SCHEMA_VERSION,
   ANALYSIS_SCAN_MODES,
 } from '@/lib/models/storage/analysis';
 import type {
   AnalysisDeleteResult,
+  AnalysisDeleteBatchResult,
   AnalysisRemainderPage,
   AnalysisRemainderSelection,
   AnalysisResult,
   AnalysisScanMode,
 } from '@/lib/models/storage/analysis';
 import type { TraversalProgress } from '@/lib/models/presentation/progress';
+import { parseCommandErrorReason } from '@/lib/utils/diagnostics/error';
 import type { CommandError } from '@/lib/utils/diagnostics/error';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -94,6 +97,47 @@ function isDeletionResult(value: unknown, scanId: number): value is AnalysisDele
   );
 }
 
+function isBatchDeletionResult(value: unknown, scanId: number, paths: string[]): value is AnalysisDeleteBatchResult {
+  if (
+    !isRecord(value) ||
+    value.schemaVersion !== ANALYSIS_DELETE_BATCH_SCHEMA_VERSION ||
+    typeof value.requiresRescan !== 'boolean' ||
+    !isCount(value.releasedBytes) ||
+    !Array.isArray(value.removedPaths) ||
+    !value.removedPaths.every(path => typeof path === 'string') ||
+    !Array.isArray(value.notAttemptedPaths) ||
+    !value.notAttemptedPaths.every(path => typeof path === 'string') ||
+    !Array.isArray(value.failed) ||
+    !value.failed.every(
+      failure =>
+        isRecord(failure) &&
+        typeof failure.path === 'string' &&
+        (failure.reason === null ||
+          (typeof failure.reason === 'string' &&
+            parseCommandErrorReason({
+              code: 'operationFailed',
+              retryable: false,
+              details: { reason: failure.reason },
+            }) !== null))
+    ) ||
+    !Array.isArray(value.updatedResults) ||
+    !value.updatedResults.every(isAnalysisResult) ||
+    !Array.isArray(value.invalidatedScanIds) ||
+    !value.invalidatedScanIds.every(isCount)
+  )
+    return false;
+  const outcomes = [...value.removedPaths, ...value.failed.map(failure => failure.path), ...value.notAttemptedPaths];
+  const ids = value.updatedResults.map(result => result.scanId);
+  return (
+    outcomes.length === paths.length &&
+    new Set(outcomes).size === outcomes.length &&
+    outcomes.every(path => paths.includes(path)) &&
+    new Set(ids).size === ids.length &&
+    !value.invalidatedScanIds.some(id => ids.includes(id)) &&
+    (value.requiresRescan || (!value.notAttemptedPaths.length && (!value.removedPaths.length || ids.includes(scanId))))
+  );
+}
+
 export class AnalysisService {
   static async listRemainder(
     scanId: number,
@@ -144,6 +188,18 @@ export class AnalysisService {
 
   static cancel(): Promise<void> {
     return invoke<void>('cancel_analysis');
+  }
+
+  static async deleteManyPermanently(scanId: number, selectedPaths: string[]): Promise<AnalysisDeleteBatchResult> {
+    const result = await invoke<unknown>('delete_analysis_entries_permanently', { scanId, selectedPaths });
+    if (!isBatchDeletionResult(result, scanId, selectedPaths)) {
+      throw Object.assign(new Error('unsupported analysis batch deletion response schema'), {
+        code: 'operationFailed',
+        retryable: false,
+        details: { operation: 'delete_analysis_entries_permanently', mutationState: 'mayHaveChanged' },
+      } satisfies CommandError);
+    }
+    return result;
   }
 
   static async deletePermanently(scanId: number, selectedPath: string): Promise<AnalysisDeleteResult> {

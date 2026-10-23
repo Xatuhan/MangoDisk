@@ -322,6 +322,14 @@ impl Platform for MacOsPlatform {
             .collect()
     }
 
+    fn is_protected_deletion_path(&self, path: &Path) -> bool {
+        directories::is_protected_deletion_scope(path)
+    }
+
+    fn protected_deletion_folder_names(&self) -> &'static [&'static str] {
+        &directories::VOLUME_METADATA_DIRECTORY_NAMES
+    }
+
     fn should_skip(
         &self,
         path: &Path,

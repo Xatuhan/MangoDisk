@@ -26,6 +26,20 @@ pub trait Platform: Send + Sync {
         false
     }
 
+    /// Classifies scopes that ordinary deletion must preserve as a whole.
+    /// Platforms can additionally protect ancestors and volume metadata without
+    /// preventing read-only analysis from navigating those directories.
+    fn is_protected_deletion_path(&self, path: &Path) -> bool {
+        self.should_skip(path, &self.system_volume_path(), ScanPurpose::LargeFiles)
+            .is_some()
+    }
+
+    /// Reserved directory names must also survive deletion of an enclosing tree.
+    /// These OS-owned names use ASCII-insensitive matching independently of user exclusions.
+    fn protected_deletion_folder_names(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     /// Compares a known scan identity without requiring multiple links to remain.
     fn matches_file_identity(
         &self,

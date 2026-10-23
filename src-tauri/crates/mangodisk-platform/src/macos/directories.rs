@@ -51,7 +51,7 @@ const DUPLICATE_TRANSIENT_DIRECTORIES: [&str; 5] = [
     "/private/tmp",
     "/tmp",
 ];
-const VOLUME_METADATA_DIRECTORY_NAMES: [&str; 4] = [
+pub(super) const VOLUME_METADATA_DIRECTORY_NAMES: [&str; 4] = [
     ".DocumentRevisions-V100",
     ".Spotlight-V100",
     ".Trashes",
@@ -146,6 +146,25 @@ pub(super) fn is_protected_large_file_scope(path: &Path) -> bool {
         .into_iter()
         .any(|root| path == Path::new(root) || path.starts_with(root))
         || is_protected_private_var_scope(path)
+}
+
+/// Removing a directory also removes its protected descendants. Discovery can
+/// enter `/usr` to reach user-managed `/usr/local`; deleting `/usr` cannot use
+/// that same exception. Volume metadata names apply to external volumes too.
+pub(super) fn is_protected_deletion_scope(path: &Path) -> bool {
+    is_system_critical(path)
+        || is_shared_library_or_application(path)
+        || is_protected_large_file_scope(path)
+        || LARGE_FILE_PROTECTED_DIRECTORIES
+            .iter()
+            .any(|root| Path::new(root).starts_with(path))
+        || path.components().any(|component| {
+            component.as_os_str().to_str().is_some_and(|name| {
+                VOLUME_METADATA_DIRECTORY_NAMES
+                    .iter()
+                    .any(|reserved| name.eq_ignore_ascii_case(reserved))
+            })
+        })
 }
 
 /// Keeps user-scoped temporary application data visible while pruning privileged runtime state.

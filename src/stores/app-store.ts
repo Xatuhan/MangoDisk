@@ -1,3 +1,4 @@
+import type { CommandErrorReason } from '@/lib/models/diagnostics/command-error';
 import { defineStore } from 'pinia';
 
 import { LOG_DOMAINS, LOG_EVENTS } from '@/lib/models/diagnostics/telemetry';
@@ -17,7 +18,6 @@ import {
   parseCommandError,
   parseCommandErrorReason,
   type CommandErrorCode,
-  type CommandErrorReason,
 } from '@/lib/utils/diagnostics/error';
 
 interface AppState {

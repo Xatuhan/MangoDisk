@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use mangodisk_core::{
-    diagnostic_path, AnalysisDeleteResult, AnalysisService, LargeFileService,
-    PermanentDeleteBatchResult,
+    diagnostic_path, AnalysisDeleteBatchResult, AnalysisDeleteResult, AnalysisService,
+    LargeFileService, PermanentDeleteBatchResult,
 };
 
 use super::error::{run_blocking, CommandResult};
@@ -30,6 +30,17 @@ pub async fn delete_analysis_entry_permanently(
             log::warn!("analysis_permanent_delete_failed path={requested_path_log} error={error}");
         }
         result
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn delete_analysis_entries_permanently(
+    scan_id: u64,
+    selected_paths: Vec<String>,
+) -> CommandResult<AnalysisDeleteBatchResult> {
+    run_blocking("delete_analysis_entries_permanently", move || {
+        AnalysisService::delete_entries_permanently(scan_id, selected_paths)
     })
     .await
 }

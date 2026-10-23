@@ -37,7 +37,7 @@ describe('analysis folder pane', () => {
     const header = wrapper.get('header');
     expect(header.get('p').text()).toBe('100 folders · 4,997 files');
     expect(header.get('.md-help-action').attributes('aria-label')).toBe('Showing up to 100 largest items');
-    expect(header.element.children[1]?.contains(header.get('.md-help-action').element)).toBe(true);
+    expect(header.get('p').element.nextElementSibling?.contains(header.get('.md-help-action').element)).toBe(true);
   });
 });
 
@@ -163,7 +163,10 @@ describe('analysis folder pane virtual scrolling', () => {
       }),
       {
         attachTo: document.body,
-        global: { plugins: [i18n], stubs: { MdAnalysisEntryIcon: true, MdIcon: true } },
+        global: {
+          plugins: [i18n],
+          stubs: { MdAnalysisEntryIcon: true, MdIcon: true, MdIconAction: { template: '<button><slot /></button>' } },
+        },
       }
     );
     try {
@@ -260,6 +263,51 @@ describe('analysis folder pane virtual scrolling', () => {
       expect(wrapper.get('.result-table-scroll').element.scrollTop).toBe(0);
       expect(wrapper.findAll('.folder-row')).toHaveLength(2);
       expect(wrapper.get('.md-help-action').attributes('aria-label')).toContain('2');
+    } finally {
+      wrapper.unmount();
+    }
+  });
+});
+
+describe('analysis folder pane selection', () => {
+  it('selects files and folders by path, excludes protection, and places deletion in the fixed header', async () => {
+    const entries = [
+      { ...largeEntries[0]!, isDirectory: true },
+      largeEntries[1]!,
+      { ...largeEntries[2]!, deletionProtection: 'protectedPath' as const },
+    ];
+    const wrapper = mount(MdAnalysisFolderPane, {
+      props: {
+        entries,
+        totalBytes: 1500,
+        folderCount: 1,
+        fileCount: 3,
+        truncated: false,
+        openDisabled: false,
+        deleteDisabled: false,
+      },
+      global: {
+        plugins: [i18n],
+        stubs: { MdAnalysisEntryIcon: true, MdIcon: true, MdIconAction: { template: '<button><slot /></button>' } },
+      },
+    });
+    try {
+      const all = wrapper.get('header [role="checkbox"]');
+      const rows = wrapper.findAll('.folder-row');
+      expect(rows[2]!.get('[role="checkbox"]').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('.selection-delete').exists()).toBe(false);
+      await rows[0]!.get('[role="checkbox"]').trigger('click');
+      expect(wrapper.emitted('activate')).toBeUndefined();
+      expect(wrapper.emitted('update:selectedPaths')?.at(-1)).toEqual([[entries[0]!.path]]);
+      await wrapper.setProps({ selectedPaths: [entries[0]!.path] });
+      expect(all.attributes('aria-checked')).toBe('mixed');
+      expect(wrapper.get('header').find('.selection-delete').exists()).toBe(true);
+      await all.trigger('click');
+      expect(wrapper.emitted('update:selectedPaths')?.at(-1)).toEqual([[entries[0]!.path, entries[1]!.path]]);
+      await wrapper.get('.selection-delete').trigger('click');
+      expect(wrapper.emitted('deleteSelected')).toHaveLength(1);
+      await wrapper.setProps({ deleteDisabled: true });
+      expect(wrapper.get('.selection-delete').attributes('disabled')).toBeDefined();
     } finally {
       wrapper.unmount();
     }

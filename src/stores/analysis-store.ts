@@ -6,6 +6,7 @@ import { ANALYSIS_RESULT_CACHE_LIMIT, ANALYSIS_SCAN_MODES, ANALYSIS_VIEW_IDS } f
 import { LOG_DOMAINS, LOG_EVENTS } from '@/lib/models/diagnostics/telemetry';
 import type {
   AnalysisResult,
+  AnalysisDeleteBatchResult,
   AnalysisScanMode,
   AnalysisViewId,
   AnalysisViewPreferences,
@@ -42,6 +43,7 @@ interface AnalysisState {
   scanStarted: boolean;
   deleting: boolean;
   deletingPath: string | null;
+  lastDeleteBatchResult: AnalysisDeleteBatchResult | null;
   recovering: boolean;
   recoveryRequired: boolean;
 }
@@ -68,6 +70,7 @@ export const useAnalysisStore = defineStore('analysis', {
     scanStarted: false,
     deleting: false,
     deletingPath: null,
+    lastDeleteBatchResult: null,
     recovering: false,
     recoveryRequired: false,
   }),
@@ -406,6 +409,55 @@ export const useAnalysisStore = defineStore('analysis', {
         this.scanStarted = false;
       }
     },
+    async deleteManyPermanently(entries: DirectoryEntryInfo[]) {
+      if (this.pending || this.deleting || this.recoveryRequired || !entries.length) return;
+      this.invalidateResultForExclusionChange();
+      const source = this.result;
+      if (!source) return;
+      // Recovery scans and disk refresh belong to this deletion's lifetime.
+      this.deleting = true;
+      this.lastDeleteBatchResult = null;
+      const appStore = useAppStore();
+      appStore.clearError();
+      try {
+        const removed = await AnalysisService.deleteManyPermanently(
+          source.scanId,
+          entries.map(entry => entry.path)
+        );
+        if (removed.requiresRescan) {
+          this.cache = {};
+          this.cacheOrder = [];
+          await this.refreshAfterDelete(source.root, entries[0]!.path, removed.failed.length > 0);
+        } else if (removed.removedPaths.length) {
+          const synchronized = AnalysisCacheUtils.syncAfterDelete(
+            this.cache,
+            this.cacheOrder,
+            removed,
+            ANALYSIS_RESULT_CACHE_LIMIT
+          );
+          for (const result of Object.values(synchronized.cache)) markRaw(result);
+          this.cache = synchronized.cache;
+          this.cacheOrder = synchronized.order;
+          const visibleKey = this.result ? AnalysisCacheUtils.key(this.result.root) : null;
+          this.result = visibleKey ? (this.cache[visibleKey] ?? null) : null;
+          this.invalidateResultForExclusionChange();
+        }
+        await appStore.refreshSystemDisk();
+        this.lastDeleteBatchResult = markRaw(removed);
+        return removed;
+      } catch (error) {
+        appStore.reportError(error);
+        const failure = parseCommandError(error);
+        if (failure?.details.mutationState === 'mayHaveChanged' || failure?.code === 'taskJoinFailed') {
+          this.cache = {};
+          this.cacheOrder = [];
+          await this.refreshAfterDelete(source.root, entries[0]!.path, true);
+          await appStore.refreshSystemDisk();
+        }
+      } finally {
+        this.deleting = false;
+      }
+    },
     async deletePermanently(entry: DirectoryEntryInfo) {
       if (this.pending || this.deleting || this.recoveryRequired) return;
       this.invalidateResultForExclusionChange();
@@ -422,7 +474,6 @@ export const useAnalysisStore = defineStore('analysis', {
           // A recreated original path cannot be represented by the deleted snapshot.
           this.cache = {};
           this.cacheOrder = [];
-          this.deleting = false;
           this.deletingPath = null;
           await this.refreshAfterDelete(sourceResult.root, entry.path, false);
         } else {
@@ -451,7 +502,6 @@ export const useAnalysisStore = defineStore('analysis', {
         const failure = parseCommandError(error);
         if (failure?.details.mutationState === 'mayHaveChanged' || failure?.code === 'taskJoinFailed') {
           appStore.reportError(error);
-          this.deleting = false;
           this.deletingPath = null;
           // Partial deletion may move shared allocation into a sibling root.
           this.cache = {};

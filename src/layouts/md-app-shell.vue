@@ -445,6 +445,19 @@ function analyze(path?: string, refresh = false, setHome = false, scanMode?: Ana
   return analysisStore.analyze(path, refresh, setHome, scanMode);
 }
 
+async function deleteAnalysisEntriesPermanently(entries: DirectoryEntryInfo[]) {
+  const result = await analysisStore.deleteManyPermanently(entries);
+  if (result && !result.failed.length && !result.notAttemptedPaths.length) {
+    toast.success(t('analysis.deleteCompleted'), {
+      description: t('analysis.deleteResultSummary', {
+        removed: FormatService.integer(result.removedPaths.length),
+        failed: FormatService.integer(result.failed.length),
+        skipped: FormatService.integer(result.notAttemptedPaths.length),
+      }),
+    });
+  }
+}
+
 function deleteAnalysisEntryPermanently(entry: DirectoryEntryInfo) {
   return analysisStore.deletePermanently(entry);
 }
@@ -710,6 +723,7 @@ async function cancelDeepCleanup() {
           :deleting-path="analysisStore.deletingPath"
           :recovering="analysisStore.recovering"
           :recovery-required="analysisStore.recoveryRequired"
+          :delete-batch-result="analysisStore.lastDeleteBatchResult"
           @analyze="analyze"
           @cancel="analysisStore.cancel()"
           @error="store.reportError"
@@ -717,6 +731,7 @@ async function cancelDeepCleanup() {
           @open-entry="openAnalysisEntry"
           @reveal="openPath"
           @delete="deleteAnalysisEntryPermanently"
+          @delete-many="deleteAnalysisEntriesPermanently"
         />
         <LargeFilesPage
           v-else-if="store.currentPage === PAGE_IDS.largeFiles"

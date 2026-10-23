@@ -19,7 +19,8 @@ pub enum CoreErrorCode {
 /// Native diagnostics can contain private paths and file names, so they remain
 /// in Core logs. These stable reasons preserve the actionable part of an error
 /// without sending the original diagnostic across the process boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum CoreErrorReason {
     SystemManagedFile,
     ResourceBusy,

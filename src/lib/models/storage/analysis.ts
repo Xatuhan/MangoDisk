@@ -43,7 +43,7 @@ export interface DirectoryEntryInfo {
   modifiedAtMs: number | null;
   contentFingerprint: string | null;
   /** Older cached results omit this hint; native deletion always checks protection. */
-  deletionProtection?: 'systemManagedFile' | null;
+  deletionProtection?: 'systemManagedFile' | 'protectedPath' | null;
 }
 
 export interface AnalysisResult {
@@ -95,6 +95,20 @@ export interface AnalysisDeleteResult {
   removedPath: string;
   releasedBytes: number;
   removedFileCount: number;
+  updatedResults: AnalysisResult[];
+  invalidatedScanIds: number[];
+}
+
+export const ANALYSIS_DELETE_BATCH_SCHEMA_VERSION = 1;
+
+export interface AnalysisDeleteBatchResult {
+  schemaVersion: typeof ANALYSIS_DELETE_BATCH_SCHEMA_VERSION;
+  removedPaths: string[];
+  failed: { path: string; reason: import('@/lib/models/diagnostics/command-error').CommandErrorReason | null }[];
+  notAttemptedPaths: string[];
+  requiresRescan: boolean;
+  /** Scan-time accounting, not measured physical space reclaimed. */
+  releasedBytes: number;
   updatedResults: AnalysisResult[];
   invalidatedScanIds: number[];
 }

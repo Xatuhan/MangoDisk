@@ -604,7 +604,7 @@ describe('analysis store', () => {
     expect(store.result?.entries).toEqual([entry]);
     expect(store.recovering).toBe(true);
     expect(store.recoveryRequired).toBe(true);
-    expect(store.deleting).toBe(false);
+    expect(store.deleting).toBe(true);
     expect(store.pending).toBe(true);
     await store.cancel();
     expect(cancel).toHaveBeenCalledOnce();
@@ -731,5 +731,145 @@ describe('analysis store', () => {
     expect(store.cache['/unrelated']).toBeDefined();
     expect(store.result?.entries).toEqual([]);
     expect(store.result?.totalBytes).toBe(0);
+  });
+});
+
+describe('analysis batch deletion', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.restoreAllMocks();
+    useStorageScanPreferencesStore().initialized = true;
+    vi.spyOn(useAppStore(), 'refreshSystemDisk').mockResolvedValue(true);
+    vi.spyOn(AnalysisService, 'listenProgress').mockResolvedValue(vi.fn());
+    vi.spyOn(OperatingSystemService, 'isWindows').mockReturnValue(false);
+  });
+  const failure = { ...entry, path: '/fixture/busy.bin', name: 'busy.bin' };
+  const outcome = () => ({
+    schemaVersion: 1 as const,
+    removedPaths: [entry.path],
+    failed: [{ path: failure.path, reason: 'resourceBusy' as const }],
+    notAttemptedPaths: [],
+    requiresRescan: false,
+    releasedBytes: 64,
+    updatedResults: [{ ...result, entries: [failure] }],
+    invalidatedScanIds: [8],
+  });
+  function prepare() {
+    const store = useAnalysisStore();
+    store.result = { ...result, entries: [entry, failure] };
+    store.cache = { '/fixture': store.result, '/fixture/child': { ...result, root: '/fixture/child', scanId: 8 } };
+    store.cacheOrder = ['/fixture', '/fixture/child'];
+    return store;
+  }
+  it('applies authoritative snapshots and exposes item failures without a contradictory global error', async () => {
+    const store = prepare();
+    const remove = vi.spyOn(AnalysisService, 'deleteManyPermanently').mockResolvedValue(outcome());
+    const report = vi.spyOn(useAppStore(), 'reportError');
+    await store.deleteManyPermanently([entry, failure]);
+    expect(remove).toHaveBeenCalledWith(7, [entry.path, failure.path]);
+    expect(store.result?.entries).toEqual([failure]);
+    expect(store.cache['/fixture/child']).toBeUndefined();
+    expect(store.lastDeleteBatchResult).toEqual(outcome());
+    expect(store.deleting).toBe(false);
+    expect(report).not.toHaveBeenCalled();
+  });
+  it('clears stale caches and refreshes once when a batch is partially changed', async () => {
+    const store = prepare();
+    const batch = {
+      ...outcome(),
+      requiresRescan: true,
+      notAttemptedPaths: [failure.path],
+      failed: [],
+      updatedResults: [],
+    };
+    vi.spyOn(AnalysisService, 'deleteManyPermanently').mockResolvedValue(batch);
+    const refreshed = { ...result, scanId: 99, entries: [failure] };
+    const scan = vi.spyOn(AnalysisService, 'analyze').mockResolvedValue(refreshed);
+    await store.deleteManyPermanently([entry, failure]);
+    expect(scan).toHaveBeenCalledOnce();
+    expect(store.result).toEqual(refreshed);
+    expect(store.cache['/fixture/child']).toBeUndefined();
+    expect(store.lastDeleteBatchResult?.notAttemptedPaths).toEqual([failure.path]);
+    expect(store.recoveryRequired).toBe(false);
+  });
+  it('keeps recovery required if refreshing an uncertain batch fails', async () => {
+    const store = prepare();
+    vi.spyOn(AnalysisService, 'deleteManyPermanently').mockRejectedValue({
+      code: 'taskJoinFailed',
+      details: {},
+      retryable: false,
+    });
+    vi.spyOn(AnalysisService, 'analyze').mockRejectedValue(new Error('scan failed'));
+    await store.deleteManyPermanently([entry]);
+    expect(store.recoveryRequired).toBe(true);
+    expect(store.cache).toEqual({});
+    expect(store.lastDeleteBatchResult).toBeNull();
+    expect(store.deleting).toBe(false);
+    const remove = vi.mocked(AnalysisService.deleteManyPermanently);
+    await store.deleteManyPermanently([entry]);
+    expect(remove).toHaveBeenCalledOnce();
+  });
+});
+
+describe('analysis deletion finalization ownership', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.restoreAllMocks();
+    useStorageScanPreferencesStore().initialized = true;
+    vi.spyOn(OperatingSystemService, 'isWindows').mockReturnValue(false);
+    vi.spyOn(AnalysisService, 'listenProgress').mockResolvedValue(vi.fn());
+  });
+  it.each([
+    ['single', 'rescan'],
+    ['single', 'uncertain'],
+    ['batch', 'rescan'],
+    ['batch', 'uncertain'],
+  ] as const)('blocks another batch until %s deletion %s recovery and disk refresh finish', async (mode, outcome) => {
+    const remaining = { ...entry, name: 'remaining.bin', path: '/fixture/remaining.bin' };
+    const store = useAnalysisStore();
+    store.result = { ...result, entries: [entry, remaining] };
+    store.cache = { '/fixture': store.result };
+    vi.spyOn(AnalysisService, 'analyze').mockResolvedValue({ ...result, scanId: 99, entries: [remaining] });
+    let finishDisk: (value: boolean) => void = () => undefined;
+    const diskRefresh = new Promise<boolean>(resolve => {
+      finishDisk = resolve;
+    });
+    const refreshDisk = vi.spyOn(useAppStore(), 'refreshSystemDisk').mockImplementation(() => diskRefresh);
+    const removeMany = vi.spyOn(AnalysisService, 'deleteManyPermanently').mockResolvedValue({
+      schemaVersion: 1,
+      removedPaths: [entry.path],
+      failed: [],
+      notAttemptedPaths: [],
+      requiresRescan: true,
+      releasedBytes: 64,
+      updatedResults: [],
+      invalidatedScanIds: [],
+    });
+    vi.spyOn(AnalysisService, 'deletePermanently').mockResolvedValue({
+      schemaVersion: 1,
+      removedPath: entry.path,
+      requiresRescan: true,
+      releasedBytes: 64,
+      removedFileCount: 1,
+      updatedResults: [],
+      invalidatedScanIds: [],
+    });
+    if (outcome === 'uncertain') {
+      const error = { code: 'operationFailed', retryable: false, details: { mutationState: 'mayHaveChanged' } };
+      if (mode === 'single') vi.mocked(AnalysisService.deletePermanently).mockRejectedValueOnce(error);
+      else removeMany.mockRejectedValueOnce(error);
+    }
+    const first = mode === 'single' ? store.deletePermanently(entry) : store.deleteManyPermanently([entry]);
+    let second: Promise<unknown> = Promise.resolve();
+    try {
+      await vi.waitFor(() => expect(refreshDisk).toHaveBeenCalledOnce());
+      expect(store.pending).toBe(false);
+      expect(store.result?.scanId).toBe(99);
+      second = store.deleteManyPermanently([remaining]);
+      expect(removeMany).toHaveBeenCalledTimes(mode === 'batch' ? 1 : 0);
+    } finally {
+      finishDisk(true);
+      await Promise.all([first, second]);
+    }
   });
 });

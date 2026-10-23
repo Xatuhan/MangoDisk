@@ -17,11 +17,13 @@ pub struct ScanNameExclusion {
 }
 
 /// Compiled exact-name pruning primitive shared by native and portable walkers.
-/// Matching is case-sensitive on every platform and never follows links.
+/// User rules are case-sensitive on every platform. OS protection is independent.
+/// Traversal never follows links.
 #[derive(Debug, Clone, Default)]
 pub struct NameExclusions {
     files: HashSet<OsString>,
     folders: HashSet<OsString>,
+    protected_folders: &'static [&'static str],
 }
 
 impl NameExclusions {
@@ -56,7 +58,12 @@ impl NameExclusions {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.files.is_empty() && self.folders.is_empty()
+        self.files.is_empty() && self.folders.is_empty() && self.protected_folders.is_empty()
+    }
+
+    /// Adds trusted platform protection without consuming the user rule limit.
+    pub fn protect_folder_names(&mut self, names: &'static [&'static str]) {
+        self.protected_folders = names;
     }
 
     /// Native traversal already knows the entry kind; no extra filesystem calls are needed.
@@ -64,6 +71,11 @@ impl NameExclusions {
         path.file_name().is_some_and(|name| {
             if is_directory {
                 self.folders.contains(name)
+                    || name.to_str().is_some_and(|name| {
+                        self.protected_folders
+                            .iter()
+                            .any(|reserved| name.eq_ignore_ascii_case(reserved))
+                    })
             } else {
                 self.files.contains(name)
             }
@@ -122,7 +134,7 @@ impl NameExclusions {
     }
 
     pub fn matches_ancestor(&self, path: &Path) -> bool {
-        !self.folders.is_empty()
+        (!self.folders.is_empty() || !self.protected_folders.is_empty())
             && path
                 .ancestors()
                 .skip(1)
@@ -170,6 +182,27 @@ mod tests {
         assert!(names.matches_ancestor(Path::new("project/node_modules/lib/a.js")));
         assert!(names.matches_entry(Path::new("project/keep.txt"), false));
         assert!(!names.matches_entry(Path::new("project/keep.txt"), true));
+    }
+
+    #[test]
+    fn platform_folder_protection_preserves_user_rule_limits_and_matching() {
+        let rules: Vec<_> = (0..50)
+            .map(|index| ScanNameExclusion {
+                name: format!("user-{index}"),
+                kind: ExcludedNameKind::Folder,
+            })
+            .collect();
+        let mut names = NameExclusions::compile(&rules).unwrap();
+        names.protect_folder_names(&[".Spotlight-V100"]);
+        assert!(names.matches_entry(Path::new("root/.spotlight-v100"), true));
+        assert!(!names.matches_entry(Path::new("root/.spotlight-v100"), false));
+        assert!(names.matches_ancestor(Path::new("root/.SPOTLIGHT-V100/child")));
+        assert!(names.matches_entry(Path::new("root/user-49"), true));
+        assert!(!names.matches_entry(Path::new("root/USER-49"), true));
+        let mut names = NameExclusions::default();
+        assert!(names.is_empty());
+        names.protect_folder_names(&[".Spotlight-V100"]);
+        assert!(!names.is_empty());
     }
 
     #[test]

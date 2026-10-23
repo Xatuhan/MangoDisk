@@ -207,3 +207,54 @@ describe('AnalysisService', () => {
     }
   });
 });
+
+describe('analysis batch deletion protocol', () => {
+  const paths = ['/fixture/a', '/fixture/b', '/fixture/c'];
+  const response = () => ({
+    schemaVersion: 1,
+    removedPaths: [paths[0]],
+    failed: [{ path: paths[1], reason: 'resourceBusy' }],
+    notAttemptedPaths: [paths[2]],
+    requiresRescan: true,
+    releasedBytes: 64,
+    updatedResults: [],
+    invalidatedScanIds: [],
+  });
+  it('passes the complete selection and retains partial outcomes', async () => {
+    invokeMock.mockResolvedValueOnce(response());
+    await expect(AnalysisService.deleteManyPermanently(7, paths)).resolves.toEqual(response());
+    expect(invokeMock).toHaveBeenLastCalledWith('delete_analysis_entries_permanently', {
+      scanId: 7,
+      selectedPaths: paths,
+    });
+  });
+  it.each([
+    { schemaVersion: 2 },
+    { removedPaths: [paths[0], paths[0]] },
+    { failed: [{ path: '/outside', reason: null }] },
+    { failed: [{ path: paths[1], reason: 'unknown' }] },
+    { notAttemptedPaths: [] },
+    { requiresRescan: false },
+    { releasedBytes: -1 },
+    { updatedResults: [null] },
+    { invalidatedScanIds: ['7'] },
+  ])('rejects incompatible or incomplete outcomes and requests mutation recovery: %j', async override => {
+    invokeMock.mockResolvedValueOnce({ ...response(), ...override });
+    await expect(AnalysisService.deleteManyPermanently(7, paths)).rejects.toMatchObject({
+      code: 'operationFailed',
+      details: { mutationState: 'mayHaveChanged' },
+    });
+  });
+  it('rejects a successful response without authoritative source snapshots', async () => {
+    invokeMock.mockResolvedValueOnce({
+      ...response(),
+      removedPaths: paths,
+      failed: [],
+      notAttemptedPaths: [],
+      requiresRescan: false,
+    });
+    await expect(AnalysisService.deleteManyPermanently(7, paths)).rejects.toMatchObject({
+      details: { mutationState: 'mayHaveChanged' },
+    });
+  });
+});

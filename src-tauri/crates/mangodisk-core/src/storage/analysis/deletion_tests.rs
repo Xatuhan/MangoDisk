@@ -74,3 +74,97 @@ fn windows_managed_files_are_rejected_before_accessing_the_volume() {
         assert_eq!(error.reason(), Some(CoreErrorReason::SystemManagedFile));
     }
 }
+
+#[test]
+fn native_analysis_deletion_hints_protect_reserved_directories_without_accessing_them() {
+    #[cfg(target_os = "macos")]
+    let protected = [
+        "/System",
+        "/Library",
+        "/bin",
+        "/.Spotlight-V100",
+        "/private/var/db",
+    ];
+    #[cfg(windows)]
+    let protected = [
+        r"C:\Windows",
+        r"D:\System Volume Information",
+        r"E:\$Recycle.Bin",
+        r"C:\Program Files",
+    ];
+    #[cfg(target_os = "linux")]
+    let protected = ["/proc", "/sys", "/dev"];
+    for path in protected {
+        assert!(
+            deletion_protection(Path::new(path)).is_some(),
+            "{path} must be protected"
+        );
+    }
+    let fixture = tempfile::tempdir().unwrap();
+    assert!(deletion_protection(fixture.path()).is_none());
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn analysis_rejects_volume_metadata_directories_before_mutating_fixture_contents() {
+    for delete_parent in [false, true] {
+        for name in [
+            ".Spotlight-V100",
+            ".fseventsd",
+            ".spotlight-v100",
+            ".Trashes",
+            ".DocumentRevisions-V100",
+        ] {
+            let sandbox = tempfile::tempdir().unwrap();
+            let root = fs::canonicalize(sandbox.path()).unwrap();
+            let target = root.join(if delete_parent {
+                "ordinary-parent"
+            } else {
+                name
+            });
+            let reserved = if delete_parent {
+                target.join(name)
+            } else {
+                target.clone()
+            };
+            fs::create_dir_all(&reserved).unwrap();
+            fs::write(reserved.join("payload.bin"), b"reserved metadata fixture").unwrap();
+            let outcome = delete_candidate(AnalysisEntryCandidate {
+                scan_mode: Default::default(),
+                has_shared_allocation: false,
+                exclusions: Default::default(),
+                root: root.to_string_lossy().into_owned(),
+                path: target.to_string_lossy().into_owned(),
+                expected_logical_bytes: 25,
+                expected_displayed_bytes: 4096,
+                expected_file_count: 1,
+                is_directory: true,
+            });
+            assert!(
+                outcome.is_err(),
+                "reserved directory {name} must be rejected before mutation"
+            );
+            assert!(
+                reserved.join("payload.bin").exists(),
+                "reserved fixture contents must remain intact"
+            );
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn analysis_protects_system_directory_ancestors_without_blocking_user_managed_children() {
+    for path in ["/usr", "/private", "/Volumes/fixture/.Spotlight-V100"] {
+        assert!(
+            deletion_protection(Path::new(path)).is_some(),
+            "{path} contains protected system state"
+        );
+    }
+    for path in ["/usr/local", "/private/tmp", "/private/var/tmp"] {
+        assert!(
+            deletion_protection(Path::new(path)).is_none(),
+            "{path} remains user-managed"
+        );
+    }
+}

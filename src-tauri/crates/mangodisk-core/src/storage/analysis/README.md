@@ -21,14 +21,40 @@ as file size. The standard CLI/Core convenience APIs retain their default behavi
 call `AnalysisService::analyze_with_mode_progress` to select a metric explicitly.
 
 Analysis retains Windows-managed volume files in its space accounting. Entry
-transport adds an optional `deletionProtection` hint (`systemManagedFile` or
-`null`); adapters disable ordinary deletion for protected entries. Older cached
+transport adds an optional `deletionProtection` hint (`systemManagedFile`,
+`protectedPath`, or `null`); adapters disable selection and ordinary deletion for
+protected entries. Analysis deletion applies the platform's deletion protection
+policy to system and application-managed scopes while retaining their space
+accounting in read-only analysis. macOS also protects ancestors of reserved
+system scopes and volume metadata directories, including external volumes;
+reserved names are checked before mutation and during final tree traversal, so
+deleting an enclosing directory cannot bypass protection. This guarded traversal
+also applies when no user name exclusions are configured. Read-only navigation
+into `/usr` can still reach user-managed `/usr/local`. Older cached
 results may omit the hint, so Core always checks the platform classification
 before opening any deletion target. This covers hibernation, paging, swap, and
 DumpStack files at local volume roots, including verbatim and case variants,
 local drive device paths, Win32 trailing-dot/space aliases, and file streams.
 Verbatim trailing dots and spaces remain literal names rather than aliases.
 Use the corresponding system setting instead of deleting these files directly.
+
+## Current-directory batch deletion
+
+`AnalysisService::delete_entries_permanently` accepts at most 500 unique paths
+from one authoritative scan's direct-child entries. It validates the entire
+selection's membership before mutation, holds one filesystem mutation claim,
+and runs the existing single-item safety, staging, verification and cache
+reconciliation for each item. Protected paths, links/reparse points and scan
+exclusions remain enforced in Core regardless of cached UI hints.
+
+The versioned response separates removed paths, failed items with typed reasons,
+and paths not attempted. A failure before mutation allows the next item to run.
+Possible partial mutation, a recreated original path or expired scan authority
+stops the batch and requires fresh analysis; completed deletions cannot be rolled
+back. Only final reconciled snapshots are returned when authority remains valid.
+`releasedBytes` sums successful selections' original scan-time usage so hard-link
+allocation transfers are not counted twice. It is not a live measurement of
+reclaimed disk space.
 
 ## Interrupted scan diagnostics
 

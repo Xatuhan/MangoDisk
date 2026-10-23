@@ -10,8 +10,8 @@ use crate::{
     storage::traversal::{AnalysisScanDiagnostics, StorageTraversal},
     storage::{
         analysis::{
-            AnalysisDeleteResult, AnalysisRemainderPage, AnalysisRemainderRequest, AnalysisResult,
-            AnalysisScanMode,
+            AnalysisDeleteBatchResult, AnalysisDeleteFailure, AnalysisDeleteResult,
+            AnalysisRemainderPage, AnalysisRemainderRequest, AnalysisResult, AnalysisScanMode,
         },
         index::cache,
     },
@@ -145,6 +145,100 @@ impl AnalysisService {
     ) -> CoreResult<AnalysisDeleteResult> {
         let candidate = resolve_entry_candidate(scan_id, &selected_path)?;
         let operation = OperationGuard::start(CoordinatedOperationKind::PermanentDelete)?;
+        let result = Self::delete_entry_with_operation(scan_id, candidate, &operation)?;
+        operation.complete();
+        Ok(result)
+    }
+
+    /// One mutation claim covers the batch; every item retains the single-delete preflight.
+    pub fn delete_entries_permanently(
+        scan_id: u64,
+        selected_paths: Vec<String>,
+    ) -> CoreResult<AnalysisDeleteBatchResult> {
+        use std::collections::{BTreeMap, BTreeSet, HashSet};
+        if selected_paths.is_empty() || selected_paths.len() > super::ANALYSIS_VISIBLE_ENTRY_LIMIT {
+            return Err(crate::CoreError::invalid_input(
+                "invalid analysis deletion selection size",
+            ));
+        }
+        let mut unique = HashSet::new();
+        let mut selected_bytes = BTreeMap::new();
+        // Validate the whole request's scan ownership before crossing any mutation boundary.
+        for path in &selected_paths {
+            if !unique.insert(path) {
+                return Err(crate::CoreError::invalid_input(
+                    "duplicate analysis deletion selection",
+                ));
+            }
+            let candidate =
+                resolve_entry_candidate(scan_id, path).map_err(crate::CoreError::invalid_input)?;
+            selected_bytes.insert(path.clone(), candidate.expected_displayed_bytes);
+        }
+        let operation = OperationGuard::start(CoordinatedOperationKind::PermanentDelete)?;
+        let mut result = AnalysisDeleteBatchResult::default();
+        let mut updated = BTreeMap::new();
+        let mut invalidated = BTreeSet::new();
+        let mut remaining = selected_paths.into_iter();
+        while let Some(path) = remaining.next() {
+            // An earlier item or a concurrent scan may have expired this authority.
+            let candidate = match resolve_entry_candidate(scan_id, &path) {
+                Ok(candidate) => candidate,
+                Err(_) => {
+                    result.requires_rescan = true;
+                    result.not_attempted_paths.push(path);
+                    result.not_attempted_paths.extend(remaining);
+                    break;
+                }
+            };
+            match Self::delete_entry_with_operation(scan_id, candidate, &operation) {
+                Ok(removed) => {
+                    // Later deletions can inherit a hard link's allocation. Count the
+                    // original selection once instead of summing transferred charges.
+                    result.released_bytes = result
+                        .released_bytes
+                        .saturating_add(selected_bytes[&removed.removed_path]);
+                    result.removed_paths.push(removed.removed_path);
+                    for id in removed.invalidated_scan_ids {
+                        updated.remove(&id);
+                        invalidated.insert(id);
+                    }
+                    for snapshot in removed.updated_results {
+                        invalidated.remove(&snapshot.scan_id);
+                        updated.insert(snapshot.scan_id, snapshot);
+                    }
+                    result.requires_rescan = removed.requires_rescan;
+                }
+                Err(error) => {
+                    result.requires_rescan = error.mutation_state()
+                        == mangodisk_platform::PlatformMutationState::MayHaveChanged;
+                    result.failed.push(AnalysisDeleteFailure {
+                        path,
+                        reason: error.reason(),
+                    });
+                }
+            }
+            // Never execute another selection against an uncertain filesystem snapshot.
+            if result.requires_rescan {
+                result.not_attempted_paths.extend(remaining);
+                break;
+            }
+        }
+        if !result.requires_rescan {
+            result.updated_results = updated.into_values().collect();
+            result.invalidated_scan_ids = invalidated.into_iter().collect();
+        }
+        log::info!("analysis_delete_batch_finished operation_id={} removed={} failed={} not_attempted={} requires_rescan={}",
+            operation.id(), result.removed_paths.len(), result.failed.len(),
+            result.not_attempted_paths.len(), result.requires_rescan);
+        operation.complete();
+        Ok(result)
+    }
+
+    fn delete_entry_with_operation(
+        scan_id: u64,
+        candidate: super::AnalysisEntryCandidate,
+        operation: &OperationGuard,
+    ) -> CoreResult<AnalysisDeleteResult> {
         let started = Instant::now();
         let is_directory = candidate.is_directory;
         let scan_mode = candidate.scan_mode;
@@ -306,7 +400,6 @@ impl AnalysisService {
             outcome.result.removed_file_count,
             started.elapsed().as_millis()
         );
-        operation.complete();
         Ok(outcome.result)
     }
 }
@@ -318,6 +411,10 @@ fn original_path_requires_rescan(path: &std::path::Path) -> bool {
 #[cfg(test)]
 #[path = "delete_validation_tests.rs"]
 mod delete_validation_tests;
+
+#[cfg(test)]
+#[path = "batch_delete_tests.rs"]
+mod batch_delete_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1378,7 +1475,7 @@ mod tests {
             .unwrap()
             .path
             .clone();
-        fs::set_permissions(&locked, fs::Permissions::from_mode(0o0)).unwrap();
+        fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).unwrap();
         let result = AnalysisService::delete_entry_permanently(initial.scan_id, selected.clone());
         // Restore fixture access before assertions so a failed assertion cannot
         // leave an unreadable temporary tree behind.

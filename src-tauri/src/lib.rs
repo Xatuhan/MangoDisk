@@ -274,6 +274,7 @@ pub fn run() {
             commands::duplicate_files::delete_duplicate_files_permanently,
             commands::permanent_delete::delete_files_permanently,
             commands::permanent_delete::delete_analysis_entry_permanently,
+            commands::permanent_delete::delete_analysis_entries_permanently,
             commands::startup::scan_startup_catalog,
             commands::startup::cancel_startup_catalog_scan,
             commands::startup::cancel_startup_change,

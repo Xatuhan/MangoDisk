@@ -85,11 +85,8 @@ pub struct DirectoryEntryInfo {
 
 impl Serialize for DirectoryEntryInfo {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use mangodisk_platform::Platform;
         use serde::ser::SerializeStruct;
-        let protection = mangodisk_platform::current_platform()
-            .is_system_managed_file(std::path::Path::new(&self.path))
-            .then_some(crate::shared::CoreErrorReason::SystemManagedFile.as_str());
+        let protection = super::deletion::deletion_protection(std::path::Path::new(&self.path));
         let mut entry = serializer.serialize_struct("DirectoryEntryInfo", 8)?;
         entry.serialize_field("name", &self.name)?;
         entry.serialize_field("path", &self.path)?;
@@ -238,6 +235,54 @@ pub struct AnalysisDeleteResult {
 }
 
 impl AnalysisDeleteResult {
+    pub const SCHEMA_VERSION: u8 = 1;
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) enum AnalysisDeletionProtection {
+    SystemManagedFile,
+    ProtectedPath,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisDeleteFailure {
+    pub path: String,
+    pub reason: Option<crate::CoreErrorReason>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisDeleteBatchResult {
+    pub schema_version: u8,
+    pub removed_paths: Vec<String>,
+    pub failed: Vec<AnalysisDeleteFailure>,
+    pub not_attempted_paths: Vec<String>,
+    pub requires_rescan: bool,
+    /// Original scan-time usage of successful selections, excluding later allocation transfers.
+    /// This is not a measurement of reclaimed physical space.
+    pub released_bytes: u64,
+    pub updated_results: Vec<AnalysisResult>,
+    pub invalidated_scan_ids: Vec<u64>,
+}
+
+impl Default for AnalysisDeleteBatchResult {
+    fn default() -> Self {
+        Self {
+            schema_version: Self::SCHEMA_VERSION,
+            removed_paths: Vec::new(),
+            failed: Vec::new(),
+            not_attempted_paths: Vec::new(),
+            requires_rescan: false,
+            released_bytes: 0,
+            updated_results: Vec::new(),
+            invalidated_scan_ids: Vec::new(),
+        }
+    }
+}
+
+impl AnalysisDeleteBatchResult {
     pub const SCHEMA_VERSION: u8 = 1;
 }
 

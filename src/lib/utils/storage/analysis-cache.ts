@@ -1,4 +1,4 @@
-import type { AnalysisDeleteResult, AnalysisResult } from '@/lib/models/storage/analysis';
+import type { AnalysisDeleteBatchResult, AnalysisDeleteResult, AnalysisResult } from '@/lib/models/storage/analysis';
 import * as PathUtils from '@/lib/utils/filesystem/path';
 export function key(path: string): string {
   return PathUtils.comparisonKey(path);
@@ -35,7 +35,7 @@ export function retainExisting(order: readonly string[], cache: Readonly<Record<
 export function syncAfterDelete(
   cache: Readonly<Record<string, AnalysisResult>>,
   order: readonly string[],
-  removed: AnalysisDeleteResult,
+  removed: AnalysisDeleteResult | AnalysisDeleteBatchResult,
   limit: number
 ): { cache: Record<string, AnalysisResult>; order: string[] } {
   const invalidated = new Set(removed.invalidatedScanIds);

@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, fs, path::Path};
 
 use super::*;
+use crate::filesystem::metadata::display_path;
 
 fn analyze(root: &Path) -> AnalysisResult {
     AnalysisService::analyze_with_progress(Some(root.to_string_lossy().into_owned()), true, |_| {})
@@ -87,7 +88,7 @@ fn partial_linked_folder_deletion_expires_shared_sibling_sessions() {
         |_| {},
     )
     .unwrap();
-    fs::set_permissions(&locked, fs::Permissions::from_mode(0o0)).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).unwrap();
     let deleted = AnalysisService::delete_entry_permanently(
         initial.scan_id,
         root.join("a").to_string_lossy().into_owned(),
@@ -751,7 +752,7 @@ fn analysis_locked_descendant_before_staging_preserves_session_and_cache() {
 
 #[cfg(unix)]
 #[test]
-fn large_native_directory_failure_keeps_unknown_mutation_conservative() {
+fn large_directory_failure_preserves_only_proven_unchanged_sessions() {
     use std::os::unix::fs::PermissionsExt;
     let _operation_lock = crate::shared::operation::test_operation_lock();
     cache::clear_all().unwrap();
@@ -763,24 +764,222 @@ fn large_native_directory_failure_keeps_unknown_mutation_conservative() {
         fs::write(locked.join(format!("file-{index}")), [1]).unwrap();
     }
     let initial = analyze(&root);
-    fs::set_permissions(&locked, fs::Permissions::from_mode(0o0)).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).unwrap();
     let failed =
         AnalysisService::delete_entry_permanently(initial.scan_id, initial.entries[0].path.clone());
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o700)).unwrap();
-    let error = failed.expect_err("native recursive removal must report uncertainty");
+    let error = failed.expect_err("read-only descendants must stop recursive removal");
+    // macOS checks reserved names with a guarded traversal and can prove that
+    // no unlink occurred. Native snapshot deletion on other Unix hosts cannot.
+    let unchanged = cfg!(target_os = "macos");
     assert_eq!(
         error.mutation_state(),
-        mangodisk_platform::PlatformMutationState::MayHaveChanged
+        if unchanged {
+            mangodisk_platform::PlatformMutationState::NotAttempted
+        } else {
+            mangodisk_platform::PlatformMutationState::MayHaveChanged
+        }
     );
     assert!(
         AnalysisService::resolve_open_target(initial.scan_id, initial.entries[0].path.clone())
-            .is_err()
+            .is_ok()
+            == unchanged
     );
     assert!(locked.exists());
     assert!(
         crate::storage::analysis::index_projection::analysis_result(&root)
             .unwrap()
-            .is_none()
+            .is_some()
+            == unchanged
     );
+    cache::clear_all().unwrap();
+}
+
+#[test]
+fn batch_deletes_files_and_folders_and_reconciles_hard_link_allocations() {
+    let _operation_lock = crate::shared::operation::test_operation_lock();
+    cache::clear_all().unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(fixture.path()).unwrap();
+    fs::create_dir(root.join("folder")).unwrap();
+    fs::write(root.join("file.bin"), vec![1; 8192]).unwrap();
+    fs::hard_link(root.join("file.bin"), root.join("folder/alias.bin")).unwrap();
+    fs::write(root.join("folder/extra.bin"), vec![2; 4096]).unwrap();
+    fs::write(root.join("keep.bin"), vec![3; 4096]).unwrap();
+    let initial = analyze(&root);
+    let selected = ["file.bin", "folder"].map(|name| display_path(&root.join(name)));
+    let batch =
+        AnalysisService::delete_entries_permanently(initial.scan_id, selected.to_vec()).unwrap();
+    assert_eq!(batch.removed_paths, selected);
+    assert!(batch.failed.is_empty());
+    assert!(batch.not_attempted_paths.is_empty());
+    assert!(!batch.requires_rescan);
+    let updated = batch
+        .updated_results
+        .iter()
+        .find(|result| result.scan_id == initial.scan_id)
+        .unwrap();
+    let fresh = analyze(&root);
+    assert_eq!(updated.total_bytes, fresh.total_bytes);
+    assert_eq!(projection(updated), projection(&fresh));
+    assert_eq!(
+        batch.released_bytes,
+        initial.total_bytes - fresh.total_bytes
+    );
+    assert!(root.join("keep.bin").exists());
+    let wire = serde_json::to_value(&batch).unwrap();
+    assert_eq!(wire["schemaVersion"], 1);
+    assert!(wire["notAttemptedPaths"].is_array());
+}
+
+#[test]
+fn batch_rejects_invalid_selections_before_deleting_any_item() {
+    let _operation_lock = crate::shared::operation::test_operation_lock();
+    cache::clear_all().unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(fixture.path()).unwrap();
+    fs::create_dir(root.join("folder")).unwrap();
+    fs::write(root.join("folder/nested.bin"), vec![1; 4096]).unwrap();
+    let file = root.join("file.bin");
+    fs::write(&file, vec![2; 4096]).unwrap();
+    let initial = analyze(&root);
+    let file_path = display_path(&file);
+    for selection in [
+        vec![],
+        vec![file_path.clone(), file_path.clone()],
+        vec![file_path.clone(), root.to_string_lossy().into_owned()],
+        vec![
+            file_path.clone(),
+            root.join("folder/nested.bin")
+                .to_string_lossy()
+                .into_owned(),
+        ],
+        vec![file_path.clone(); super::super::ANALYSIS_VISIBLE_ENTRY_LIMIT + 1],
+    ] {
+        let error =
+            AnalysisService::delete_entries_permanently(initial.scan_id, selection).unwrap_err();
+        assert_eq!(error.code(), crate::CoreErrorCode::InvalidInput);
+        assert!(
+            file.exists(),
+            "invalid batch input must not delete earlier valid selections"
+        );
+    }
+}
+
+#[test]
+fn batch_retains_changed_items_and_continues_after_a_failure_before_mutation() {
+    let _operation_lock = crate::shared::operation::test_operation_lock();
+    cache::clear_all().unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(fixture.path()).unwrap();
+    fs::create_dir(root.join("changed")).unwrap();
+    fs::write(root.join("changed/payload.bin"), vec![1; 4096]).unwrap();
+    fs::write(root.join("valid.bin"), vec![2; 4096]).unwrap();
+    let initial = analyze(&root);
+    fs::remove_dir_all(root.join("changed")).unwrap();
+    fs::write(root.join("changed"), b"replacement").unwrap();
+    let selected = ["changed", "valid.bin"].map(|name| display_path(&root.join(name)));
+    let batch =
+        AnalysisService::delete_entries_permanently(initial.scan_id, selected.to_vec()).unwrap();
+    assert_eq!(batch.failed.len(), 1);
+    assert_eq!(batch.failed[0].path, selected[0]);
+    assert_eq!(batch.removed_paths, [selected[1].clone()]);
+    assert!(batch.not_attempted_paths.is_empty());
+    assert!(!batch.requires_rescan);
+    assert_eq!(fs::read(root.join("changed")).unwrap(), b"replacement");
+}
+
+#[cfg(unix)]
+#[test]
+fn batch_stops_after_partial_folder_deletion_and_reports_unattempted_items() {
+    use std::os::unix::fs::PermissionsExt;
+    let _operation_lock = crate::shared::operation::test_operation_lock();
+    cache::clear_all().unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(fixture.path()).unwrap();
+    for child in ["one", "two"] {
+        fs::create_dir_all(root.join("partial").join(child)).unwrap();
+        fs::write(
+            root.join("partial").join(child).join("file.bin"),
+            vec![1; 4096],
+        )
+        .unwrap();
+    }
+    fs::write(root.join("untouched.bin"), vec![2; 4096]).unwrap();
+    let children = fs::read_dir(root.join("partial"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect::<Vec<_>>();
+    let initial = analyze(&root);
+    fs::set_permissions(&children[1], fs::Permissions::from_mode(0o555)).unwrap();
+    let selected =
+        ["partial", "untouched.bin"].map(|name| root.join(name).to_string_lossy().into_owned());
+    let batch =
+        AnalysisService::delete_entries_permanently(initial.scan_id, selected.to_vec()).unwrap();
+    fs::set_permissions(&children[1], fs::Permissions::from_mode(0o700)).unwrap();
+    assert!(
+        !children[0].exists(),
+        "exercise an irreversible partial deletion"
+    );
+    assert!(batch.requires_rescan);
+    assert_eq!(batch.failed[0].path, selected[0]);
+    assert_eq!(batch.not_attempted_paths, [selected[1].clone()]);
+    assert!(root.join("untouched.bin").exists());
+    assert!(
+        batch.updated_results.is_empty(),
+        "uncertain snapshots must not escape the batch"
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn batch_preserves_reserved_metadata_and_its_parent_while_deleting_valid_selection() {
+    let _operation_lock = crate::shared::operation::test_operation_lock();
+    cache::clear_all().unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(fixture.path()).unwrap();
+    let reserved = root.join(".Spotlight-V100");
+    let parent = root.join("ordinary-parent");
+    let nested = parent.join(".Trashes");
+    for path in [&reserved, &nested] {
+        fs::create_dir_all(path).unwrap();
+        fs::write(path.join("payload.bin"), b"reserved").unwrap();
+    }
+    let valid = root.join("valid.bin");
+    fs::write(&valid, b"delete this fixture").unwrap();
+    let initial = analyze(&root);
+    let reserved_entry = initial
+        .entries
+        .iter()
+        .find(|entry| entry.name == ".Spotlight-V100")
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(reserved_entry).unwrap()["deletionProtection"],
+        "protectedPath"
+    );
+    let selected = [&reserved, &parent, &valid].map(|path| path.to_string_lossy().into_owned());
+    let batch =
+        AnalysisService::delete_entries_permanently(initial.scan_id, selected.to_vec()).unwrap();
+    assert_eq!(batch.removed_paths, [selected[2].clone()]);
+    assert_eq!(
+        batch
+            .failed
+            .iter()
+            .map(|failure| &failure.path)
+            .collect::<Vec<_>>(),
+        [&selected[0], &selected[1]]
+    );
+    assert!(batch.not_attempted_paths.is_empty());
+    assert!(!batch.requires_rescan);
+    assert!(reserved.join("payload.bin").exists());
+    assert!(nested.join("payload.bin").exists());
+    assert!(!valid.exists());
+    let updated = batch
+        .updated_results
+        .iter()
+        .find(|result| result.scan_id == initial.scan_id)
+        .unwrap();
+    assert_eq!(updated.entries.len(), 2);
+    assert!(AnalysisService::resolve_open_target(initial.scan_id, selected[1].clone()).is_ok());
     cache::clear_all().unwrap();
 }

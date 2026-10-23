@@ -17,6 +17,7 @@ import MdAnalysisFolderPane from './components/md-analysis-folder-pane.vue';
 import MdAnalysisVisualPane from './components/md-analysis-visual-pane.vue';
 import MdAnalysisScanButton from './components/md-analysis-scan-button.vue';
 import MdDestructiveActionDialog from '@/components/custom/md-destructive-action-dialog.vue';
+import { ByteSizeService } from '@/lib/services/settings/byte-size-service';
 import { i18n } from '@/i18n';
 import { Select } from '@/components/ui/select';
 import type { AnalysisDeleteResult, AnalysisResult } from '@/lib/models/storage/analysis';
@@ -675,5 +676,116 @@ describe('analysis page', () => {
     await wrapper.setProps({ busy: false, progress: null });
     expect(wrapper.findComponent(MdAnalysisBrowserToolbar).exists()).toBe(true);
     expect(wrapper.findComponent(MdAnalysisVisualPane).exists()).toBe(true);
+  });
+});
+
+describe('analysis page batch selection', () => {
+  const file = {
+    name: 'file.bin',
+    path: '/fixture/file.bin',
+    bytes: 32,
+    fileCount: 1,
+    isDirectory: false,
+    modifiedAtMs: null,
+    contentFingerprint: null,
+  };
+  const folder = { ...file, name: 'folder', path: '/fixture/folder', isDirectory: true };
+  const protectedEntry = {
+    ...folder,
+    name: 'reserved',
+    path: '/fixture/reserved',
+    deletionProtection: 'protectedPath' as const,
+  };
+  function createPage() {
+    return shallowMount(AnalysisPage, {
+      props: {
+        result: { ...result, entries: [file, folder, protectedEntry] },
+        excludedFolders: [],
+        homePath: '/fixture',
+        disk: null,
+        disks: [],
+        progress: null,
+        busy: false,
+        cancelling: false,
+        deleting: false,
+      },
+      global: { plugins: [i18n], stubs: { MdPageShell: { template: '<div><slot /></div>' } } },
+    });
+  }
+  it('confirms the current files and folders together and rejects protected or foreign selections', async () => {
+    const wrapper = createPage();
+    const pane = wrapper.getComponent(MdAnalysisFolderPane);
+    pane.vm.$emit('update:selectedPaths', [file.path, folder.path, protectedEntry.path, '/elsewhere']);
+    await flushPromises();
+    expect(pane.props('selectedPaths')).toEqual([file.path, folder.path]);
+    pane.vm.$emit('deleteSelected');
+    await flushPromises();
+    const dialog = wrapper.getComponent(MdDestructiveActionDialog);
+    expect(dialog.props('open')).toBe(true);
+    expect(dialog.props('title')).toBe('Permanently delete the selected items?');
+    dialog.vm.$emit('confirm');
+    expect(wrapper.emitted('deleteMany')).toEqual([[[file, folder]]]);
+    expect(wrapper.emitted('delete')).toBeUndefined();
+    wrapper.unmount();
+  });
+  it.each([100, 500])('confirms all %i entries with the full total after cancelling and reopening', async count => {
+    const selected = Array.from({ length: count }, (_, index) => ({
+      ...file,
+      name: `${index}-${'long-name-'.repeat(20)}.bin`,
+      path: `/fixture/${index}-${'long-name-'.repeat(20)}.bin`,
+      bytes: index * 1024,
+      isDirectory: index % 2 === 0,
+    }));
+    const wrapper = createPage();
+    await wrapper.setProps({ result: { ...result, entries: [...selected, protectedEntry] } });
+    const pane = wrapper.getComponent(MdAnalysisFolderPane);
+    pane.vm.$emit('update:selectedPaths', [...selected.map(entry => entry.path), protectedEntry.path]);
+    await flushPromises();
+    pane.vm.$emit('deleteSelected');
+    await flushPromises();
+    const dialog = wrapper.getComponent(MdDestructiveActionDialog);
+    expect(dialog.props('summaryLabel')).toBe(`${count} selected`);
+    expect(dialog.props('summaryValue')).toBe(
+      ByteSizeService.bytes(selected.reduce((sum, entry) => sum + entry.bytes, 0))
+    );
+    expect(wrapper.emitted('deleteMany')).toBeUndefined();
+    dialog.vm.$emit('update:open', false);
+    await flushPromises();
+    expect(dialog.props('open')).toBe(false);
+    expect(wrapper.emitted('deleteMany')).toBeUndefined();
+    pane.vm.$emit('deleteSelected');
+    await flushPromises();
+    expect(dialog.props('open')).toBe(true);
+    dialog.vm.$emit('confirm');
+    await flushPromises();
+    expect(wrapper.emitted('deleteMany')).toEqual([[[...selected].sort((left, right) => right.bytes - left.bytes)]]);
+    expect(dialog.props('open')).toBe(false);
+    wrapper.unmount();
+  });
+  it('clears selection and confirmation when scan authority changes', async () => {
+    const wrapper = createPage();
+    const pane = wrapper.getComponent(MdAnalysisFolderPane);
+    pane.vm.$emit('update:selectedPaths', [file.path]);
+    await flushPromises();
+    pane.vm.$emit('deleteSelected');
+    await flushPromises();
+    await wrapper.setProps({ result: { ...result, scanId: 8, entries: [file] } });
+    expect(pane.props('selectedPaths')).toEqual([]);
+    const dialog = wrapper.getComponent(MdDestructiveActionDialog);
+    expect(dialog.props('open')).toBe(false);
+    dialog.vm.$emit('confirm');
+    expect(wrapper.emitted('deleteMany')).toBeUndefined();
+    wrapper.unmount();
+  });
+  it('blocks selection and batch confirmation while result recovery is required', async () => {
+    const wrapper = createPage();
+    await wrapper.setProps({ recoveryRequired: true });
+    const pane = wrapper.getComponent(MdAnalysisFolderPane);
+    pane.vm.$emit('update:selectedPaths', [file.path]);
+    pane.vm.$emit('deleteSelected');
+    await flushPromises();
+    expect(pane.props('selectedPaths')).toEqual([]);
+    expect(wrapper.getComponent(MdDestructiveActionDialog).props('open')).toBe(false);
+    wrapper.unmount();
   });
 });

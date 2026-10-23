@@ -92,3 +92,48 @@ it('keeps live hints readable across updates while honoring deactivation and emp
     wrapper.unmount();
   }
 });
+
+it('restores a keyboard hint after focus scroll without reopening it after dismissal', async () => {
+  const parent = document.createElement('div');
+  document.body.append(parent);
+  const wrapper = mount(MdTooltip, {
+    attachTo: parent,
+    props: { text: 'Full file name\n/fixture/full-file-name', multiline: true, delayDuration: 0 },
+    slots: { default: () => h('button', 'File') },
+  });
+  const button = wrapper.get('button').element;
+  const matches = button.matches.bind(button);
+  vi.spyOn(button, 'matches').mockImplementation(selector => selector === ':focus-visible' || matches(selector));
+  const settleFocusScroll = () =>
+    new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  try {
+    button.focus();
+    await flushPromises();
+    parent.dispatchEvent(new Event('scroll'));
+    await flushPromises();
+    await settleFocusScroll();
+    await flushPromises();
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('/fixture/full-file-name');
+
+    button.blur();
+    await flushPromises();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    button.focus();
+    await flushPromises();
+    await wrapper.get('button').trigger('keydown', { key: 'Escape' });
+    await settleFocusScroll();
+    await flushPromises();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+
+    button.blur();
+    button.focus();
+    await wrapper.setProps({ active: false });
+    await settleFocusScroll();
+    await flushPromises();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+  } finally {
+    wrapper.unmount();
+    parent.remove();
+    vi.restoreAllMocks();
+  }
+});

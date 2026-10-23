@@ -8,12 +8,14 @@ import MdStorageScopeSelect from '@/components/custom/md-storage-scope-select.vu
 import MdEmptyState from '@/components/custom/md-empty-state.vue';
 import MdOperationProgress from '@/components/custom/md-operation-progress.vue';
 import MdPageShell from '@/components/custom/md-page-shell.vue';
+import MdTooltip from '@/components/custom/md-tooltip.vue';
 import MdDestructiveActionDialog from '@/components/custom/md-destructive-action-dialog.vue';
 import { ANALYSIS_SCAN_MODES, ANALYSIS_VIEW_IDS } from '@/lib/models/storage/analysis';
 import { STORAGE_SCOPE_IDS } from '@/lib/models/storage/storage-scope';
 import { ICON_NAMES } from '@/lib/models/presentation/ui';
 import type {
   AnalysisResult,
+  AnalysisDeleteBatchResult,
   AnalysisScanMode,
   AnalysisViewId,
   DirectoryEntryInfo,
@@ -30,6 +32,8 @@ import { useStorageScanPreferencesStore } from '@/stores/storage-scan-preference
 import { useStorageScopeStore } from '@/stores/storage-scope-store';
 import { useAnalysisStore } from '@/stores/analysis-store';
 
+import { FormatService } from '@/lib/services/presentation/format-service';
+import MdAnalysisDeleteResultDialog from './components/md-analysis-delete-result-dialog.vue';
 import MdAnalysisScanButton from './components/md-analysis-scan-button.vue';
 import MdAnalysisBrowserToolbar from './components/md-analysis-browser-toolbar.vue';
 import MdAnalysisFolderPane from './components/md-analysis-folder-pane.vue';
@@ -52,6 +56,7 @@ const props = defineProps<{
   deletingPath?: string | null;
   recovering?: boolean;
   recoveryRequired?: boolean;
+  deleteBatchResult?: AnalysisDeleteBatchResult | null;
 }>();
 
 const emit = defineEmits<{
@@ -62,6 +67,7 @@ const emit = defineEmits<{
   openEntry: [scanId: number, path: string];
   reveal: [path: string];
   delete: [entry: DirectoryEntryInfo];
+  deleteMany: [entries: DirectoryEntryInfo[]];
 }>();
 
 const storageScopeStore = useStorageScopeStore();
@@ -80,7 +86,12 @@ interface PendingHistoryNavigation {
 const pendingHistoryNavigation = ref<PendingHistoryNavigation | null>(null);
 const primaryAnalysisPending = ref(false);
 const confirmOpen = ref(false);
-const pendingDelete = ref<DirectoryEntryInfo | null>(null);
+const pendingDelete = ref<DirectoryEntryInfo[]>([]);
+const pendingDeleteScanId = ref<number | null>(null);
+const pendingBatch = ref(false);
+const selectedPaths = ref<string[]>([]);
+const deleteResultOpen = ref(false);
+const pendingBytes = computed(() => pendingDelete.value.reduce((sum, entry) => sum + entry.bytes, 0));
 const analysisStore = useAnalysisStore();
 const scanHint = computed(() => {
   const hint = t('loading.cancelHint');
@@ -118,6 +129,15 @@ onDeactivated(() => {
 });
 
 const entries = computed(() => [...(props.result?.entries ?? [])].sort((left, right) => right.bytes - left.bytes));
+const selectedEntries = computed(() => {
+  const paths = new Set(selectedPaths.value);
+  return entries.value.filter(entry => paths.has(entry.path) && !entry.deletionProtection);
+});
+function updateSelection(paths: string[]) {
+  if (props.busy || props.deleting || props.recoveryRequired || !resultMatchesExclusions.value) return;
+  const allowed = new Set(entries.value.filter(entry => !entry.deletionProtection).map(entry => entry.path));
+  selectedPaths.value = [...new Set(paths)].filter(path => allowed.has(path));
+}
 const folderCount = computed(() => entries.value.filter(entry => entry.isDirectory).length);
 const fileCount = computed(() => entries.value.reduce((total, entry) => total + entry.fileCount, 0));
 const hasRelevantExclusions = computed(() => {
@@ -141,6 +161,31 @@ const resultMatchesExclusions = computed(
       props.excludedNames ?? [],
       scanPreferencesStore.namesForScope('analysis')
     )
+);
+watch(
+  [
+    () => props.result?.scanId,
+    () => props.result?.root,
+    () => props.busy,
+    () => props.recoveryRequired,
+    resultMatchesExclusions,
+  ],
+  () => {
+    selectedPaths.value = [];
+    if (!props.deleting) {
+      confirmOpen.value = false;
+      pendingDelete.value = [];
+    }
+  }
+);
+watch(
+  () => props.deleteBatchResult,
+  result => {
+    if (!result) return;
+    const removed = new Set(result.removedPaths);
+    selectedPaths.value = selectedPaths.value.filter(path => !removed.has(path));
+    deleteResultOpen.value = result.failed.length > 0 || result.notAttemptedPaths.length > 0;
+  }
 );
 const activeDisk = computed(() =>
   VolumeUtils.findForPath(
@@ -280,23 +325,35 @@ function openEntry(entry: DirectoryEntryInfo) {
 }
 
 function requestDelete(entry: DirectoryEntryInfo) {
-  if (props.busy || props.deleting || entry.deletionProtection || !resultMatchesExclusions.value) return;
-  pendingDelete.value = entry;
+  requestDeletion([entry], false);
+}
+function requestDeletion(targets: DirectoryEntryInfo[], batch: boolean) {
+  if (props.busy || props.deleting || props.recoveryRequired || !props.result || !resultMatchesExclusions.value) return;
+  const paths = new Set(targets.map(entry => entry.path));
+  const current = entries.value.filter(entry => paths.has(entry.path) && !entry.deletionProtection);
+  if (!current.length || current.length !== paths.size) return;
+  pendingDelete.value = current;
+  pendingDeleteScanId.value = props.result.scanId;
+  pendingBatch.value = batch;
   confirmOpen.value = true;
 }
-
 function confirmDelete() {
   if (
-    !pendingDelete.value ||
-    pendingDelete.value.deletionProtection ||
+    !pendingDelete.value.length ||
+    pendingDeleteScanId.value !== props.result?.scanId ||
     props.busy ||
     props.deleting ||
+    props.recoveryRequired ||
     !resultMatchesExclusions.value
   )
     return;
-  emit('delete', pendingDelete.value);
+  const paths = new Set(pendingDelete.value.map(entry => entry.path));
+  const current = entries.value.filter(entry => paths.has(entry.path) && !entry.deletionProtection);
+  if (current.length !== paths.size) return;
+  if (pendingBatch.value) emit('deleteMany', current);
+  else emit('delete', current[0]!);
   confirmOpen.value = false;
-  pendingDelete.value = null;
+  pendingDelete.value = [];
 }
 
 function navigateHistory(index: number) {
@@ -405,6 +462,8 @@ function navigateHistory(index: number) {
           v-show="!listCollapsed"
           id="analysis-file-list"
           :entries="entries"
+          :selected-paths="selectedPaths"
+          :deleting="deleting"
           :total-bytes="result.totalBytes"
           :folder-count="folderCount"
           :file-count="fileCount"
@@ -413,6 +472,8 @@ function navigateHistory(index: number) {
           :delete-disabled="busy || deleting || recoveryRequired || !resultMatchesExclusions"
           :deleting-path="deletingPath"
           :hovered-entry-path="hoveredEntryPath"
+          @update:selected-paths="updateSelection"
+          @delete-selected="requestDeletion(selectedEntries, true)"
           @hover-entry="hoverEntry"
           @activate="activateEntry"
           @open-entry="openEntry"
@@ -446,15 +507,43 @@ function navigateHistory(index: number) {
 
     <MdDestructiveActionDialog
       v-model:open="confirmOpen"
-      :title="t('analysis.deleteTitle')"
-      :description="t('analysis.deleteDescription')"
-      :summary-label="pendingDelete?.name"
-      :summary-value="pendingDelete ? ByteSizeService.bytes(pendingDelete.bytes) : ''"
+      :title="pendingBatch ? t('analysis.batchDeleteTitle') : t('analysis.deleteTitle')"
+      :description="pendingBatch ? t('analysis.batchDeleteDescription') : t('analysis.deleteDescription')"
+      :summary-label="
+        pendingBatch
+          ? t('analysis.selectedCount', { count: FormatService.integer(pendingDelete.length) })
+          : pendingDelete[0]?.name
+      "
+      :summary-value="ByteSizeService.bytes(pendingBytes)"
+      :summary-value-hint="t('analysis.deleteSizeHint')"
       :cancel-label="t('common.cancel')"
       :confirm-label="t('analysis.deleteAction')"
       :busy="deleting"
       @confirm="confirmDelete"
-    />
+    >
+      <template v-if="pendingBatch" #details>
+        <ul
+          class="max-h-48 overflow-y-auto scrollbar-stable"
+          :aria-label="t('analysis.selectedCount', { count: FormatService.integer(pendingDelete.length) })"
+        >
+          <li
+            v-for="entry in pendingDelete"
+            :key="entry.path"
+            class="flex min-w-0 items-center justify-between gap-3 py-1.5"
+          >
+            <MdTooltip :text="`${entry.name}\n${entry.path}`" multiline :active="confirmOpen">
+              <span
+                tabindex="0"
+                class="min-w-0 truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >{{ entry.name }}</span
+              >
+            </MdTooltip>
+            <span class="shrink-0 text-muted-foreground">{{ ByteSizeService.bytes(entry.bytes) }}</span>
+          </li>
+        </ul>
+      </template>
+    </MdDestructiveActionDialog>
+    <MdAnalysisDeleteResultDialog v-model:open="deleteResultOpen" :result="deleteBatchResult ?? null" />
   </MdPageShell>
 </template>
 

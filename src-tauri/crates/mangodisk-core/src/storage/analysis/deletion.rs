@@ -14,6 +14,22 @@ use std::{
     time::Instant,
 };
 
+/// Read-only analysis may display reserved entries; destructive actions use the
+/// platform deletion policy for system and application-owned directory scopes.
+pub(super) fn deletion_protection(
+    path: &Path,
+) -> Option<super::models::AnalysisDeletionProtection> {
+    use super::models::AnalysisDeletionProtection;
+    let platform = current_platform();
+    if platform.is_system_managed_file(path) {
+        Some(AnalysisDeletionProtection::SystemManagedFile)
+    } else if platform.is_protected_deletion_path(path) {
+        Some(AnalysisDeletionProtection::ProtectedPath)
+    } else {
+        None
+    }
+}
+
 pub(crate) struct AnalysisDeleteOutcome {
     pub(crate) target: PathBuf,
     pub(crate) removed_usage: FileSpaceUsage,
@@ -28,6 +44,13 @@ pub(crate) fn delete_candidate(
 ) -> Result<AnalysisDeleteOutcome, PermanentDeleteError> {
     let validation_started = Instant::now();
     reject_system_managed_file(Path::new(&candidate.path))?;
+    if deletion_protection(Path::new(&candidate.path)).is_some() {
+        return Err(
+            "MangoDisk cannot process a protected system or application item"
+                .to_string()
+                .into(),
+        );
+    }
     let requested_root = PathBuf::from(&candidate.root);
     let root = current_platform()
         .canonicalize_no_links(&requested_root)
@@ -83,6 +106,7 @@ pub(crate) fn delete_candidate(
             ScanPurpose::Analysis,
         )
         .is_some()
+        || deletion_protection(&target).is_some()
     {
         return Err(
             "MangoDisk cannot process a protected system or application item"
@@ -99,7 +123,8 @@ pub(crate) fn delete_candidate(
             .to_string()
             .into());
     }
-    let names = mangodisk_platform::NameExclusions::compile(&candidate.exclusions.names)?;
+    let mut names = mangodisk_platform::NameExclusions::compile(&candidate.exclusions.names)?;
+    names.protect_folder_names(current_platform().protected_deletion_folder_names());
     let overlaps_path = candidate.exclusions.paths.iter().any(|excluded| {
         let excluded = Path::new(excluded);
         current_platform().path_is_same_or_child(&target, excluded)

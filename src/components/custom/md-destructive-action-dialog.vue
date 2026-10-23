@@ -16,6 +16,7 @@ const props = withDefaults(
     description: string;
     summaryLabel?: string;
     summaryValue?: string;
+    summaryValueHint?: string;
     note?: string;
     cancelLabel: string;
     confirmLabel: string;
@@ -27,6 +28,7 @@ const props = withDefaults(
   {
     summaryLabel: '',
     summaryValue: '',
+    summaryValueHint: '',
     note: '',
     busy: false,
     loading: false,
@@ -40,6 +42,16 @@ const emit = defineEmits<{
   confirm: [];
 }>();
 
+function focusCancel(event: Event) {
+  if (!props.summaryValueHint || props.showDetails) return;
+  // Keep the hint closed on entry and retain the safe action as initial focus.
+  const cancel = (event.target as HTMLElement).querySelector<HTMLButtonElement>('[data-destructive-cancel]');
+  if (cancel && !cancel.disabled) {
+    event.preventDefault();
+    cancel.focus();
+  }
+}
+
 function updateOpen(open: boolean) {
   // A destructive command continues in Core after confirmation. Keep its
   // activity dialog visible until the owning Store settles so Escape, an
@@ -52,7 +64,12 @@ function updateOpen(open: boolean) {
 <template>
   <Dialog :open="open" @update:open="updateOpen">
     <!-- Shared hierarchy keeps risk, target summary, and actions consistent. -->
-    <MdDialogContent class="flex min-h-0 flex-col" :size="showDetails ? 'large' : 'standard'" :show-close="!busy">
+    <MdDialogContent
+      class="flex min-h-0 flex-col"
+      :size="showDetails ? 'large' : 'standard'"
+      :show-close="!busy"
+      @open-auto-focus="focusCancel"
+    >
       <MdDialogHeader class="flex-none" variant="alert">
         <div class="destructive-dialog-icon" aria-hidden="true">
           <MdIcon :name="ICON_NAMES.trash" :size="20" />
@@ -72,18 +89,29 @@ function updateOpen(open: boolean) {
             </span>
           </strong></MdTooltip
         >
-        <span>{{ summaryValue }}</span>
+        <span class="destructive-dialog-summary-value">
+          {{ summaryValue }}
+          <MdTooltip v-if="summaryValueHint" :text="summaryValueHint">
+            <button
+              type="button"
+              :aria-label="summaryValueHint"
+              class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm hover:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <MdIcon :name="ICON_NAMES.info" :size="14" aria-hidden="true" />
+            </button>
+          </MdTooltip>
+        </span>
       </div>
       <p v-if="note" class="destructive-dialog-note">
         <MdIcon :name="ICON_NAMES.info" :size="15" />
         <span>{{ note }}</span>
       </p>
-      <div v-if="showDetails && $slots.default" class="destructive-dialog-content">
-        <slot />
+      <div v-if="(showDetails && $slots.default) || $slots.details" class="destructive-dialog-content">
+        <slot name="details"><slot /></slot>
       </div>
 
       <MdDialogFooter v-if="!showDetails" class="destructive-dialog-footer">
-        <Button variant="outline" type="button" :disabled="busy" @click="updateOpen(false)">
+        <Button data-destructive-cancel variant="outline" type="button" :disabled="busy" @click="updateOpen(false)">
           {{ cancelLabel }}
         </Button>
         <Button variant="destructive" type="button" :disabled="busy || loading" @click="emit('confirm')">
@@ -138,8 +166,11 @@ function updateOpen(open: boolean) {
   white-space: nowrap;
 }
 
-.destructive-dialog-summary > span {
+.destructive-dialog-summary-value {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  gap: 4px;
   @apply text-muted-foreground;
 }
 
