@@ -4199,7 +4199,16 @@
     "spanningVolume": "Volumen en varios discos",
     "diskTopologyUnknown": "Asignación de disco no disponible",
     "systemDiskSelected": "Disco del sistema ({name})",
-    "currentDiskSource": "Actual: {name}"
+    "currentDiskSource": "Actual: {name}",
+    "cpuFrequency": "CPU: frecuencia",
+    "cpuEfficiencyFrequency": "CPU: frecuencia de núcleos de eficiencia",
+    "cpuPerformanceFrequency": "CPU: frecuencia de núcleos de rendimiento",
+    "cpuSuperFrequency": "CPU: frecuencia de supernúcleos",
+    "frequencyIdle": "Reposo",
+    "frequencyIdleReason": "Este tipo de núcleo no estuvo activo durante la muestra válida",
+    "frequencyNoSample": "Sin muestra válida para este tipo de núcleo",
+    "frequencyInterval": "Proporción de estados durante la muestra",
+    "frequencyActive": "Activo"
   },
   "webviewRuntime": {
     "updateRequired": "El componente que muestra MangoDisk está desactualizado. Actualiza Microsoft Edge WebView2 Runtime y vuelve a abrir MangoDisk",
@@ -4444,10 +4453,10 @@
     "snapToEdges": "Ajustar a los bordes",
     "hideOnFullscreen": "Ocultar automáticamente en pantalla completa",
     "labels": {
-      "fan": "Ventilador",
+      "fan": "Vent",
       "cpu": "CPU",
       "gpu": "GPU",
-      "memory": "Memoria",
+      "memory": "RAM",
       "disk": "Disco",
       "cpuTemperature": "Temp CPU",
       "gpuTemperature": "Temp GPU",
@@ -4458,7 +4467,11 @@
       "systemPower": "Sistema",
       "fanSpeed": "Vent. GPU",
       "upload": "Subida",
-      "download": "Bajada"
+      "download": "Bajada",
+      "cpuFrequency": "Frec. CPU",
+      "cpuEfficiencyFrequency": "CPU E",
+      "cpuPerformanceFrequency": "CPU P",
+      "cpuSuperFrequency": "CPU S"
     },
     "fontSize": "Tamaño de letra",
     "bold": "Texto en negrita",

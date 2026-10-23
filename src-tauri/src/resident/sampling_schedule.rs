@@ -4,6 +4,7 @@
 pub struct Demand {
     pub active: bool,
     pub detailed: bool,
+    pub frequency: bool,
     pub temperature: bool,
     pub battery: bool,
     pub system_power: bool,

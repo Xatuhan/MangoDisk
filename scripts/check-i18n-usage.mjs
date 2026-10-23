@@ -50,6 +50,9 @@ const dynamicKeyGroups = {
     'batteryDischarging',
     'batteryIdle',
     'fanValidReadings',
+    'frequencyIdleReason',
+    'frequencyInterval',
+    'frequencyActive',
   ],
   navigation: [
     'system-optimization',

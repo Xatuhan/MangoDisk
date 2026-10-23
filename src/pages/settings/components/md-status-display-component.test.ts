@@ -892,7 +892,9 @@ describe('status display interactions', () => {
     expect(wrapper.get('#resident-enabled-hint').text()).toBe('systemStatus.linuxDisplayHint');
     expect(wrapper.find('#taskbar-background').exists()).toBe(false);
     expect(wrapper.get('[data-metric="gpu"] [role="status"]').text()).toBe('systemStatus.platformUnsupported');
-    expect(wrapper.findAll('.drag-handle')).toHaveLength(saved.metrics.length);
+    expect(wrapper.findAll('.drag-handle')).toHaveLength(
+      saved.metrics.filter(metric => !metric.id.endsWith('Frequency')).length
+    );
 
     await wrapper.get('#linux-tray-compact').trigger('click');
     await flushPromises();
@@ -906,9 +908,15 @@ describe('status display interactions', () => {
     await memoryHandle.trigger('keydown', { key: 'Enter' });
     await flushPromises();
     const ids = saved.metrics.map(row => row.id);
+    const visibleIds = ids.filter(id => !id.endsWith('Frequency'));
+    const previousVisible = visibleIds[visibleIds.indexOf('memory') - 1]!;
     const memoryIndex = ids.indexOf('memory');
-    [ids[memoryIndex - 1], ids[memoryIndex]] = [ids[memoryIndex]!, ids[memoryIndex - 1]!];
-    expect(wrapper.findAll('.metric-row').map(row => row.attributes('data-metric'))).toEqual(ids);
+    const targetIndex = ids.indexOf(previousVisible);
+    const [moving] = ids.splice(memoryIndex, 1);
+    ids.splice(targetIndex, 0, moving!);
+    expect(wrapper.findAll('.metric-row').map(row => row.attributes('data-metric'))).toEqual(
+      ids.filter(id => !id.endsWith('Frequency'))
+    );
     const preferences = vi.mocked(ResidentService.savePreferences).mock.calls.at(-1)![0];
     expect(preferences.metrics.map(row => row.id)).toEqual(ids);
     expect(preferences.metrics.find(row => row.id === 'gpu')?.enabled).toBe(false);
@@ -1074,7 +1082,10 @@ describe('status display interactions', () => {
     await flushPromises();
     await openConfiguration(wrapper);
     expect(wrapper.find('input[name="windows-display-mode"]').exists()).toBe(false);
-    expect(wrapper.findAll('.drag-handle')).toHaveLength(preferencesFixture().metrics.length);
+    expect(wrapper.findAll('.drag-handle')).toHaveLength(
+      preferencesFixture().metrics.filter(metric => !metric.id.endsWith('Frequency') || metric.id === 'cpuFrequency')
+        .length
+    );
     await wrapper.get('input[name="taskbar-position"][value="left"]').setValue(true);
     await flushPromises();
     expect(ResidentService.savePreferences).toHaveBeenLastCalledWith(
@@ -1086,7 +1097,7 @@ describe('status display interactions', () => {
     await wrapper.get('input[name="taskbar-position"][value="auto"]').setValue(true);
     await flushPromises();
     expect(ResidentService.savePreferences).toHaveBeenLastCalledWith(
-      expect.objectContaining({ schemaVersion: 37, taskbarPosition: 'auto' })
+      expect.objectContaining({ schemaVersion: 38, taskbarPosition: 'auto' })
     );
   });
 
@@ -1148,7 +1159,10 @@ describe('status display interactions', () => {
     wrappers.push(wrapper);
     await flushPromises();
     await openConfiguration(wrapper);
-    expect(wrapper.findAll('.drag-handle')).toHaveLength(preferencesFixture().metrics.length);
+    expect(wrapper.findAll('.drag-handle')).toHaveLength(
+      preferencesFixture().metrics.filter(metric => !metric.id.endsWith('Frequency') || metric.id === 'cpuFrequency')
+        .length
+    );
     await wrapper.get('#status-network').trigger('click');
     await flushPromises();
     const preferences = vi.mocked(ResidentService.savePreferences).mock.calls[0]![0];
@@ -1706,4 +1720,31 @@ it('selects several menu-bar GPUs with checkboxes without discarding detail or t
       gpuTemperatureDisplay: { mode: 'selected', adapterIds: ['b', 'a'] },
     })
   );
+});
+
+it.each([
+  { isMacOs: false, classes: ['average'] as const, visible: ['cpuFrequency'] },
+  {
+    isMacOs: true,
+    classes: ['efficiency', 'performance'] as const,
+    visible: ['cpuEfficiencyFrequency', 'cpuPerformanceFrequency'],
+  },
+  {
+    isMacOs: true,
+    classes: ['performance', 'super'] as const,
+    visible: ['cpuPerformanceFrequency', 'cpuSuperFrequency'],
+  },
+  { isMacOs: true, classes: [] as const, visible: [] },
+])('offers only installed frequency classes on macOS=$isMacOs: $classes', async ({ isMacOs, classes, visible }) => {
+  const reading = readingFixture();
+  reading.cpuIdentity = { model: null, nominalFrequencyMhz: null, frequencyClasses: [...classes] };
+  vi.mocked(ResidentService.catalogue).mockResolvedValue(reading);
+  const wrapper = mount(Settings, { props: { isMacOs }, global: global() });
+  wrappers.push(wrapper);
+  await flushPromises();
+  await openConfiguration(wrapper);
+  for (const id of ['cpuFrequency', 'cpuEfficiencyFrequency', 'cpuPerformanceFrequency', 'cpuSuperFrequency']) {
+    expect(wrapper.find(`#status-${id}`).exists()).toBe(visible.some(value => value === id));
+    expect(wrapper.find(`#color-configure-${id}`).exists()).toBe(false);
+  }
 });

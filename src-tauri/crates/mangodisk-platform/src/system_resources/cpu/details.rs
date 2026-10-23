@@ -19,6 +19,15 @@ mod windows;
 pub struct CpuIdentity {
     pub model: Option<String>,
     pub nominal_frequency_mhz: Option<f64>,
+    pub frequency_classes: Vec<CpuFrequencyClass>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CpuFrequencyClass {
+    Average,
+    Efficiency,
+    Performance,
+    Super,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,11 +43,39 @@ pub struct CpuFrequency {
     pub performance_mhz: Option<f64>,
     pub super_mhz: Option<f64>,
     pub source: CpuFrequencySource,
+    pub activity: Vec<CpuFrequencyActivity>,
+}
+
+/// Mean residency ratios across the observed channels of one core class.
+/// An absent entry means no complete, positive-duration observation exists.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CpuFrequencyActivity {
+    pub class: CpuFrequencyClass,
+    pub active_ratio: f64,
+    pub idle_ratio: f64,
+    pub down_ratio: f64,
+    pub off_ratio: f64,
+}
+impl CpuFrequencyActivity {
+    pub fn is_idle(&self) -> bool {
+        let ratios = [
+            self.active_ratio,
+            self.idle_ratio,
+            self.down_ratio,
+            self.off_ratio,
+        ];
+        ratios
+            .iter()
+            .all(|v| v.is_finite() && (0.0..=1.0).contains(v))
+            && self.active_ratio == 0.0
+            && (self.idle_ratio + self.down_ratio + self.off_ratio - 1.0).abs() < 0.000001
+    }
 }
 
 pub struct CpuDetails {
     pub identity: CpuIdentity,
-    // None means no demand, Ok(None) means a baseline or no active observation.
+    // None means no demand; Ok(None) means no completed sampling interval yet.
     pub frequency: Option<PlatformResult<Option<CpuFrequency>>>,
     pub temperature: Option<PlatformResult<CpuTemperature>>,
 }
@@ -196,9 +233,17 @@ fn identity() -> CpuIdentity {
     let nominal_frequency_mhz = sysctl_bytes(c"hw.cpufrequency")
         .and_then(|bytes| <[u8; 8]>::try_from(bytes).ok())
         .and_then(|bytes| valid_mhz(u64::from_ne_bytes(bytes) as f64 / 1_000_000.0));
+    #[cfg(target_arch = "aarch64")]
+    let frequency_classes = model
+        .as_deref()
+        .map(macos::frequency_classes)
+        .unwrap_or_default();
+    #[cfg(not(target_arch = "aarch64"))]
+    let frequency_classes = Vec::new();
     CpuIdentity {
         model,
         nominal_frequency_mhz,
+        frequency_classes,
     }
 }
 #[cfg(not(any(windows, target_os = "macos")))]

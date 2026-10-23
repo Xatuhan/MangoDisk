@@ -4199,7 +4199,16 @@
     "spanningVolume": "跨多块硬盘的卷",
     "diskTopologyUnknown": "硬盘归属未知",
     "systemDiskSelected": "系统盘（{name}）",
-    "currentDiskSource": "当前：{name}"
+    "currentDiskSource": "当前：{name}",
+    "cpuFrequency": "CPU 频率",
+    "cpuEfficiencyFrequency": "CPU 能效核心频率",
+    "cpuPerformanceFrequency": "CPU 性能核心频率",
+    "cpuSuperFrequency": "CPU 超级核心频率",
+    "frequencyIdle": "空闲",
+    "frequencyIdleReason": "本次有效采样中，该类核心未活跃",
+    "frequencyNoSample": "该类核心暂无有效采样",
+    "frequencyInterval": "采样期间状态占比",
+    "frequencyActive": "活跃"
   },
   "webviewRuntime": {
     "updateRequired": "当前界面运行组件版本较旧。请更新 Microsoft Edge WebView2 Runtime，然后重新打开 MangoDisk",
@@ -4458,7 +4467,11 @@
       "systemPower": "整机功率",
       "fanSpeed": "GPU 风扇",
       "upload": "上传",
-      "download": "下载"
+      "download": "下载",
+      "cpuFrequency": "CPU 频率",
+      "cpuEfficiencyFrequency": "能效核",
+      "cpuPerformanceFrequency": "性能核",
+      "cpuSuperFrequency": "超级核"
     },
     "fontSize": "字体大小",
     "bold": "加粗显示",

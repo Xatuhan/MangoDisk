@@ -6,6 +6,10 @@ export interface ResidentReading extends ResourceReadings {
 }
 export type ResidentDisplayMetricId =
   | MetricId
+  | 'cpuFrequency'
+  | 'cpuEfficiencyFrequency'
+  | 'cpuPerformanceFrequency'
+  | 'cpuSuperFrequency'
   | 'cpuTemperature'
   | 'gpuTemperature'
   | 'diskTemperature'
@@ -18,7 +22,7 @@ export type ResidentDisplayMetricId =
 export type GpuDisplaySelection = { mode: 'automatic' } | { mode: 'selected'; adapterIds: string[] };
 
 export interface ResidentPreferences {
-  schemaVersion: 37;
+  schemaVersion: 38;
   windowsCpuTemperatureEnabled: boolean;
   revision: number;
   enabled: boolean;

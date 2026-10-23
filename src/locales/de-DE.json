@@ -4199,7 +4199,16 @@
     "spanningVolume": "Volume auf mehreren Datenträgern",
     "diskTopologyUnknown": "Datenträgerzuordnung nicht verfügbar",
     "systemDiskSelected": "Systemlaufwerk ({name})",
-    "currentDiskSource": "Aktuell: {name}"
+    "currentDiskSource": "Aktuell: {name}",
+    "cpuFrequency": "CPU-Takt",
+    "cpuEfficiencyFrequency": "CPU: Takt der Effizienz-Kerne",
+    "cpuPerformanceFrequency": "CPU: Takt der Performance-Kerne",
+    "cpuSuperFrequency": "CPU: Takt der Super-Kerne",
+    "frequencyIdle": "Ruhe",
+    "frequencyIdleReason": "Dieser Kerntyp war im gültigen Messintervall nicht aktiv",
+    "frequencyNoSample": "Keine gültige Messung für diesen Kerntyp",
+    "frequencyInterval": "Zustandsanteile im Messintervall",
+    "frequencyActive": "Aktiv"
   },
   "webviewRuntime": {
     "updateRequired": "Die Anzeigekomponente von MangoDisk ist veraltet. Aktualisieren Sie Microsoft Edge WebView2 Runtime und öffnen Sie MangoDisk erneut",
@@ -4458,7 +4467,11 @@
       "systemPower": "System",
       "fanSpeed": "GPU-Lüfter",
       "upload": "Upload",
-      "download": "Download"
+      "download": "Download",
+      "cpuFrequency": "CPU-Takt",
+      "cpuEfficiencyFrequency": "CPU E",
+      "cpuPerformanceFrequency": "CPU P",
+      "cpuSuperFrequency": "CPU S"
     },
     "fontSize": "Schriftgröße",
     "bold": "Fettschrift",

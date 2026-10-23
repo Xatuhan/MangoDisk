@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CPU_FREQUENCY_CLASSES, isCpuFrequencyDisplay } from '@/lib/utils/system-resources/cpu-frequency';
 import { automaticGpuDevice, gpuDeviceMetrics } from '@/lib/utils/system-resources/gpu-device-metrics';
 import MdResidentMetricOrder from './md-resident-metric-order.vue';
 import MdTooltip from '@/components/custom/md-tooltip.vue';
@@ -126,6 +127,10 @@ const rows = computed(() => dragRows.value ?? settings.draft?.metrics ?? []);
 const displayLabelKeys = {
   ...METRIC_LABEL_KEYS,
   cpuTemperature: 'cpuTemperature.label',
+  cpuFrequency: 'systemStatus.cpuFrequency',
+  cpuEfficiencyFrequency: 'systemStatus.cpuEfficiencyFrequency',
+  cpuPerformanceFrequency: 'systemStatus.cpuPerformanceFrequency',
+  cpuSuperFrequency: 'systemStatus.cpuSuperFrequency',
   gpuTemperature: 'gpuTemperature.label',
   diskTemperature: 'systemStatus.diskTemperature',
   disk: 'systemStatus.diskUsage',
@@ -136,11 +141,20 @@ const displayLabelKeys = {
   fanSpeed: !props.isLinux && !props.isMacOs ? 'systemStatus.gpuFanSpeed' : 'systemStatus.fanSpeed',
 };
 const visibleRows = computed(() =>
-  rows.value.map(row =>
-    row.id === 'cpuTemperature' && !props.isMacOs && !props.isLinux && !settings.draft?.windowsCpuTemperatureEnabled
-      ? { ...row, enabled: false }
-      : row
-  )
+  rows.value
+    .filter(row => {
+      if (!isCpuFrequencyDisplay(row.id)) return true;
+      if (!supportsDisplayMetric(row.id, platform.value)) return row.enabled;
+      if (windows.value) return true;
+      return (
+        row.enabled || catalogueReading.value?.cpuIdentity?.frequencyClasses.includes(CPU_FREQUENCY_CLASSES[row.id])
+      );
+    })
+    .map(row =>
+      row.id === 'cpuTemperature' && !props.isMacOs && !props.isLinux && !settings.draft?.windowsCpuTemperatureEnabled
+        ? { ...row, enabled: false }
+        : row
+    )
 );
 // Older preferences may have every item cleared. Mirror the native Logo
 // fallback without writing on load, and retain it when the next metric is added.
@@ -170,6 +184,9 @@ function resetSectionInteractions() {
 const temperatureSetupOpen = ref(false);
 const selectTemperatureAfterSetup = ref(false);
 const activeColor = ref<ColorMetricId | null>(null);
+function hasColorRule(id: ResidentDisplayMetricId): id is ColorMetricId {
+  return id !== 'network' && !isCpuFrequencyDisplay(id);
+}
 function openColor(id: ColorMetricId) {
   cancelDrag();
   expandedSelection.value = null;
@@ -549,7 +566,7 @@ defineExpose({
                       </SelectContent>
                     </Select>
                     <Button
-                      v-if="row.id !== 'network'"
+                      v-if="hasColorRule(row.id)"
                       :id="`color-configure-${row.id}`"
                       variant="ghost"
                       size="sm"

@@ -42,6 +42,7 @@ pub(super) fn temperature_entry(
         )
     };
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id: DisplayId::CpuTemperature,
         tone: Default::default(),
@@ -103,6 +104,7 @@ pub(super) fn gpu_temperature_entry(
         )
     };
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id: DisplayId::GpuTemperature,
         tone: Default::default(),
@@ -170,6 +172,7 @@ pub(super) fn disk_temperature_entry(
         )
     };
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id: DisplayId::DiskTemperature,
         tone: Default::default(),

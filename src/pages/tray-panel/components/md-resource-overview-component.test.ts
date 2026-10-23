@@ -123,7 +123,7 @@ describe('resource details', () => {
     'keeps the %s CPU status visible alongside its known model',
     status => {
       const reading = emptyReadings();
-      reading.cpuIdentity = { model: 'Intel Core i9 CPU @ 3.70GHz', nominalFrequencyMhz: 3700 };
+      reading.cpuIdentity = { model: 'Intel Core i9 CPU @ 3.70GHz', frequencyClasses: [], nominalFrequencyMhz: 3700 };
       reading.cpu = { status, sampledAtMs: 1000, value: { usedPercent: 45 } };
       const wrapper = mount(Overview, {
         props: { metric: 'cpu', reading },

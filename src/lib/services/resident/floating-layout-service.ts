@@ -37,7 +37,10 @@ export class FloatingLayoutService {
       return entries.map(({ entry, label }) => {
         let digits = ['100', '—'];
         let units = ['%'];
-        if (entry.id.endsWith('Temperature')) {
+        if (entry.id.endsWith('Frequency')) {
+          digits = ['20.0', '18.8', '—'];
+          units = ['GHz'];
+        } else if (entry.id.endsWith('Temperature')) {
           digits = ['-100', '200', '—'];
           units = ['°C'];
         } else if (entry.id.endsWith('Power')) {
@@ -51,6 +54,7 @@ export class FloatingLayoutService {
           units = [''];
         }
         const samples = digits.flatMap(digits => units.map(unit => (digits === '—' ? digits : digits + unit)));
+        if (entry.frequency) samples.push(entry.frequency.idleLabel);
         const valueWidth = Math.max(
           measure('metric-value', samples),
           entry.fanRows?.length ? measure('fan-values', ['F2 30000']) : 0

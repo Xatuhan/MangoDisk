@@ -481,6 +481,7 @@ fn temperature_entries_follow_saved_order_including_without_cpu_usage() {
 
 fn display_entry(id: DisplayId, text: &str) -> DisplayEntry {
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id,
         tone: Default::default(),

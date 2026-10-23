@@ -2,6 +2,7 @@ import type { ResidentPreferences, ResidentDisplayMetricId } from '@/lib/models/
 
 export type FloatingMetricId = Exclude<ResidentDisplayMetricId, 'network'> | 'upload' | 'download';
 export interface FloatingEntry {
+  frequency?: { idleLabel: string; state: 'active' | 'idle' | 'unavailable' };
   id: FloatingMetricId;
   tone: 'normal' | 'green' | 'yellow' | 'blue' | 'warning' | 'critical';
   digits: string;
@@ -12,7 +13,7 @@ export interface FloatingEntry {
   fanRows?: { id: number; text: string; tone: FloatingEntry['tone'] }[];
 }
 export interface FloatingSnapshot {
-  schemaVersion: 9;
+  schemaVersion: 11;
   interactive: boolean;
   contextMenu: boolean;
   entries: FloatingEntry[];

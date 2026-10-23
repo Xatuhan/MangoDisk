@@ -56,7 +56,7 @@ async function perform(action: () => Promise<void>) {
   }
 }
 function accept(value: FloatingSnapshot | null) {
-  if (!disposed && value?.schemaVersion === 9) {
+  if (!disposed && value?.schemaVersion === 11) {
     snapshot.value = value;
     if (sizingFailed || sizedKey !== sizingKey.value) queueSizing();
   }
@@ -66,7 +66,13 @@ const sizingKey = computed(() =>
     locale.value,
     snapshot.value?.preferences.fontSize,
     snapshot.value?.preferences.bold,
-    snapshot.value?.entries.map(entry => [entry.id, entry.gpuDevice?.id, metricLabel(entry), !!entry.fanRows?.length]),
+    snapshot.value?.entries.map(entry => [
+      entry.id,
+      entry.gpuDevice?.id,
+      metricLabel(entry),
+      !!entry.fanRows?.length,
+      entry.frequency?.idleLabel,
+    ]),
   ])
 );
 let pendingSizing = false;

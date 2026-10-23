@@ -7,6 +7,10 @@ use serde::{Deserialize, Serialize};
 pub enum DisplayId {
     App,
     Cpu,
+    CpuFrequency,
+    CpuEfficiencyFrequency,
+    CpuPerformanceFrequency,
+    CpuSuperFrequency,
     CpuTemperature,
     Gpu,
     GpuTemperature,
@@ -23,9 +27,13 @@ pub enum DisplayId {
 }
 
 impl DisplayId {
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 19] = [
         Self::App,
         Self::Cpu,
+        Self::CpuFrequency,
+        Self::CpuEfficiencyFrequency,
+        Self::CpuPerformanceFrequency,
+        Self::CpuSuperFrequency,
         Self::CpuTemperature,
         Self::Gpu,
         Self::GpuTemperature,
@@ -44,6 +52,10 @@ impl DisplayId {
         match self {
             Self::App => "resident",
             Self::Cpu => "resident-cpu",
+            Self::CpuFrequency => "resident-cpu-frequency",
+            Self::CpuEfficiencyFrequency => "resident-cpu-efficiency-frequency",
+            Self::CpuPerformanceFrequency => "resident-cpu-performance-frequency",
+            Self::CpuSuperFrequency => "resident-cpu-super-frequency",
             Self::CpuTemperature => "resident-cpu-temperature",
             Self::Gpu => "resident-gpu",
             Self::GpuTemperature => "resident-gpu-temperature",
@@ -67,7 +79,12 @@ impl DisplayId {
             | Self::BatteryPower
             | Self::SystemPower
             | Self::FanSpeed => None,
-            Self::Cpu | Self::CpuTemperature => Some(MetricId::Cpu),
+            Self::Cpu
+            | Self::CpuTemperature
+            | Self::CpuFrequency
+            | Self::CpuEfficiencyFrequency
+            | Self::CpuPerformanceFrequency
+            | Self::CpuSuperFrequency => Some(MetricId::Cpu),
             Self::Gpu | Self::GpuTemperature => Some(MetricId::Gpu),
             Self::Memory => Some(MetricId::Memory),
             Self::Upload | Self::Download => Some(MetricId::Network),
@@ -97,6 +114,8 @@ pub struct GpuDisplayDevice {
 #[serde(rename_all = "camelCase")]
 pub struct DisplayEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency: Option<FrequencyPresentation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gpu_device: Option<GpuDisplayDevice>,
     pub id: DisplayId,
     pub tone: super::usage_color::UsageTone,
@@ -109,4 +128,19 @@ pub struct DisplayEntry {
     pub digits: String,
     pub text: String,
     pub tooltip: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrequencyPresentation {
+    pub idle_label: String,
+    pub state: FrequencyDisplayState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FrequencyDisplayState {
+    Active,
+    Idle,
+    Unavailable,
 }

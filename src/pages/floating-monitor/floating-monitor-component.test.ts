@@ -42,7 +42,7 @@ let accept: (value: FloatingSnapshot) => void;
 let stop: Mock<() => void>;
 function snapshot(): FloatingSnapshot {
   return {
-    schemaVersion: 9,
+    schemaVersion: 11,
     interactive: true,
     contextMenu: true,
     columns: [70, 90, 85],
@@ -103,6 +103,47 @@ afterEach(() => {
   wrappers.splice(0).forEach(wrapper => wrapper.unmount());
 });
 describe('floating monitor interaction and lifecycle', () => {
+  it('keeps frequency, idle and unavailable values in a stable layout', async () => {
+    const value = snapshot();
+    value.interactive = false;
+    value.entries = [
+      {
+        id: 'cpuSuperFrequency',
+        digits: '2.4',
+        marker: 'CPUS',
+        text: '',
+        tooltip: 'CPU S',
+        tone: 'normal',
+        frequency: { state: 'active', idleLabel: 'Idle' },
+      },
+    ];
+    native.ready.mockResolvedValue(value);
+    const wrapper = render();
+    await flushPromises();
+    await wrapper.get('[data-metric="cpuSuperFrequency"]').trigger('mouseenter');
+    await flushPromises();
+    const grid = wrapper.get('main').attributes('style');
+    accept({ ...value, entries: [{ ...value.entries[0]!, digits: '3.2' }] });
+    await flushPromises();
+    expect(wrapper.get('main').attributes('style')).toBe(grid);
+    accept({
+      ...value,
+      entries: [{ ...value.entries[0]!, digits: 'Idle', frequency: { state: 'idle', idleLabel: 'Idle' } }],
+    });
+    await flushPromises();
+    expect(wrapper.get('main').attributes('style')).toBe(grid);
+    expect(wrapper.get('.metric-value').text()).toBe('Idle');
+    expect(native.layout).toHaveBeenCalledOnce();
+    await wrapper.get('[data-metric="cpuSuperFrequency"]').trigger('mouseleave');
+    accept({
+      ...value,
+      entries: [{ ...value.entries[0]!, digits: '—', frequency: { state: 'unavailable', idleLabel: 'Idle' } }],
+    });
+    await flushPromises();
+    expect(wrapper.get('.metric-value').text()).toBe('—');
+    expect(wrapper.get('main').attributes('style')).toBe(grid);
+    expect(native.layout).toHaveBeenCalledOnce();
+  });
   it.each(Object.entries(locales))('keeps macOS metrics passive and stable in %s', async (locale, messages) => {
     const value = { ...snapshot(), interactive: false };
     native.ready.mockResolvedValue(value);

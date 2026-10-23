@@ -162,6 +162,7 @@ fn battery_power_color_rules_apply_to_their_own_slot() {
         color: DisplayColor::Blue,
     }];
     let mut entries = vec![DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id: DisplayId::BatteryPower,
         tone: Default::default(),
@@ -190,6 +191,7 @@ fn temperature_and_percentage_rules_are_independent_and_unavailable_is_neutral()
     ]
     .into_iter()
     .map(|id| DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id,
         tone: Default::default(),
@@ -236,6 +238,7 @@ fn switching_disks_resets_hysteresis_without_resetting_cpu() {
     let mut entries: Vec<_> = [DisplayId::Cpu, DisplayId::Disk]
         .into_iter()
         .map(|id| DisplayEntry {
+            frequency: None,
             gpu_device: None,
             id,
             tone: UsageTone::Normal,
@@ -321,6 +324,7 @@ fn multiple_gpu_colors_follow_device_identity_across_reordering_and_removal() {
     let preferences = ResidentPreferences::default();
     let mut state = color_state::ColorState::default();
     let entry = |id: &str, value: u16| DisplayEntry {
+        frequency: None,
         gpu_device: Some(GpuDisplayDevice {
             id: id.into(),
             name: id.into(),

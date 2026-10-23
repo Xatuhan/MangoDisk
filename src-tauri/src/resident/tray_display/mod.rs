@@ -3,6 +3,7 @@ pub mod display;
 pub mod display_entry;
 mod fan;
 mod format;
+mod frequency;
 mod gpu;
 pub mod labels;
 #[cfg(target_os = "macos")]

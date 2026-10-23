@@ -81,6 +81,10 @@ pub fn columns(
                 } else {
                     match entry.id {
                         DisplayId::Cpu => "CPU",
+                        DisplayId::CpuFrequency
+                        | DisplayId::CpuEfficiencyFrequency
+                        | DisplayId::CpuPerformanceFrequency
+                        | DisplayId::CpuSuperFrequency => entry.marker.as_str(),
                         DisplayId::CpuTemperature => "CPU",
                         DisplayId::Gpu | DisplayId::GpuTemperature => "GPU",
                         DisplayId::Memory => "MEM",
@@ -112,10 +116,14 @@ pub fn columns(
                     format!(
                         "{}{}",
                         entry.digits,
-                        if entry.digits == "—" {
+                        if entry.digits == "—" || entry.frequency.as_ref().is_some_and(|value| value.state != crate::resident::tray_display::display_entry::FrequencyDisplayState::Active) {
                             ""
                         } else {
                             match entry.id {
+                                DisplayId::CpuFrequency
+                                | DisplayId::CpuEfficiencyFrequency
+                                | DisplayId::CpuPerformanceFrequency
+                                | DisplayId::CpuSuperFrequency => "G",
                                 DisplayId::CpuTemperature
                                 | DisplayId::GpuTemperature
                                 | DisplayId::DiskTemperature
@@ -152,6 +160,16 @@ pub fn columns(
                     }
                 } else {
                     match entry.id {
+                        DisplayId::CpuFrequency
+                        | DisplayId::CpuEfficiencyFrequency
+                        | DisplayId::CpuPerformanceFrequency
+                        | DisplayId::CpuSuperFrequency => {
+                            if compact {
+                                40
+                            } else {
+                                43
+                            }
+                        }
                         DisplayId::SystemPower => {
                             if compact {
                                 44
@@ -255,6 +273,7 @@ mod tests {
     }
     fn entry(id: DisplayId, text: &str, digits: &str) -> DisplayEntry {
         DisplayEntry {
+            frequency: None,
             gpu_device: None,
             tone: Default::default(),
             power_state: None,

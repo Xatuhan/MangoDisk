@@ -21,7 +21,7 @@ const windowsReading = () => {
   const reading = emptyReadings();
   reading.observedAtMs = 70_000;
   reading.cpu = { status: 'ready', sampledAtMs: 70_000, value: { usedPercent: 60 } };
-  reading.cpuIdentity = { model: 'Intel CPU @ 3.70GHz', nominalFrequencyMhz: 3700 };
+  reading.cpuIdentity = { model: 'Intel CPU @ 3.70GHz', frequencyClasses: [], nominalFrequencyMhz: 3700 };
   reading.cpuFrequency = {
     status: 'ready',
     sampledAtMs: 70_000,
@@ -31,6 +31,7 @@ const windowsReading = () => {
       performanceMhz: null,
       superMhz: null,
       source: 'windowsPerformance',
+      activity: [],
     },
   };
   reading.cpuHistory = [
@@ -120,7 +121,7 @@ describe('CPU detail observations', () => {
     const wrapper = render(windowsReading());
     const facts = wrapper.findAll('.resource-fact');
     expect(facts).toHaveLength(3);
-    expect(facts[0].text()).toContain('4.86GHz');
+    expect(facts[0].text()).toContain('4.9GHz');
     expect(facts[1].text()).toContain('1 min average45%');
     expect(facts[2].text()).toContain('1 min peak60%');
     expect(facts.map(fact => fact.text()).join(' ')).not.toContain('3.70');
@@ -168,7 +169,14 @@ describe('CPU detail observations', () => {
     reading.cpuFrequency = {
       status: 'ready',
       sampledAtMs: 1,
-      value: { averageMhz: NaN, efficiencyMhz: 0, performanceMhz: null, superMhz: null, source: 'windowsPerformance' },
+      value: {
+        averageMhz: NaN,
+        efficiencyMhz: 0,
+        performanceMhz: null,
+        superMhz: null,
+        source: 'windowsPerformance',
+        activity: [],
+      },
     };
     const wrapper = render(reading);
     expect(wrapper.find('dl').exists()).toBe(false);
@@ -182,14 +190,15 @@ describe('CPU detail observations', () => {
       performanceMhz: 4000,
       superMhz: null,
       source: 'applePerformanceStates',
+      activity: [],
     };
     const wrapper = render(reading);
     expect(wrapper.findAll('.resource-fact')).toHaveLength(3);
     expect(wrapper.text()).not.toContain('1 min peak');
     expect(wrapper.findAll('.resource-fact')[2].text()).toContain('1 min average45%');
-    expect(wrapper.text()).toContain('Efficiency cores1.50GHz');
-    expect(wrapper.text()).toContain('Performance cores4.00GHz');
-    expect(wrapper.text()).not.toContain('Average frequency4.86');
+    expect(wrapper.text()).toContain('Efficiency cores1.5GHz');
+    expect(wrapper.text()).toContain('Performance cores4.0GHz');
+    expect(wrapper.text()).not.toContain('Average frequency4.9');
     wrapper.unmount();
   });
   it('keeps M5 and M6 super-core frequencies distinct from other core classes', () => {
@@ -201,11 +210,12 @@ describe('CPU detail observations', () => {
         performanceMhz: 3200,
         superMhz: 4700,
         source: 'applePerformanceStates',
+        activity: [],
       };
       const wrapper = render(reading);
-      expect(wrapper.text()).toContain('Performance cores3.20GHz');
-      expect(wrapper.text()).toContain('Super cores4.70GHz');
-      if (efficiencyMhz !== null) expect(wrapper.text()).toContain('Efficiency cores1.80GHz');
+      expect(wrapper.text()).toContain('Performance cores3.2GHz');
+      expect(wrapper.text()).toContain('Super cores4.7GHz');
+      if (efficiencyMhz !== null) expect(wrapper.text()).toContain('Efficiency cores1.8GHz');
       else expect(wrapper.text()).not.toContain('Efficiency cores');
       expect(wrapper.findAll('.resource-fact')).toHaveLength(3);
       expect(wrapper.text().includes('1 min average')).toBe(efficiencyMhz === null);
@@ -221,13 +231,14 @@ describe('CPU detail observations', () => {
       performanceMhz: 3200,
       superMhz: 4700,
       source: 'applePerformanceStates' as const,
+      activity: [],
     };
     reading.cpuFrequency.value = frequency;
     const wrapper = render(reading);
     expect(wrapper.findAll('.resource-fact').map(fact => fact.text())).toEqual([
-      'Efficiency cores1.80GHz',
-      'Performance cores3.20GHz',
-      'Super cores4.70GHz',
+      'Efficiency cores1.8GHz',
+      'Performance cores3.2GHz',
+      'Super cores4.7GHz',
     ]);
     await wrapper.setProps({
       reading: { ...reading, cpuFrequency: { ...reading.cpuFrequency, value: { ...frequency, performanceMhz: null } } },
@@ -245,8 +256,8 @@ describe('CPU detail observations', () => {
     reading.cpuFrequency.value!.efficiencyMhz = 1500;
     const wrapper = render(reading);
     expect(wrapper.findAll('.resource-fact')).toHaveLength(3);
-    expect(wrapper.text()).toContain('Average frequency4.86GHz');
-    expect(wrapper.text()).toContain('Efficiency cores1.50GHz');
+    expect(wrapper.text()).toContain('Average frequency4.9GHz');
+    expect(wrapper.text()).toContain('Efficiency cores1.5GHz');
     expect(wrapper.text()).toContain('1 min average45%');
     expect(wrapper.text()).not.toContain('1 min peak');
     wrapper.unmount();

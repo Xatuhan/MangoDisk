@@ -71,9 +71,18 @@ export interface SystemResourceSnapshot {
 export interface CpuUsage {
   usedPercent: number;
 }
+export type CpuFrequencyClass = 'average' | 'efficiency' | 'performance' | 'super';
 export interface CpuIdentity {
   model: string | null;
   nominalFrequencyMhz: number | null;
+  frequencyClasses: CpuFrequencyClass[];
+}
+export interface CpuFrequencyActivity {
+  class: CpuFrequencyClass;
+  activeRatio: number;
+  idleRatio: number;
+  downRatio: number;
+  offRatio: number;
 }
 export interface CpuFrequency {
   averageMhz: number | null;
@@ -81,6 +90,7 @@ export interface CpuFrequency {
   performanceMhz: number | null;
   superMhz: number | null;
   source: 'windowsPerformance' | 'applePerformanceStates';
+  activity: CpuFrequencyActivity[];
 }
 export const CPU_TEMPERATURE_FRESHNESS_MS = 10_000;
 export interface CpuTemperature {
@@ -295,7 +305,7 @@ export interface GpuDeviceReading {
 }
 
 export interface ResourceReadings {
-  schemaVersion: 31;
+  schemaVersion: 33;
   observedAtMs: number;
   cpu: MetricReading<CpuUsage>;
   cpuIdentity: CpuIdentity | null;

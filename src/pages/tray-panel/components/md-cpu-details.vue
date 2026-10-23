@@ -37,7 +37,7 @@ const facts = computed(() => {
     .filter(fact => fact.mhz != null && Number.isFinite(fact.mhz) && fact.mhz >= 1 && fact.mhz <= 20_000)
     .map(fact => ({
       label: fact.label,
-      value: (fact.mhz! / 1000).toFixed(2),
+      value: (fact.mhz! / 1000).toFixed(1),
       unit: 'GHz',
       cached: frequencyReading.status !== 'ready',
     }));

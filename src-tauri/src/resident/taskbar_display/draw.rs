@@ -193,6 +193,8 @@ mod tests {
                 for compact in [false, true] {
                     for (id, text, digits, power_state) in [
                     (DisplayId::Cpu, "CPU 100%", "100"),
+                    (DisplayId::CpuFrequency, "CPU 20.0G", "20.0"),
+                    (DisplayId::CpuFrequency, "CPU —", "—"),
                     (DisplayId::Gpu, "GPU0 100%", "100"),
                     (DisplayId::Gpu, "GPU1 100%", "100"),
                     (DisplayId::Gpu, "GPU9 100%", "100"),
@@ -223,6 +225,7 @@ mod tests {
                 ]) {
                     let columns = presentation::columns(
                         &[DisplayEntry {
+                            frequency: None,
                             gpu_device: (id == DisplayId::Gpu).then(|| {
                                 crate::resident::tray_display::display_entry::GpuDisplayDevice {
                                     id: "gpu-test".into(),
@@ -237,6 +240,8 @@ mod tests {
                             id,
                             marker: if id == DisplayId::FanSpeed {
                                 "GFAN".into()
+                            } else if id == DisplayId::CpuFrequency {
+                                "CPU".into()
                             } else {
                                 String::new()
                             },

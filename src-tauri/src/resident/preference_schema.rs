@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 mod migrations;
 pub use migrations::decode;
 
-pub(super) const PREFERENCE_SCHEMA_VERSION: u32 = 37;
+pub(super) const PREFERENCE_SCHEMA_VERSION: u32 = 38;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -165,6 +165,10 @@ impl GpuDisplaySelection {
 #[serde(rename_all = "camelCase")]
 pub enum DisplayMetricId {
     Cpu,
+    CpuFrequency,
+    CpuEfficiencyFrequency,
+    CpuPerformanceFrequency,
+    CpuSuperFrequency,
     CpuTemperature,
     Gpu,
     GpuTemperature,
@@ -183,7 +187,11 @@ impl DisplayMetricId {
     pub fn metric(self) -> Option<MetricId> {
         match self {
             Self::Cpu => Some(MetricId::Cpu),
-            Self::DiskTemperature
+            Self::CpuFrequency
+            | Self::CpuEfficiencyFrequency
+            | Self::CpuPerformanceFrequency
+            | Self::CpuSuperFrequency
+            | Self::DiskTemperature
             | Self::CpuTemperature
             | Self::GpuTemperature
             | Self::BatteryTemperature
@@ -235,8 +243,12 @@ pub struct ResidentPreferences {
     pub fan_ids: Vec<u8>,
 }
 
-const DISPLAY_ORDER: [DisplayMetricId; 13] = [
+const DISPLAY_ORDER: [DisplayMetricId; 17] = [
     DisplayMetricId::Cpu,
+    DisplayMetricId::CpuFrequency,
+    DisplayMetricId::CpuEfficiencyFrequency,
+    DisplayMetricId::CpuPerformanceFrequency,
+    DisplayMetricId::CpuSuperFrequency,
     DisplayMetricId::CpuTemperature,
     DisplayMetricId::Gpu,
     DisplayMetricId::GpuTemperature,
@@ -298,9 +310,25 @@ impl Default for ResidentPreferences {
 }
 
 impl DisplayMetricId {
+    pub(super) fn frequency_class(
+        self,
+    ) -> Option<mangodisk_platform::system_resources::cpu::details::CpuFrequencyClass> {
+        use mangodisk_platform::system_resources::cpu::details::CpuFrequencyClass;
+        match self {
+            Self::CpuFrequency => Some(CpuFrequencyClass::Average),
+            Self::CpuEfficiencyFrequency => Some(CpuFrequencyClass::Efficiency),
+            Self::CpuPerformanceFrequency => Some(CpuFrequencyClass::Performance),
+            Self::CpuSuperFrequency => Some(CpuFrequencyClass::Super),
+            _ => None,
+        }
+    }
     pub fn supported_on_platform(self) -> bool {
         match self {
             Self::SystemPower => cfg!(target_os = "macos"),
+            Self::CpuFrequency => cfg!(windows),
+            Self::CpuEfficiencyFrequency
+            | Self::CpuPerformanceFrequency
+            | Self::CpuSuperFrequency => cfg!(all(target_os = "macos", target_arch = "aarch64")),
             Self::Gpu
             | Self::CpuTemperature
             | Self::GpuTemperature
@@ -361,7 +389,13 @@ impl ResidentPreferences {
         self.shows_display(DisplayMetricId::SystemPower)
     }
 
-    fn shows_display(&self, id: DisplayMetricId) -> bool {
+    pub(super) fn shows_cpu_frequency(&self) -> bool {
+        self.metrics.iter().any(|item| {
+            item.enabled && item.id.frequency_class().is_some() && item.id.supported_on_platform()
+        })
+    }
+
+    pub(super) fn shows_display(&self, id: DisplayMetricId) -> bool {
         self.metrics
             .iter()
             .any(|metric| metric.id == id && metric.enabled)

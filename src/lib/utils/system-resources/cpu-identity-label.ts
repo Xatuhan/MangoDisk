@@ -7,6 +7,6 @@ export function cpuIdentityLabel(identity: CpuIdentity | null): string {
   if (!mhz || !Number.isFinite(mhz) || mhz < 1 || mhz > 20_000 || /\d+(?:\.\d+)?\s*[GM]Hz\b/i.test(model)) {
     return model;
   }
-  const frequency = `${(mhz / 1000).toFixed(2)} GHz`;
+  const frequency = `${(mhz / 1000).toFixed(1)} GHz`;
   return model ? `${model} · ${frequency}` : frequency;
 }

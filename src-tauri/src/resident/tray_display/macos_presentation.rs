@@ -112,6 +112,30 @@ pub fn columns(entries: &[DisplayEntry], compact: bool) -> Vec<Column> {
                     },
                     if compact { 37 } else { 46 },
                 ),
+                DisplayId::CpuFrequency
+                | DisplayId::CpuEfficiencyFrequency
+                | DisplayId::CpuPerformanceFrequency
+                | DisplayId::CpuSuperFrequency => (
+                    entry.marker.clone(),
+                    if entry.frequency.as_ref().is_some_and(|value| {
+                        value.state != super::display_entry::FrequencyDisplayState::Active
+                    }) || entry.digits == "—"
+                    {
+                        entry.digits.clone()
+                    } else {
+                        format!("{}G", entry.digits)
+                    },
+                    (if compact { 37 } else { 40 }).max(entry.frequency.as_ref().map_or(
+                        0,
+                        |value| {
+                            value
+                                .idle_label
+                                .chars()
+                                .map(|c| if (c as u32) < 0x2e80 { 8 } else { 12 })
+                                .sum::<u32>()
+                        },
+                    )),
+                ),
                 DisplayId::FanSpeed => match &entry.fan_rows {
                     Some(rows) => (
                         rows[0].text.clone(),
@@ -297,6 +321,7 @@ mod tests {
     }
     fn entry(id: DisplayId, digits: &str, marker: &str) -> DisplayEntry {
         DisplayEntry {
+            frequency: None,
             gpu_device: None,
             tone: Default::default(),
             power_state: None,

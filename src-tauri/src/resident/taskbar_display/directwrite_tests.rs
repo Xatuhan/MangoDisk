@@ -73,6 +73,8 @@ fn native_grayscale_preserves_alpha_colors_and_field_fit_across_dpi() {
                 let mut entries: Vec<_> = [
                     (DisplayId::Memory, "MEM 18%", "18"),
                     (DisplayId::Cpu, "CPU 100%", "100"),
+                    (DisplayId::CpuFrequency, "CPU 20.0G", "20.0"),
+                    (DisplayId::CpuFrequency, "CPU —", "—"),
                     (DisplayId::CpuTemperature, "CPU 150°C", "150"),
                     (DisplayId::Gpu, "GPU31 100%", "100"),
                     (DisplayId::DiskTemperature, "DISK 150°C", "150"),
@@ -87,6 +89,7 @@ fn native_grayscale_preserves_alpha_colors_and_field_fit_across_dpi() {
                 ]
                 .into_iter()
                 .map(|(id, text, digits)| DisplayEntry {
+                    frequency: None,
                     gpu_device: (id == DisplayId::Gpu).then(|| {
                         crate::resident::tray_display::display_entry::GpuDisplayDevice {
                             id: "gpu-31".into(),
@@ -111,6 +114,8 @@ fn native_grayscale_preserves_alpha_colors_and_field_fit_across_dpi() {
                     digits: digits.into(),
                     marker: if id == DisplayId::FanSpeed {
                         "GFAN".into()
+                    } else if id == DisplayId::CpuFrequency {
+                        "CPU".into()
                     } else {
                         String::new()
                     },

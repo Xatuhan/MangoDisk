@@ -4199,7 +4199,16 @@
     "spanningVolume": "Volume spans multiple disks",
     "diskTopologyUnknown": "Disk mapping unavailable",
     "systemDiskSelected": "System disk ({name})",
-    "currentDiskSource": "Current: {name}"
+    "currentDiskSource": "Current: {name}",
+    "cpuFrequency": "CPU frequency",
+    "cpuEfficiencyFrequency": "CPU Efficiency core frequency",
+    "cpuPerformanceFrequency": "CPU Performance core frequency",
+    "cpuSuperFrequency": "CPU Super core frequency",
+    "frequencyIdle": "Idle",
+    "frequencyIdleReason": "No active residency for this core type in the valid sample",
+    "frequencyNoSample": "No valid sample for this core type",
+    "frequencyInterval": "State residency during the sample",
+    "frequencyActive": "Active"
   },
   "webviewRuntime": {
     "updateRequired": "The component used to display MangoDisk is out of date. Update Microsoft Edge WebView2 Runtime, then reopen MangoDisk",
@@ -4447,7 +4456,7 @@
       "fan": "Fan",
       "cpu": "CPU",
       "gpu": "GPU",
-      "memory": "Memory",
+      "memory": "RAM",
       "disk": "Disk",
       "cpuTemperature": "CPU temp",
       "gpuTemperature": "GPU temp",
@@ -4458,7 +4467,11 @@
       "systemPower": "System",
       "fanSpeed": "GPU fan",
       "upload": "Upload",
-      "download": "Download"
+      "download": "Download",
+      "cpuFrequency": "CPU freq",
+      "cpuEfficiencyFrequency": "CPU E",
+      "cpuPerformanceFrequency": "CPU P",
+      "cpuSuperFrequency": "CPU S"
     },
     "fontSize": "Font size",
     "bold": "Bold text",

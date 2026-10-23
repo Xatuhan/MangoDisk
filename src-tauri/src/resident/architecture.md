@@ -230,9 +230,9 @@ returns that reserved slot directly, so centered buttons do not send the monitor
 to an unrelated outer gap. Unknown environments prefer right,
 and collision checks still apply. These defaults do not replace saved choices.
 
-Resident preferences use schema version 37; resource readings use version 31.
+Resident preferences use schema version 38; resource readings use version 33.
 The runtime and IPC accept only the current structure. Persisted configurations from
-release tags v1.1.1–v1.1.9 (schemas 7, 8, 10, 21 and 25) and the previous monitoring schemas 28, 29, 30, 31, 32, 33, 34, 35 and 36 upgrade directly to schema 37;
+release tags v1.1.1–v1.1.9 (schemas 7, 8, 10, 21 and 25) and the previous monitoring schemas 28, 29, 30, 31, 32, 33, 34, 35, 36 and 37 upgrade directly to schema 38;
 development-only schemas, including 26 and 27, have no migration contract. Each
 supported release has a frozen fixture beside the pure decoder. Upgrades retain
 saved order, visibility, colors, source choices and consent; newly introduced
@@ -684,7 +684,7 @@ shared tray text and tooltips keep their existing precision.
 
 ### Overview history and disk activity
 
-Resource readings use schema version 31 and nested `SystemResourceSnapshot` payloads use version 4; frontend adapters reject mismatched versions. Memory history records occupancy from the existing three-second sampler. CPU, GPU and memory use a fixed 0–100% scale. Network and disk activity share a symmetric scale: upload/write above zero, download/read below it. Gaps remain blank. The frontend buffers one sampling interval plus 250 ms before revealing each completed segment from the right; numeric readings remain live. Core retains up to 80 seconds / 96 samples so a reopened chart can reconstruct the buffered minute and offscreen endpoints. The frontend retains two additional intervals at the left edge. During a brief delivery delay, the playhead waits for completed data and catches up at no more than 1.1× speed; genuinely expired data still scrolls out. Pausing demand preserves existing readings and history with their original timestamps, while source changes clear the corresponding history. Rate scales hold their range for 30 seconds before a substantial reduction, and range changes ease over 600 ms using a shared SVG group. Continuous SVG updates are capped at 30 frames per second regardless of display refresh rate, without changing sample cadence or live numeric updates. Horizontal scrolling uses that group’s native transform instead of a composited CSS bitmap, preserving vector strokes at fractional positions. Reduced-motion mode applies scale changes immediately and disables continuous scrolling; hidden or fully expired charts stop their frame loop.
+Resource readings use schema version 33 and nested `SystemResourceSnapshot` payloads use version 4; frontend adapters reject mismatched versions. Memory history records occupancy from the existing three-second sampler. CPU, GPU and memory use a fixed 0–100% scale. Network and disk activity share a symmetric scale: upload/write above zero, download/read below it. Gaps remain blank. The frontend buffers one sampling interval plus 250 ms before revealing each completed segment from the right; numeric readings remain live. Core retains up to 80 seconds / 96 samples so a reopened chart can reconstruct the buffered minute and offscreen endpoints. The frontend retains two additional intervals at the left edge. During a brief delivery delay, the playhead waits for completed data and catches up at no more than 1.1× speed; genuinely expired data still scrolls out. Pausing demand preserves existing readings and history with their original timestamps, while source changes clear the corresponding history. Rate scales hold their range for 30 seconds before a substantial reduction, and range changes ease over 600 ms using a shared SVG group. Continuous SVG updates are capped at 30 frames per second regardless of display refresh rate, without changing sample cadence or live numeric updates. Horizontal scrolling uses that group’s native transform instead of a composited CSS bitmap, preserving vector strokes at fractional positions. Reduced-motion mode applies scale changes immediately and disables continuous scrolling; hidden or fully expired charts stop their frame loop.
 
 Memory pressure is independent of occupancy. macOS reads `kern.memorystatus_vm_pressure_level` in the existing three-second memory sample and decodes dispatch flags 1/2/4 as normal/warning/critical. Unknown flags, unexpected lengths and read errors publish unavailable; Windows and Linux publish unsupported. The panel hides unsupported pressure and marks non-ready samples as not updated. Diagnostics record the first observation, transitions, failures and recovery rather than every sample.
 
@@ -1068,8 +1068,12 @@ Firmware state order is preserved even when boost frequencies dip between adjace
 ordinals; IOReport ordinal and state-count validation still applies. M6 also
 searches `pmgr-child` and uses the identified shared PACC table when needed. M5/M6
 core channels keep efficiency, performance and super-core observations separate.
+Base M5 two-tier metadata uses the legacy PCPU record kind for its Super tier;
+slot 5 must not also create a nonexistent Performance class.
 Unknown or inconsistent tables/states fail closed with model, stage, table and
-channel diagnostics. Idle cores do not become fabricated minimum frequencies.
+channel diagnostics. Idle cores do not become fabricated minimum frequencies. A completed interval with
+no active clocks publishes a fresh empty frequency sample, clearing previous clocks;
+only an initial or invalid-duration baseline leaves the prior sample age unchanged.
 The existing two-second detail demand and 30-second failure backoff are unchanged.
 
 ### CPU temperature observations
@@ -1423,7 +1427,7 @@ publishing a snapshot so an in-flight sample cannot restore pre-reset values.
 
 ### Windows battery and GPU fan sources
 
-Resource readings use schema 31, including the `windowsBattery` source. Windows
+Resource readings use schema 33, including the `windowsBattery` source. Windows
 queries native battery tags, information, temperature and status through read-only
 battery IOCTLs. Presence uses `GetSystemPowerStatus`, cached for 30 seconds, and
 unknown flags remain unknown. Enumeration is bounded and refreshed every 30 seconds;
@@ -1466,3 +1470,45 @@ and case fans require a separate, reviewed hardware capability and are not infer
 from `Win32_Fan.DesiredSpeed`. No driver, service, register writes or fan controls are
 introduced. Windows whole-system power remains unsupported without a verified whole
 system meter; CPU/GPU power percentages and battery flow are not substituted.
+
+
+## Resident CPU frequency
+
+Four optional display items default to off. Windows uses its interval-effective
+PDH frequency; Apple Silicon exposes only the installed firmware frequency classes
+(Efficiency, Performance, Super), independently selectable and sortable. Intel Mac
+and Linux do not gain a live frequency provider. Identity reports the installed
+classes without starting IOReport sampling; live values never decide which classes
+exist, so idle clusters retain their selected slots.
+
+CPU auxiliary demand has a separate frequency flag. Opening CPU details or enabling
+an applicable frequency item requests the existing reader without enabling process
+enumeration or GPU/disk details. Closing details keeps selected frequency items live;
+disabling the last item pauses the interval baseline when details are closed.
+
+A single installed frequency class uses CPU as its native label. Multiple installed
+classes retain CPUE, CPUP and CPUS even when only one is selected or has an active
+reading. Unknown or unsupported class selections retain their class labels until
+capabilities are established. Settings and tooltips keep the full localized names. Menu-bar and taskbar columns use G; floating values and localized tooltips retain
+GHz. Every frequency uses one decimal place and a fixed width covering 20.0 GHz.
+Missing, failed, or expired observations show an em dash, never a static nominal
+clock or zero substituted for an unavailable sample. Complete, valid intervals with
+no active residency show localized idle text. Frequency has no utilization
+color thresholds. Preference schema 38 migrates the previous modes and order while
+inserting disabled frequency items; resource schema 33 includes typed frequency
+classes and activity, and floating snapshot schema 11 includes their presentation.
+
+### CPU frequency activity
+
+Resource readings schema 33 includes per-class activity residency ratios. Only a
+complete set of identified channels with positive-duration samples can confirm
+an inactive class; missing channels or zero-duration samples invalidate both the
+frequency and activity of that class without discarding other complete classes.
+Failures and expired readings remain unavailable. Ratios describe the sampling interval, not an
+instantaneous core power state. IDLE, DOWN and OFF retain provider-defined names.
+
+Floating snapshots schema 11 carry typed frequency presentation state and a
+localized idle width sample. Both numeric and idle text share a reserved value
+slot. Existing menu-bar tooltips retain full names and sampling details. The
+floating surface does not install native WebView tooltips: WebKit owns its
+tracking rectangles, and overriding them can destabilize pointer handling.

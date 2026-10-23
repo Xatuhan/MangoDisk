@@ -40,7 +40,11 @@ pub fn indicator_title(
                         let direction = marker.next()?;
                         format!("{direction}{}{}", entry.digits, marker.as_str())
                     }
-                    DisplayId::App
+                    DisplayId::CpuFrequency
+                    | DisplayId::CpuEfficiencyFrequency
+                    | DisplayId::CpuPerformanceFrequency
+                    | DisplayId::CpuSuperFrequency
+                    | DisplayId::App
                     | DisplayId::CpuTemperature
                     | DisplayId::GpuTemperature
                     | DisplayId::DiskTemperature
@@ -67,6 +71,16 @@ pub fn desired(preferences: &ResidentPreferences) -> Vec<DisplayId> {
     DisplayId::ALL
         .into_iter()
         .filter(|id| match id {
+            DisplayId::CpuFrequency => preferences.shows_display(DisplayMetricId::CpuFrequency),
+            DisplayId::CpuEfficiencyFrequency => {
+                preferences.shows_display(DisplayMetricId::CpuEfficiencyFrequency)
+            }
+            DisplayId::CpuPerformanceFrequency => {
+                preferences.shows_display(DisplayMetricId::CpuPerformanceFrequency)
+            }
+            DisplayId::CpuSuperFrequency => {
+                preferences.shows_display(DisplayMetricId::CpuSuperFrequency)
+            }
             DisplayId::CpuTemperature => preferences.shows_cpu_temperature(),
             DisplayId::GpuTemperature => preferences.shows_gpu_temperature(),
             DisplayId::DiskTemperature => preferences.shows_disk_temperature(),
@@ -117,6 +131,10 @@ pub fn entries(
     let mut entries = Vec::new();
     for metric in &preferences.metrics {
         if !metric.enabled {
+            continue;
+        }
+        if metric.id.frequency_class().is_some() && metric.id.supported_on_platform() {
+            entries.push(super::frequency::entry(metric.id, values, labels));
             continue;
         }
         if !metric.id.supported_on_platform() {
@@ -257,7 +275,11 @@ pub fn entries(
                         .as_ref()
                         .map(|value| value.received_bytes_per_second),
                 ),
-                DisplayId::App
+                DisplayId::CpuFrequency
+                | DisplayId::CpuEfficiencyFrequency
+                | DisplayId::CpuPerformanceFrequency
+                | DisplayId::CpuSuperFrequency
+                | DisplayId::App
                 | DisplayId::CpuTemperature
                 | DisplayId::GpuTemperature
                 | DisplayId::DiskTemperature
@@ -282,6 +304,7 @@ pub fn entries(
             let name = labels.metric(metric_id);
             if status != MetricStatus::Ready || value.is_none() {
                 entries.push(DisplayEntry {
+                    frequency: None,
                     gpu_device: None,
                     tone: Default::default(),
                     power_state: None,
@@ -315,6 +338,7 @@ pub fn entries(
                     .map(|value| value.interface.name.as_str())
                     .unwrap_or("");
                 DisplayEntry {
+                    frequency: None,
                     gpu_device: None,
                     tone: Default::default(),
                     power_state: None,
@@ -380,6 +404,7 @@ pub fn entries(
                     _ => "DISK",
                 };
                 DisplayEntry {
+                    frequency: None,
                     gpu_device: None,
                     tone: Default::default(),
                     power_state: None,
@@ -419,6 +444,24 @@ pub fn notification_entries(entries: &[DisplayEntry]) -> Vec<DisplayEntry> {
 /// Unsupported platforms retain selected columns without starting native providers.
 fn platform_placeholder(id: DisplayMetricId, labels: &super::labels::Labels) -> DisplayEntry {
     let (id, marker, name) = match id {
+        DisplayMetricId::CpuFrequency => {
+            (DisplayId::CpuFrequency, "CPU", labels.text("cpuFrequency"))
+        }
+        DisplayMetricId::CpuEfficiencyFrequency => (
+            DisplayId::CpuEfficiencyFrequency,
+            "CPUE",
+            labels.text("cpuEfficiencyFrequency"),
+        ),
+        DisplayMetricId::CpuPerformanceFrequency => (
+            DisplayId::CpuPerformanceFrequency,
+            "CPUP",
+            labels.text("cpuPerformanceFrequency"),
+        ),
+        DisplayMetricId::CpuSuperFrequency => (
+            DisplayId::CpuSuperFrequency,
+            "CPUS",
+            labels.text("cpuSuperFrequency"),
+        ),
         DisplayMetricId::CpuTemperature => {
             (DisplayId::CpuTemperature, "°C", labels.temperature("label"))
         }
@@ -452,6 +495,7 @@ fn platform_placeholder(id: DisplayMetricId, labels: &super::labels::Labels) -> 
         | DisplayMetricId::Disk => unreachable!(),
     };
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id,
         tone: Default::default(),

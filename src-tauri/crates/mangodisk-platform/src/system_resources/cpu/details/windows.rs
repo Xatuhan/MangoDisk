@@ -29,6 +29,7 @@ pub(super) fn identity() -> CpuIdentity {
     CpuIdentity {
         model,
         nominal_frequency_mhz,
+        frequency_classes: vec![super::CpuFrequencyClass::Average],
     }
 }
 fn brand_frequency_mhz(model: &str) -> Option<f64> {
@@ -143,6 +144,7 @@ impl Query {
             performance_mhz: None,
             super_mhz: None,
             source: CpuFrequencySource::WindowsPerformance,
+            activity: Vec::new(),
         }))
     }
 }

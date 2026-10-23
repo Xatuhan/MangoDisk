@@ -448,3 +448,41 @@ fn floating_display_reuses_overview_demand_without_enabling_details() {
     *state.panel_metric.lock().unwrap() = MetricId::Memory;
     assert!(state.demands(false)[2].detailed);
 }
+
+#[test]
+fn frequency_display_keeps_sampling_without_enabling_cpu_process_details() {
+    use crate::resident::preference_schema::DisplayMetricId;
+    let state = test_state();
+    state.panel_open.store(false, Ordering::Relaxed);
+    assert!(!state.demands(false)[0].frequency);
+    for id in [
+        DisplayMetricId::CpuFrequency,
+        DisplayMetricId::CpuEfficiencyFrequency,
+        DisplayMetricId::CpuPerformanceFrequency,
+        DisplayMetricId::CpuSuperFrequency,
+    ] {
+        {
+            let mut preferences = state.preferences.lock().unwrap();
+            for item in &mut preferences.metrics {
+                if item.id.frequency_class().is_some() {
+                    item.enabled = item.id == id;
+                }
+            }
+        }
+        let demand = state.demands(false)[0].clone();
+        assert_eq!(demand.frequency, id.supported_on_platform());
+        assert!(!demand.detailed);
+        assert!(!state.cpu_processes_visible());
+        state.panel_open.store(true, Ordering::Relaxed);
+        *state.panel_metric.lock().unwrap() = MetricId::Cpu;
+        assert!(state.demands(false)[0].frequency);
+        assert!(state.cpu_processes_visible());
+        state.panel_open.store(false, Ordering::Relaxed);
+        assert_eq!(
+            state.demands(false)[0].frequency,
+            id.supported_on_platform()
+        );
+    }
+    state.preferences.lock().unwrap().enabled = false;
+    assert!(!state.demands(false)[0].frequency);
+}

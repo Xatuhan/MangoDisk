@@ -4199,7 +4199,16 @@
     "spanningVolume": "Volume réparti sur plusieurs disques",
     "diskTopologyUnknown": "Disque du volume indéterminé",
     "systemDiskSelected": "Disque système ({name})",
-    "currentDiskSource": "Actuel : {name}"
+    "currentDiskSource": "Actuel : {name}",
+    "cpuFrequency": "CPU : fréquence",
+    "cpuEfficiencyFrequency": "CPU : fréquence des cœurs à haute efficacité énergétique",
+    "cpuPerformanceFrequency": "CPU : fréquence des cœurs de performance",
+    "cpuSuperFrequency": "CPU : fréquence des super cœurs",
+    "frequencyIdle": "Repos",
+    "frequencyIdleReason": "Ce type de cœur était inactif pendant la mesure valide",
+    "frequencyNoSample": "Aucune mesure valide pour ce type de cœur",
+    "frequencyInterval": "Répartition des états pendant la mesure",
+    "frequencyActive": "Actif"
   },
   "webviewRuntime": {
     "updateRequired": "Le composant d’affichage de MangoDisk est obsolète. Mettez à jour Microsoft Edge WebView2 Runtime, puis relancez MangoDisk",
@@ -4444,10 +4453,10 @@
     "snapToEdges": "Aligner sur les bords",
     "hideOnFullscreen": "Masquer automatiquement en plein écran",
     "labels": {
-      "fan": "Ventilateur",
+      "fan": "Vent",
       "cpu": "CPU",
       "gpu": "GPU",
-      "memory": "Mémoire",
+      "memory": "RAM",
       "disk": "Disque",
       "cpuTemperature": "Temp CPU",
       "gpuTemperature": "Temp GPU",
@@ -4458,7 +4467,11 @@
       "systemPower": "Système",
       "fanSpeed": "Vent. GPU",
       "upload": "Envoi",
-      "download": "Réception"
+      "download": "Réception",
+      "cpuFrequency": "Fréq. CPU",
+      "cpuEfficiencyFrequency": "CPU E",
+      "cpuPerformanceFrequency": "CPU P",
+      "cpuSuperFrequency": "CPU S"
     },
     "fontSize": "Taille du texte",
     "bold": "Texte en gras",

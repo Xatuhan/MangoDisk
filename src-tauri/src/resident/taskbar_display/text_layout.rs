@@ -234,6 +234,7 @@ mod tests {
             for compact in [false, true] {
                 let columns = super::super::presentation::columns(
                     &[DisplayEntry {
+                        frequency: None,
                         gpu_device: None,
                         power_state: state,
                         fan_rows: None,
@@ -276,6 +277,7 @@ mod tests {
             for tone in [UsageTone::Normal, UsageTone::Warning, UsageTone::Critical] {
                 let columns = super::super::presentation::columns(
                     &[DisplayEntry {
+                        frequency: None,
                         gpu_device: None,
                         power_state: None,
                         fan_rows: None,
@@ -335,6 +337,7 @@ mod tests {
                 ] {
                     let columns = super::super::presentation::columns(
                         &[DisplayEntry {
+                            frequency: None,
                             gpu_device: None,
                             tone: Default::default(),
                             power_state: None,

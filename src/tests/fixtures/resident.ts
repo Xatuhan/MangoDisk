@@ -4,7 +4,7 @@ import { emptyReadings } from '@/lib/utils/system-resources/system-resources';
 
 export function preferencesFixture(): ResidentPreferences {
   return {
-    schemaVersion: 37,
+    schemaVersion: 38,
     windowsCpuTemperatureEnabled: false,
     revision: 0,
     enabled: true,
@@ -33,6 +33,10 @@ export function preferencesFixture(): ResidentPreferences {
     colorRules: defaultColorRules(),
     metrics: [
       { id: 'cpu', enabled: false },
+      { id: 'cpuFrequency', enabled: false },
+      { id: 'cpuEfficiencyFrequency', enabled: false },
+      { id: 'cpuPerformanceFrequency', enabled: false },
+      { id: 'cpuSuperFrequency', enabled: false },
       { id: 'memory', enabled: true },
       { id: 'network', enabled: false },
       { id: 'disk', enabled: false },

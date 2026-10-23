@@ -4199,7 +4199,16 @@
     "spanningVolume": "跨多顆硬碟的卷宗",
     "diskTopologyUnknown": "硬碟歸屬未知",
     "systemDiskSelected": "系統碟（{name}）",
-    "currentDiskSource": "目前：{name}"
+    "currentDiskSource": "目前：{name}",
+    "cpuFrequency": "CPU 頻率",
+    "cpuEfficiencyFrequency": "CPU 節能核心頻率",
+    "cpuPerformanceFrequency": "CPU 效能核心頻率",
+    "cpuSuperFrequency": "CPU 超級核心頻率",
+    "frequencyIdle": "閒置",
+    "frequencyIdleReason": "本次有效取樣中，此類核心未活躍",
+    "frequencyNoSample": "此類核心暫無有效取樣",
+    "frequencyInterval": "取樣期間狀態佔比",
+    "frequencyActive": "活躍"
   },
   "webviewRuntime": {
     "updateRequired": "目前的介面執行元件版本較舊。請更新 Microsoft Edge WebView2 Runtime，然後重新開啟 MangoDisk",
@@ -4458,7 +4467,11 @@
       "systemPower": "整機功率",
       "fanSpeed": "GPU 風扇",
       "upload": "上傳",
-      "download": "下載"
+      "download": "下載",
+      "cpuFrequency": "CPU 頻率",
+      "cpuEfficiencyFrequency": "節能核心",
+      "cpuPerformanceFrequency": "效能核心",
+      "cpuSuperFrequency": "超級核心"
     },
     "fontSize": "字型大小",
     "bold": "粗體顯示",

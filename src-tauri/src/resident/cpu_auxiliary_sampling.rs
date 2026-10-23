@@ -38,7 +38,7 @@ impl Reader {
             battery,
             details,
         } = self;
-        let details = details.read(demand.detailed, demand.temperature);
+        let details = details.read(demand.frequency, demand.temperature);
         // Read battery last so a slow CPU detail query cannot age its timestamp.
         let battery_present = battery_presence.read();
         let battery_sample = if demand.battery && battery_present != Some(false) {

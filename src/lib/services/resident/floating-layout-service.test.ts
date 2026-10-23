@@ -40,6 +40,33 @@ describe('floating font measurement', () => {
         },
       ])[0]!.valueWidth
     ).toBe('F2 30000'.length * 5);
+    for (const id of [
+      'cpuFrequency',
+      'cpuEfficiencyFrequency',
+      'cpuPerformanceFrequency',
+      'cpuSuperFrequency',
+    ] as const) {
+      const widths = ['0.1', '3.2', '20.0', '—'].map(
+        digits =>
+          FloatingLayoutService.measure(root, [{ entry: entry(id, digits), label: 'CPU frequency' }])[0]!.valueWidth
+      );
+      expect(new Set(widths).size).toBe(1);
+      expect(widths[0]).toBe('20.0GHz'.length * 7);
+      const idleWidths = ['active', 'idle', 'unavailable'].map(
+        state =>
+          FloatingLayoutService.measure(root, [
+            {
+              entry: {
+                ...entry(id, state === 'active' ? '2.4' : 'Idle'),
+                frequency: { state: state as 'active' | 'idle' | 'unavailable', idleLabel: 'Long idle label' },
+              },
+              label: 'CPU',
+            },
+          ])[0]!.valueWidth
+      );
+      expect(new Set(idleWidths).size).toBe(1);
+      expect(idleWidths[0]).toBe('Long idle label'.length * 7);
+    }
     expect(root.children).toHaveLength(1);
   });
   it('removes the hidden measurement node when font measurement fails and supports empty selections', () => {

@@ -50,6 +50,7 @@ pub(super) fn system_power_entry(
         )
     };
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id: DisplayId::SystemPower,
         tone: Default::default(),
@@ -177,6 +178,7 @@ pub(super) fn battery_entry(
         )
     };
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id: if temperature {
             DisplayId::BatteryTemperature

@@ -126,6 +126,7 @@ mod tests {
     fn stale_metric_or_gpu_identity_cannot_resize_a_different_snapshot() {
         let entry = super::super::DisplayEntry {
             id: DisplayId::Cpu,
+            frequency: None,
             gpu_device: None,
             tone: Default::default(),
             power_state: None,

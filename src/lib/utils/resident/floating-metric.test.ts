@@ -27,3 +27,27 @@ describe('floating metric contracts', () => {
     expect(floatingValue(entry({ id: 'chargingPower', marker: 'mW' }))).toBe('12mW');
   });
 });
+
+it.each(['cpuFrequency', 'cpuEfficiencyFrequency', 'cpuPerformanceFrequency', 'cpuSuperFrequency'] as const)(
+  'keeps the full GHz unit and CPU detail destination for %s',
+  id => {
+    const entry: FloatingEntry = { id, digits: '3.2', marker: 'CPUP', text: 'CPUP 3.2G', tooltip: '', tone: 'normal' };
+    expect(floatingValue(entry)).toBe('3.2GHz');
+    expect(floatingValue({ ...entry, digits: '—' })).toBe('—');
+    expect(detailMetric(id)).toBe('cpu');
+  }
+);
+
+it('does not attach a clock unit to a typed idle frequency label', () => {
+  expect(
+    floatingValue({
+      id: 'cpuSuperFrequency',
+      digits: '空闲',
+      marker: 'CPUS',
+      text: '',
+      tooltip: '',
+      tone: 'normal',
+      frequency: { state: 'idle', idleLabel: '空闲' },
+    })
+  ).toBe('空闲');
+});

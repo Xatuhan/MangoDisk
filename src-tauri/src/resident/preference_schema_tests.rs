@@ -125,7 +125,7 @@ fn every_display_combination_retains_an_entry() {
 fn current_schema_rejects_development_versions_unknown_fields_and_missing_fields() {
     let current = serde_json::to_value(ResidentPreferences::default()).unwrap();
     for version in (0..PREFERENCE_SCHEMA_VERSION)
-        .filter(|v| ![7, 8, 10, 21, 25, 28, 29, 30, 31, 32, 33, 34, 35, 36].contains(v))
+        .filter(|v| ![7, 8, 10, 21, 25, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37].contains(v))
         .chain([PREFERENCE_SCHEMA_VERSION + 1])
     {
         let mut value = current.clone();
@@ -179,6 +179,7 @@ fn previous_windows_floating_preferences_gain_independent_macos_menu_bar_default
     };
     let mut previous = serde_json::to_value(&expected).unwrap();
     previous["schemaVersion"] = 34.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous["floating"]
         .as_object_mut()
@@ -461,6 +462,7 @@ fn disk_temperature_device_is_independent_and_released_preferences_follow_the_se
 fn previous_monitor_settings_upgrade_without_changing_user_choices() {
     let mut previous = serde_json::to_value(ResidentPreferences::default()).unwrap();
     previous["schemaVersion"] = 28.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous.as_object_mut().unwrap().remove("macosDisplayMode");
     previous["revision"] = 91.into();
@@ -507,6 +509,7 @@ fn floating_options_reject_unknown_modes_and_preserve_a_recovery_icon() {
 fn previous_floating_settings_keep_layout_and_position_options_with_opaque_background() {
     let mut previous = serde_json::to_value(ResidentPreferences::default()).unwrap();
     previous["schemaVersion"] = 29.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous["floating"]
         .as_object_mut()
@@ -578,6 +581,7 @@ fn floating_background_opacity_requires_a_bounded_integer_percentage() {
 fn previous_opacity_settings_enable_snapping_without_resetting_other_choices() {
     let mut previous = serde_json::to_value(ResidentPreferences::default()).unwrap();
     previous["schemaVersion"] = 30.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous["floating"]
         .as_object_mut()
@@ -636,6 +640,7 @@ fn snapping_requires_an_explicit_boolean_in_the_current_schema() {
 fn previous_floating_appearance_keeps_opacity_and_defaults_new_options() {
     let mut previous = serde_json::to_value(ResidentPreferences::default()).unwrap();
     previous["schemaVersion"] = 31.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous["floating"]
         .as_object_mut()
@@ -720,6 +725,7 @@ fn previous_floating_appearance_adds_dividers_without_changing_saved_choices() {
     };
     let mut previous = serde_json::to_value(&expected).unwrap();
     previous["schemaVersion"] = 32.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous["floating"]
         .as_object_mut()
@@ -790,6 +796,7 @@ fn click_through_migrates_disabled_and_preserves_previous_choices() {
     };
     let mut previous = serde_json::to_value(&expected).unwrap();
     previous["schemaVersion"] = 33.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous["floating"]
         .as_object_mut()
@@ -858,6 +865,7 @@ fn fullscreen_hiding_migrates_enabled_without_resetting_other_choices() {
     };
     let mut previous = serde_json::to_value(&expected).unwrap();
     previous["schemaVersion"] = 35.into();
+    remove_frequency_items(&mut previous);
     previous.as_object_mut().unwrap().remove("linuxDisplayMode");
     previous["floating"]
         .as_object_mut()
@@ -916,6 +924,7 @@ fn linux_display_migrates_to_tray_and_preserves_platform_preferences() {
     };
     let mut old = serde_json::to_value(&expected).unwrap();
     old["schemaVersion"] = 36.into();
+    remove_frequency_items(&mut old);
     old.as_object_mut().unwrap().remove("linuxDisplayMode");
     assert_eq!(decode(old.clone()).unwrap(), expected);
     old["linuxDisplayMode"] = "floating".into();
@@ -945,4 +954,56 @@ fn linux_display_migrates_to_tray_and_preserves_platform_preferences() {
     let mut missing = serde_json::to_value(&expected).unwrap();
     missing.as_object_mut().unwrap().remove("linuxDisplayMode");
     assert!(decode(missing).is_err());
+}
+
+fn remove_frequency_items(value: &mut serde_json::Value) {
+    value["metrics"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|item| !item["id"].as_str().unwrap().ends_with("Frequency"));
+}
+
+#[test]
+fn frequency_display_upgrade_preserves_order_and_defaults_new_items_off() {
+    let mut expected = ResidentPreferences {
+        revision: 128,
+        show_icon: false,
+        ..Default::default()
+    };
+    expected.metrics.reverse();
+    let mut previous = serde_json::to_value(&expected).unwrap();
+    previous["schemaVersion"] = 37.into();
+    remove_frequency_items(&mut previous);
+    let migrated = decode(previous.clone()).unwrap();
+    let original: Vec<_> = expected
+        .metrics
+        .iter()
+        .filter(|item| item.id.frequency_class().is_none())
+        .collect();
+    let preserved: Vec<_> = migrated
+        .metrics
+        .iter()
+        .filter(|item| item.id.frequency_class().is_none())
+        .collect();
+    assert_eq!(original, preserved);
+    assert_eq!(migrated.revision, 128);
+    assert!(!migrated.show_icon);
+    assert_eq!(
+        migrated
+            .metrics
+            .iter()
+            .filter(|item| item.id.frequency_class().is_some())
+            .count(),
+        4
+    );
+    assert!(migrated
+        .metrics
+        .iter()
+        .filter(|item| item.id.frequency_class().is_some())
+        .all(|item| !item.enabled));
+    previous["metrics"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({"id":"cpuFrequency","enabled":true}));
+    assert!(decode(previous).is_err());
 }

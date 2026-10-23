@@ -83,17 +83,24 @@ const maximumLocaleGzipBytes = 60 * 1024;
 // Measured de/es/fr/ja/ru chunks are 312027/313728/322017/335456/404974 raw bytes;
 // their gzip sizes are 64667/62514/64040/63519/71604 bytes, and Portuguese is 61579.
 // Extend only the affected locale margins; retain all application chunk limits.
-// Compose independent locale margins relative to their common base.
-// The current baseline measures de at 314416 raw bytes and es/ko at
-// 63076/61549 gzip bytes; keep only a bounded margin for those additions.
+// Nine CPU frequency labels add measured raw bytes de/es/fr/ja/ru
+// 313621/315436/323732/337207/406861; gzip is 65056/62921/64459/63970/72124,
+// and Portuguese is 61990. CPU-prefixed names are included in these measurements.
+// Extend only these measured local margins.
+// Re-measure the combined features: gzip increments are not additive.
+// Current de raw/gzip is 314968/65324; es/ko/ru gzip is 63188/61638/72401.
+// Keep less than 256 raw / 96 gzip bytes of headroom on these affected limits.
+// CPU idle/state guidance measures de/es/fr/ja/ru raw bytes
+// 315268/317072/325397/338909/408950; fr/ja/pt gzip is 64760/64307/62306.
+// Extend only these measured locale margins; application budgets remain fixed.
 const localeChunkLimitOverrides = new Map([
-  ['fr-fr', { bytes: 317 * 1024 + 288, gzipBytes: 63 * 1024 + 144 }],
-  ['de-de', { bytes: 307 * 1024 + 64, gzipBytes: 63 * 1024 + 768 }],
-  ['es-es', { bytes: 309 * 1024 + 160, gzipBytes: 61 * 1024 + 624 }],
-  ['pt-br', { bytes: maximumLocaleChunkBytes, gzipBytes: 60 * 1024 + 720 }],
-  ['ko-kr', { bytes: maximumLocaleChunkBytes, gzipBytes: maximumLocaleGzipBytes + 128 }],
-  ['ja-jp', { bytes: 330 * 1024 + 448, gzipBytes: 62 * 1024 + 672 }],
-  ['ru-ru', { bytes: 398 * 1024 + 928, gzipBytes: 70 * 1024 + 608 }],
+  ['fr-fr', { bytes: 325536, gzipBytes: 64832 }],
+  ['de-de', { bytes: 315392, gzipBytes: 65408 }],
+  ['es-es', { bytes: 317184, gzipBytes: 63264 }],
+  ['pt-br', { bytes: 311296, gzipBytes: 62368 }],
+  ['ko-kr', { bytes: 311296, gzipBytes: 61728 }],
+  ['ja-jp', { bytes: 339008, gzipBytes: 64368 }],
+  ['ru-ru', { bytes: 409088, gzipBytes: 72480 }],
 ]);
 
 function fail(message) {

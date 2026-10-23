@@ -4199,7 +4199,16 @@
     "spanningVolume": "여러 디스크에 걸친 볼륨",
     "diskTopologyUnknown": "디스크 매핑을 확인할 수 없음",
     "systemDiskSelected": "시스템 디스크({name})",
-    "currentDiskSource": "현재: {name}"
+    "currentDiskSource": "현재: {name}",
+    "cpuFrequency": "CPU 주파수",
+    "cpuEfficiencyFrequency": "CPU 효율 코어 주파수",
+    "cpuPerformanceFrequency": "CPU 성능 코어 주파수",
+    "cpuSuperFrequency": "CPU 슈퍼 코어 주파수",
+    "frequencyIdle": "유휴",
+    "frequencyIdleReason": "유효한 측정 구간에서 이 유형의 코어는 활성 상태가 아니었습니다",
+    "frequencyNoSample": "이 유형의 코어에 유효한 측정값이 없습니다",
+    "frequencyInterval": "측정 구간의 상태별 비율",
+    "frequencyActive": "활성"
   },
   "webviewRuntime": {
     "updateRequired": "MangoDisk 화면 표시에 필요한 구성 요소의 버전이 오래되었습니다. Microsoft Edge WebView2 Runtime을 업데이트한 후 MangoDisk를 다시 실행해 주세요",
@@ -4458,7 +4467,11 @@
       "systemPower": "시스템 전력",
       "fanSpeed": "GPU 팬",
       "upload": "업로드",
-      "download": "다운로드"
+      "download": "다운로드",
+      "cpuFrequency": "CPU 주파수",
+      "cpuEfficiencyFrequency": "E 코어",
+      "cpuPerformanceFrequency": "P 코어",
+      "cpuSuperFrequency": "S 코어"
     },
     "fontSize": "글자 크기",
     "bold": "굵은 글씨",

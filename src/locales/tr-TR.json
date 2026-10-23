@@ -4199,7 +4199,16 @@
     "spanningVolume": "Birden çok diske yayılan birim",
     "diskTopologyUnknown": "Disk eşlemesi kullanılamıyor",
     "systemDiskSelected": "Sistem diski ({name})",
-    "currentDiskSource": "Geçerli: {name}"
+    "currentDiskSource": "Geçerli: {name}",
+    "cpuFrequency": "CPU frekansı",
+    "cpuEfficiencyFrequency": "CPU verimlilik çekirdeği frekansı",
+    "cpuPerformanceFrequency": "CPU performans çekirdeği frekansı",
+    "cpuSuperFrequency": "CPU süper çekirdek frekansı",
+    "frequencyIdle": "Boşta",
+    "frequencyIdleReason": "Geçerli örnek boyunca bu çekirdek türü etkin değildi",
+    "frequencyNoSample": "Bu çekirdek türü için geçerli örnek yok",
+    "frequencyInterval": "Örnek boyunca durum oranları",
+    "frequencyActive": "Etkin"
   },
   "webviewRuntime": {
     "updateRequired": "MangoDisk'i görüntüleyen bileşen güncel değil. Microsoft Edge WebView2 Runtime'ı güncelleyin, ardından MangoDisk'i yeniden açın",
@@ -4458,7 +4467,11 @@
       "systemPower": "Sistem",
       "fanSpeed": "GPU fanı",
       "upload": "Gönder",
-      "download": "İndirme"
+      "download": "İndirme",
+      "cpuFrequency": "CPU frek",
+      "cpuEfficiencyFrequency": "CPU E",
+      "cpuPerformanceFrequency": "CPU P",
+      "cpuSuperFrequency": "CPU S"
     },
     "fontSize": "Yazı boyutu",
     "bold": "Kalın yazı",

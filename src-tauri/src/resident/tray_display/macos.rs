@@ -283,6 +283,65 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native_idle_labels_fit_the_same_column_as_active_and_unavailable_clocks() {
+        use super::super::display_entry::{
+            DisplayId, FrequencyDisplayState, FrequencyPresentation,
+        };
+        for locale in [
+            "en-US", "zh-CN", "zh-TW", "ja-JP", "ko-KR", "de-DE", "es-ES", "fr-FR", "pt-BR",
+            "ru-RU", "tr-TR",
+        ] {
+            let label = super::super::labels::Labels::for_locale(locale)
+                .text("frequencyIdle")
+                .to_owned();
+            for compact in [false, true] {
+                let mut widths = Vec::new();
+                for (state, digits) in [
+                    (FrequencyDisplayState::Active, "20.0"),
+                    (FrequencyDisplayState::Idle, label.as_str()),
+                    (FrequencyDisplayState::Unavailable, "—"),
+                ] {
+                    let entry = DisplayEntry {
+                        frequency: Some(FrequencyPresentation {
+                            idle_label: label.clone(),
+                            state,
+                        }),
+                        gpu_device: None,
+                        tone: Default::default(),
+                        power_state: None,
+                        fan_rows: None,
+                        color_value: None,
+                        id: DisplayId::CpuSuperFrequency,
+                        marker: "CPUS".into(),
+                        digits: digits.into(),
+                        text: String::new(),
+                        tooltip: String::new(),
+                    };
+                    let column = macos_presentation::columns(&[entry], compact).remove(0);
+                    let font = NSFont::monospacedDigitSystemFontOfSize_weight(12.0, 0.3);
+                    let attrs: Retained<NSDictionary<NSString, AnyObject>> =
+                        unsafe { NSDictionary::from_slices(&[NSFontAttributeName], &[&*font]) };
+                    let width = unsafe {
+                        NSString::from_str(&column.bottom)
+                            .sizeWithAttributes(Some(&attrs))
+                            .width
+                    };
+                    assert!(
+                        width <= f64::from(column.width),
+                        "{locale} {digits}: {width} > {}",
+                        column.width
+                    );
+                    if state != FrequencyDisplayState::Active {
+                        assert_eq!(column.bottom, digits);
+                    }
+                    widths.push(column.width);
+                }
+                assert!(widths.iter().all(|width| *width == widths[0]));
+            }
+        }
+    }
+
+    #[test]
     fn native_fonts_fit_every_percentage_and_network_field() {
         fn measured(value: &str, size: f64, weight: f64) -> f64 {
             let font = NSFont::monospacedDigitSystemFontOfSize_weight(size, weight);
@@ -295,6 +354,7 @@ mod tests {
             }
         }
         let entry = DisplayEntry {
+            frequency: None,
             gpu_device: None,
             tone: Default::default(),
             power_state: None,
@@ -309,9 +369,52 @@ mod tests {
         let column = macos_presentation::columns(std::slice::from_ref(&entry), false);
         let percentage_width = column[0].width as f64;
         for compact in [false, true] {
+            for (id, marker) in [
+                (super::super::display_entry::DisplayId::CpuFrequency, "CPU"),
+                (
+                    super::super::display_entry::DisplayId::CpuEfficiencyFrequency,
+                    "CPUE",
+                ),
+                (
+                    super::super::display_entry::DisplayId::CpuPerformanceFrequency,
+                    "CPUP",
+                ),
+                (
+                    super::super::display_entry::DisplayId::CpuSuperFrequency,
+                    "CPUS",
+                ),
+            ] {
+                let frequency = DisplayEntry {
+                    id,
+                    marker: marker.into(),
+                    digits: "20.0".into(),
+                    ..entry.clone()
+                };
+                let ready = macos_presentation::columns(std::slice::from_ref(&frequency), compact);
+                let missing = macos_presentation::columns(
+                    &[DisplayEntry {
+                        digits: "—".into(),
+                        ..frequency
+                    }],
+                    compact,
+                );
+                assert_eq!(ready[0].width, missing[0].width);
+                assert_eq!(ready[0].top, marker);
+                assert!(
+                    measured(marker, if compact { 9.0 } else { 10.0 }, 0.3)
+                        <= f64::from(ready[0].width)
+                );
+                assert!(
+                    measured("20.0G", if compact { 11.0 } else { 12.0 }, 0.3)
+                        <= f64::from(ready[0].width)
+                );
+            }
+        }
+        for compact in [false, true] {
             let size = if compact { 11.0 } else { 12.0 };
             let width = macos_presentation::columns(
                 &[DisplayEntry {
+                    frequency: None,
                     gpu_device: None,
                     id: super::super::display_entry::DisplayId::DiskTemperature,
                     ..entry.clone()
@@ -331,6 +434,7 @@ mod tests {
             let size = if compact { 11.0 } else { 12.0 };
             let column = macos_presentation::columns(
                 &[DisplayEntry {
+                    frequency: None,
                     gpu_device: None,
                     id: super::super::display_entry::DisplayId::ChargingPower,
                     ..entry.clone()
@@ -356,6 +460,7 @@ mod tests {
             let size = if compact { 11.0 } else { 12.0 };
             let column = macos_presentation::columns(
                 &[DisplayEntry {
+                    frequency: None,
                     gpu_device: None,
                     id: super::super::display_entry::DisplayId::FanSpeed,
                     ..entry.clone()
@@ -372,6 +477,7 @@ mod tests {
         for compact in [false, true] {
             let column = macos_presentation::columns(
                 &[DisplayEntry {
+                    frequency: None,
                     gpu_device: None,
                     id: super::super::display_entry::DisplayId::FanSpeed,
                     fan_rows: Some(["F1 0", "F10 30000"].map(|text| {
@@ -396,6 +502,7 @@ mod tests {
             for heading in ["FMAX", "FAVG", "FAN 10"] {
                 let single = macos_presentation::columns(
                     &[DisplayEntry {
+                        frequency: None,
                         gpu_device: None,
                         id: super::super::display_entry::DisplayId::FanSpeed,
                         ..entry.clone()
@@ -411,6 +518,7 @@ mod tests {
             for digits in ["0", "<1", "999", "1000", "3000", "—"] {
                 let width = macos_presentation::columns(
                     &[DisplayEntry {
+                        frequency: None,
                         gpu_device: None,
                         id: super::super::display_entry::DisplayId::SystemPower,
                         digits: digits.into(),

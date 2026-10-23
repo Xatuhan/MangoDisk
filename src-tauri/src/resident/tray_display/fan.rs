@@ -152,6 +152,7 @@ pub(super) fn entry(
         .map(|rows| format!("{name} {} · {}", rows[0].text, rows[1].text))
         .unwrap_or_else(|| format!("{name} {value}"));
     DisplayEntry {
+        frequency: None,
         gpu_device: None,
         id: DisplayId::FanSpeed,
         tone: Default::default(),

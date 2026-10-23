@@ -87,7 +87,7 @@ pub struct ResourceReadings {
 impl Default for ResourceReadings {
     fn default() -> Self {
         Self {
-            schema_version: 31,
+            schema_version: 33,
             observed_at_ms: 0,
             cpu: MetricReading::default(),
             cpu_identity: None,
@@ -1350,6 +1350,9 @@ mod tests {
             identity: CpuIdentity {
                 model: Some("CPU model".into()),
                 nominal_frequency_mhz: Some(3700.0),
+                frequency_classes: vec![
+                    mangodisk_platform::system_resources::cpu::details::CpuFrequencyClass::Average,
+                ],
             },
             frequency,
             temperature: None,
@@ -1361,6 +1364,7 @@ mod tests {
                 performance_mhz: None,
                 super_mhz: None,
                 source: CpuFrequencySource::WindowsPerformance,
+                activity: Vec::new(),
             })))),
             1000,
         );
@@ -1397,6 +1401,35 @@ mod tests {
                 .as_deref(),
             Some("CPU model")
         );
+    }
+
+    #[test]
+    fn completed_idle_frequency_interval_clears_previous_clocks_and_recovers() {
+        use mangodisk_platform::system_resources::cpu::details::CpuFrequencySource;
+        let mut cache = ResourceCache::default();
+        for (time, mhz) in [(1000, Some(2000.0)), (2000, None), (3000, Some(2500.0))] {
+            cache.cpu_details(
+                CpuDetails {
+                    identity: CpuIdentity::default(),
+                    frequency: Some(Ok(Some(CpuFrequency {
+                        average_mhz: None,
+                        efficiency_mhz: mhz,
+                        performance_mhz: mhz,
+                        super_mhz: None,
+                        source: CpuFrequencySource::ApplePerformanceStates,
+                        activity: Vec::new(),
+                    }))),
+                    temperature: None,
+                },
+                time,
+            );
+            let reading = cache.snapshot(time).cpu_frequency;
+            assert_eq!(reading.status, MetricStatus::Ready);
+            assert_eq!(reading.sampled_at_ms, Some(time));
+            let value = reading.value.unwrap();
+            assert_eq!(value.efficiency_mhz, mhz);
+            assert_eq!(value.performance_mhz, mhz);
+        }
     }
 
     #[test]
@@ -1831,7 +1864,7 @@ mod tests {
             second.cpu_processes.value.as_ref().unwrap()
         ));
         let wire = serde_json::to_value(&second).unwrap();
-        assert_eq!(wire["schemaVersion"], 31);
+        assert_eq!(wire["schemaVersion"], 33);
         assert_eq!(wire["cpuProcesses"]["value"]["readableProcessCount"], 12);
         assert!(!cache.expire(2000));
         assert!(cache.expire(6001));
@@ -1953,7 +1986,7 @@ mod tests {
             },
             1000,
         ));
-        assert_eq!(cache.snapshot(1000).schema_version, 31);
+        assert_eq!(cache.snapshot(1000).schema_version, 33);
         assert_eq!(
             cache.snapshot(6001).cpu_processes.status,
             MetricStatus::Stale

@@ -166,6 +166,7 @@ fn entry(
         )
     };
     DisplayEntry {
+        frequency: None,
         gpu_device: Some(GpuDisplayDevice {
             id: device.adapter_id.clone(),
             name: native_name.unwrap_or(&device.adapter_name).clone(),

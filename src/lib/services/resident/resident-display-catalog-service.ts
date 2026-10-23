@@ -12,7 +12,7 @@ export class ResidentDisplayCatalogService {
     private readonly onError: (failed: boolean) => void
   ) {}
   private accept = (value: ResidentReading) => {
-    if (this.disposed || value.schemaVersion !== 31 || value.revision < this.revision) return;
+    if (this.disposed || value.schemaVersion !== 33 || value.revision < this.revision) return;
     this.revision = value.revision;
     this.onReading(value);
   };

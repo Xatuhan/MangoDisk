@@ -4199,7 +4199,16 @@
     "spanningVolume": "Том на нескольких дисках",
     "diskTopologyUnknown": "Диск тома не определён",
     "systemDiskSelected": "Системный диск ({name})",
-    "currentDiskSource": "Сейчас: {name}"
+    "currentDiskSource": "Сейчас: {name}",
+    "cpuFrequency": "CPU: частота",
+    "cpuEfficiencyFrequency": "CPU: частота энергоэффективных ядер",
+    "cpuPerformanceFrequency": "CPU: частота производительных ядер",
+    "cpuSuperFrequency": "CPU: частота суперъядер",
+    "frequencyIdle": "Покой",
+    "frequencyIdleReason": "В корректном интервале измерения ядра этого типа не были активны",
+    "frequencyNoSample": "Нет корректных данных для ядер этого типа",
+    "frequencyInterval": "Доли состояний за интервал измерения",
+    "frequencyActive": "Активно"
   },
   "webviewRuntime": {
     "updateRequired": "Обновите WebView2 Runtime и перезапустите MangoDisk",
@@ -4444,10 +4453,10 @@
     "snapToEdges": "Привязка к краям экрана",
     "hideOnFullscreen": "Автоскрытие в полноэкранном режиме",
     "labels": {
-      "fan": "Вентилятор",
+      "fan": "Вент",
       "cpu": "CPU",
       "gpu": "GPU",
-      "memory": "Память",
+      "memory": "ОЗУ",
       "disk": "Диск",
       "cpuTemperature": "Темп CPU",
       "gpuTemperature": "Темп GPU",
@@ -4458,7 +4467,11 @@
       "systemPower": "Система",
       "fanSpeed": "Вент. GPU",
       "upload": "Отдача",
-      "download": "Приём"
+      "download": "Приём",
+      "cpuFrequency": "Част. CPU",
+      "cpuEfficiencyFrequency": "CPU E",
+      "cpuPerformanceFrequency": "CPU P",
+      "cpuSuperFrequency": "CPU S"
     },
     "fontSize": "Размер шрифта",
     "bold": "Жирный текст",

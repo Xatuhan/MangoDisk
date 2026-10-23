@@ -28,7 +28,10 @@ pub fn decode(mut value: Value) -> Result<ResidentPreferences, &'static str> {
             return Err("preferences_invalid");
         }
     }
-    if matches!(version, 34..=36) {
+    if matches!(version, 28..=37) {
+        add_frequency_defaults(value.as_object_mut().ok_or("preferences_invalid")?)?;
+    }
+    if matches!(version, 34..=37) {
         let object = value.as_object_mut().ok_or("preferences_invalid")?;
         if version == 34 {
             add_macos_defaults(object)?;
@@ -146,6 +149,44 @@ pub fn decode(mut value: Value) -> Result<ResidentPreferences, &'static str> {
     serde_json::from_value::<ResidentPreferences>(value)
         .map_err(|_| "preferences_invalid")?
         .normalize()
+}
+
+fn add_frequency_defaults(object: &mut Map<String, Value>) -> Result<(), &'static str> {
+    let mut metrics: Vec<DisplayMetric> = serde_json::from_value(
+        object
+            .get("metrics")
+            .cloned()
+            .ok_or("preferences_invalid")?,
+    )
+    .map_err(|_| "preferences_invalid")?;
+    let previous: Vec<_> = DISPLAY_ORDER
+        .into_iter()
+        .filter(|id| id.frequency_class().is_none())
+        .collect();
+    if metrics.len() != previous.len()
+        || previous
+            .iter()
+            .any(|id| metrics.iter().filter(|metric| metric.id == *id).count() != 1)
+    {
+        return Err("preferences_invalid");
+    }
+    let index = metrics
+        .iter()
+        .position(|metric| metric.id == DisplayMetricId::Cpu)
+        .ok_or("preferences_invalid")?
+        + 1;
+    metrics.splice(
+        index..index,
+        DISPLAY_ORDER
+            .into_iter()
+            .filter(|id| id.frequency_class().is_some())
+            .map(|id| DisplayMetric { id, enabled: false }),
+    );
+    object.insert(
+        "metrics".into(),
+        serde_json::to_value(metrics).map_err(|_| "preferences_invalid")?,
+    );
+    Ok(())
 }
 
 fn upgrade_percentage_display(
@@ -286,6 +327,9 @@ fn upgrade_color_rules(object: &mut Map<String, Value>, version: u64) -> Result<
 }
 
 fn released_metric(version: u64, id: DisplayMetricId) -> bool {
+    if id.frequency_class().is_some() {
+        return false;
+    }
     match version {
         7 | 8 => matches!(
             id,

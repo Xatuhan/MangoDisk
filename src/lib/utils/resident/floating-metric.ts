@@ -3,6 +3,10 @@ import type { MetricId } from '@/lib/models/system-resources/system-resources';
 
 export const FLOATING_LABEL_KEYS: Record<FloatingMetricId, string> = {
   cpu: 'floatingMonitor.labels.cpu',
+  cpuFrequency: 'floatingMonitor.labels.cpuFrequency',
+  cpuEfficiencyFrequency: 'floatingMonitor.labels.cpuEfficiencyFrequency',
+  cpuPerformanceFrequency: 'floatingMonitor.labels.cpuPerformanceFrequency',
+  cpuSuperFrequency: 'floatingMonitor.labels.cpuSuperFrequency',
   gpu: 'floatingMonitor.labels.gpu',
   memory: 'floatingMonitor.labels.memory',
   disk: 'floatingMonitor.labels.disk',
@@ -21,6 +25,10 @@ export const FLOATING_LABEL_KEYS: Record<FloatingMetricId, string> = {
 export function detailMetric(id: FloatingMetricId): MetricId {
   switch (id) {
     case 'cpu':
+    case 'cpuFrequency':
+    case 'cpuEfficiencyFrequency':
+    case 'cpuPerformanceFrequency':
+    case 'cpuSuperFrequency':
     case 'cpuTemperature':
     case 'batteryTemperature':
     case 'chargingPower':
@@ -43,8 +51,13 @@ export function detailMetric(id: FloatingMetricId): MetricId {
 }
 
 function floatingUnit(entry: FloatingEntry): string {
-  if (entry.digits === '—') return '';
+  if (entry.digits === '—' || (entry.frequency && entry.frequency.state !== 'active')) return '';
   switch (entry.id) {
+    case 'cpuFrequency':
+    case 'cpuEfficiencyFrequency':
+    case 'cpuPerformanceFrequency':
+    case 'cpuSuperFrequency':
+      return 'GHz';
     case 'cpu':
     case 'gpu':
     case 'memory':

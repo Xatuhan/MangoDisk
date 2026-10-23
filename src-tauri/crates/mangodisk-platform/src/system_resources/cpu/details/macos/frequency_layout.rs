@@ -115,6 +115,11 @@ pub(super) fn table_keys(generation: u32, clusters: Option<&[u8]>) -> Option<[[O
                 }
             }
         }
+        if generation == 5 && seen == [true, true, false] && keys[1][0] == Some(5) {
+            // Base M5 keeps the legacy PCPU record kind (1), but macOS names
+            // that tier Super. Its slot 5 must not also advertise an MCPU tier.
+            keys[CoreKind::Performance as usize] = [None, None];
+        }
     }
     Some(keys)
 }
@@ -145,6 +150,10 @@ pub(super) fn cluster(name: &str, generation: u32) -> Option<CoreKind> {
         ),
     ] {
         if let Some(suffix) = core.strip_prefix(prefix) {
+            // Complex channels may omit the first cluster's numeric suffix.
+            if suffix.is_empty() {
+                return Some(kind);
+            }
             let suffix = suffix.strip_prefix(' ').unwrap_or(suffix);
             if !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit()) {
                 return Some(kind);
@@ -213,9 +222,77 @@ pub(super) fn active_average(
     .ok_or("frequency_out_of_range")
 }
 
+pub(super) fn complete_channel_coverage(expected: &[String], seen: &[String]) -> bool {
+    !expected.is_empty()
+        && expected.len() == seen.len()
+        && expected
+            .iter()
+            .all(|name| seen.iter().filter(|candidate| *candidate == name).count() == 1)
+        && seen.iter().all(|name| {
+            expected
+                .iter()
+                .filter(|candidate| *candidate == name)
+                .count()
+                == 1
+        })
+}
+
+/// Keep non-active residency distinct from an empty or incomplete interval.
+pub(super) fn activity_ratios(states: &[(String, i64)]) -> Option<[f64; 4]> {
+    let mut totals = [0.0; 4];
+    for (name, ticks) in states {
+        if *ticks < 0 {
+            return None;
+        }
+        let index = match name.as_str() {
+            "IDLE" => 1,
+            "DOWN" => 2,
+            "OFF" => 3,
+            _ => 0, // active_average validates every active state's identity first.
+        };
+        totals[index] += *ticks as f64;
+    }
+    let total: f64 = totals.iter().sum();
+    (total > 0.0).then(|| totals.map(|ticks| ticks / total))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn residency_distinguishes_idle_mixed_active_and_invalid_intervals() {
+        let sample = |idle, down, off, active| {
+            vec![
+                ("IDLE".into(), idle),
+                ("DOWN".into(), down),
+                ("OFF".into(), off),
+                ("V0P0".into(), active),
+            ]
+        };
+        assert_eq!(
+            activity_ratios(&sample(30, 70, 0, 0)),
+            Some([0.0, 0.3, 0.7, 0.0])
+        );
+        assert_eq!(
+            activity_ratios(&sample(20, 30, 10, 40)),
+            Some([0.4, 0.2, 0.3, 0.1])
+        );
+        assert_eq!(activity_ratios(&sample(0, 0, 0, 0)), None);
+        assert_eq!(activity_ratios(&sample(-1, 10, 0, 0)), None);
+        let expected = vec!["PCPU0".into(), "PCPU1".into()];
+        assert!(complete_channel_coverage(&expected, &expected));
+        assert!(!complete_channel_coverage(&expected, &expected[..1]));
+        assert!(!complete_channel_coverage(
+            &expected,
+            &["PCPU0".into(), "PCPU0".into()]
+        ));
+        assert!(!complete_channel_coverage(
+            &["PCPU0".into(), "PCPU0".into()],
+            &["PCPU0".into(), "PCPU1".into()]
+        ));
+        assert!(!complete_channel_coverage(&[], &[]));
+    }
 
     #[test]
     fn all_six_generations_decode_their_identified_frequency_units() {
@@ -330,20 +407,64 @@ mod tests {
     }
 
     #[test]
+    fn base_m5_two_tier_metadata_does_not_duplicate_the_super_table() {
+        // macOS 26.5.1 reports Super(4) and Efficiency(6) for this Apple M5 Air.
+        let bytes = [2, 0, 0, 0, 0, 0, 0, 0, 5, 1, 0, 0, 0, 0, 0, 0];
+        assert_eq!(
+            table_keys(5, Some(&bytes)),
+            Some([[Some(1), Some(2)], [None, None], [Some(5), None]])
+        );
+    }
+
+    #[test]
     fn channel_identity_preserves_all_three_m6_core_kinds() {
         assert_eq!(cluster("PCPU1", 3), Some(CoreKind::Performance));
         assert_eq!(cluster("EACC_ECPU 0", 6), Some(CoreKind::Efficiency));
         assert_eq!(cluster("PACC0_MCPU2", 6), Some(CoreKind::Performance));
         assert_eq!(cluster("PACC0_PCPU 0", 6), Some(CoreKind::Super));
-        for name in [
-            "PCPM_IDLE",
-            "EACC_CPM",
-            "PACC0",
-            "PCPU",
-            "bad_PCPU0",
-            "PCPU-1",
-        ] {
+        for name in ["PCPM_IDLE", "EACC_CPM", "PACC0", "bad_PCPU0", "PCPU-1"] {
             assert_eq!(cluster(name, 6), None);
+        }
+    }
+
+    #[test]
+    fn channel_identity_accepts_numbered_and_unnumbered_cpu_channels() {
+        for generation in 1..=6 {
+            for (prefix, expected) in [
+                ("ECPU", CoreKind::Efficiency),
+                ("MCPU", CoreKind::Performance),
+                (
+                    "PCPU",
+                    if generation >= 5 {
+                        CoreKind::Super
+                    } else {
+                        CoreKind::Performance
+                    },
+                ),
+            ] {
+                for suffix in ["", "0", "1", "010", " 0", " 12"] {
+                    let name = format!("{prefix}{suffix}");
+                    assert_eq!(
+                        cluster(&name, generation),
+                        Some(expected),
+                        "{name}, M{generation}"
+                    );
+                }
+                for suffix in [" ", "  0", "-1", "+1", "1x", "１", "_IDLE"] {
+                    let name = format!("{prefix}{suffix}");
+                    assert_eq!(cluster(&name, generation), None, "{name}, M{generation}");
+                }
+            }
+        }
+        for (name, expected) in [
+            ("EACC_ECPU", CoreKind::Efficiency),
+            ("EACC_ECPU000", CoreKind::Efficiency),
+            ("PACC0_MCPU", CoreKind::Performance),
+            ("PACC0_MCPU 0", CoreKind::Performance),
+            ("PACC1_PCPU", CoreKind::Super),
+            ("PACC1_PCPU010", CoreKind::Super),
+        ] {
+            assert_eq!(cluster(name, 6), Some(expected), "{name}");
         }
     }
 
