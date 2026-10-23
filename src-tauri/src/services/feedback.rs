@@ -195,6 +195,7 @@ impl FeedbackDraftStore {
 #[serde(rename_all = "camelCase")]
 pub struct SubmitFeedbackRequest {
     pub request_id: String,
+    pub install_id: Option<String>,
     pub category: String,
     pub content: String,
     pub email: Option<String>,
@@ -216,6 +217,7 @@ pub struct SubmitFeedbackResult {
 struct FeedbackMetadata<'a> {
     schema_version: u8,
     request_id: &'a str,
+    install_id: Option<&'a str>,
     category: &'a str,
     content: &'a str,
     email: Option<&'a str>,
@@ -288,6 +290,7 @@ impl FeedbackSubmissionService {
                 serde_json::to_string(&FeedbackMetadata {
                     schema_version: FEEDBACK_SCHEMA_VERSION,
                     request_id: &request.request_id,
+                    install_id: request.install_id.as_deref(),
                     category: &request.category,
                     content: request.content.trim(),
                     email: request
@@ -425,6 +428,10 @@ fn validate_submission(request: &SubmitFeedbackRequest) -> Result<(), FeedbackEr
     let content_length = request.content.trim().encode_utf16().count();
     let valid_category = matches!(request.category.as_str(), "issue" | "suggestion" | "other");
     if Uuid::parse_str(&request.request_id).is_err()
+        || request
+            .install_id
+            .as_deref()
+            .is_some_and(|id| Uuid::parse_str(id).is_err())
         || !valid_category
         || !(10..=5000).contains(&content_length)
         || request.locale.trim().is_empty()
@@ -766,9 +773,32 @@ mod tests {
     }
 
     #[test]
+    fn metadata_serializes_the_existing_installation_identity() {
+        let install_id = Uuid::new_v4().to_string();
+        let mut metadata = FeedbackMetadata {
+            schema_version: FEEDBACK_SCHEMA_VERSION,
+            request_id: "2e71a0e7-ae6d-4f65-b67f-1910c90e4473",
+            install_id: Some(&install_id),
+            category: "issue",
+            content: "A useful feedback report",
+            email: None,
+            platform: "macos",
+            architecture: "aarch64",
+            app_version: "1.1.5",
+            os_version: "15.7".into(),
+            locale: "en-US",
+        };
+        let value = serde_json::to_value(&metadata).unwrap();
+        assert_eq!(value["installId"], install_id);
+        metadata.install_id = None;
+        assert!(serde_json::to_value(&metadata).unwrap()["installId"].is_null());
+    }
+
+    #[test]
     fn submission_validation_matches_the_website_contract() {
         let mut request = SubmitFeedbackRequest {
             request_id: Uuid::new_v4().to_string(),
+            install_id: Some(Uuid::new_v4().to_string()),
             category: "issue".into(),
             content: "A useful feedback report".into(),
             email: Some("person@example.com".into()),
@@ -776,6 +806,14 @@ mod tests {
             include_logs: true,
             attachment_tokens: Vec::new(),
         };
+        assert!(validate_submission(&request).is_ok());
+
+        request.install_id = Some("invalid-install-id".into());
+        assert!(matches!(
+            validate_submission(&request),
+            Err(FeedbackError::InvalidSubmission)
+        ));
+        request.install_id = None;
         assert!(validate_submission(&request).is_ok());
 
         request.email = Some("person@team@example.com".into());

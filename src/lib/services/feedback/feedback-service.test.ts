@@ -2,14 +2,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FeedbackService } from '@/lib/services/feedback/feedback-service';
 
-const { invokeMock, readFileMock, statMock } = vi.hoisted(() => ({
+const { invokeMock, readFileMock, statMock, installIdMock, warnMock } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
   readFileMock: vi.fn(),
   statMock: vi.fn(),
+  installIdMock: vi.fn(),
+  warnMock: vi.fn(),
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
 vi.mock('@tauri-apps/plugin-fs', () => ({ readFile: readFileMock, stat: statMock }));
+vi.mock('@/lib/services/http/installation-identity-service', () => ({
+  InstallationIdentityService: { getOrCreateInstallId: installIdMock },
+}));
+vi.mock('@/lib/services/diagnostics/logger-service', () => ({ LoggerService: { warn: warnMock } }));
+
+const request = {
+  requestId: '982c87c2-946a-4c19-ab90-920acc51f52b',
+  category: 'issue' as const,
+  content: 'A reproducible feedback report',
+  email: null,
+  locale: 'en-US',
+  includeLogs: true,
+  attachmentTokens: ['draft-1'],
+};
+const installId = '019c0b3d-a9ef-7d11-89a3-d5ea10df4001';
 
 describe('FeedbackService', () => {
   beforeEach(() => {
@@ -17,6 +34,9 @@ describe('FeedbackService', () => {
     invokeMock.mockResolvedValue(undefined);
     readFileMock.mockReset();
     statMock.mockReset();
+    installIdMock.mockReset();
+    installIdMock.mockResolvedValue(installId);
+    warnMock.mockReset();
   });
 
   it('reads a native dropped file only after checking its size', async () => {
@@ -77,17 +97,20 @@ describe('FeedbackService', () => {
     await FeedbackService.discardAttachments(['draft-1']);
     expect(invokeMock).toHaveBeenCalledWith('discard_feedback_attachments', { tokens: ['draft-1'] });
 
-    const request = {
-      requestId: '982c87c2-946a-4c19-ab90-920acc51f52b',
-      category: 'issue' as const,
-      content: 'A reproducible feedback report',
-      email: null,
-      locale: 'en-US',
-      includeLogs: true,
-      attachmentTokens: ['draft-1'],
-    };
     await FeedbackService.submit(request);
 
-    expect(invokeMock).toHaveBeenLastCalledWith('submit_feedback', { request });
+    expect(invokeMock).toHaveBeenLastCalledWith('submit_feedback', { request: { ...request, installId } });
+  });
+
+  it('keeps submitting feedback when installation identity storage is unavailable', async () => {
+    const error = new Error('installation store unavailable');
+    installIdMock.mockRejectedValue(error);
+    await FeedbackService.submit(request);
+
+    expect(invokeMock).toHaveBeenCalledWith('submit_feedback', { request: { ...request, installId: null } });
+    expect(warnMock).toHaveBeenCalledWith('feedback', 'feedback_installation_identity_unavailable', {
+      requestId: request.requestId,
+      error,
+    });
   });
 });

@@ -9,6 +9,8 @@ import {
   type StagedFeedbackAttachment,
 } from '@/lib/models/feedback/feedback';
 import { feedbackFileNameFromPath } from '@/lib/utils/feedback/feedback';
+import { InstallationIdentityService } from '@/lib/services/http/installation-identity-service';
+import { LoggerService } from '@/lib/services/diagnostics/logger-service';
 
 export type DroppedAttachmentIssue = 'tooLarge' | 'unavailable';
 
@@ -50,8 +52,18 @@ export class FeedbackService {
     return invoke<void>('discard_feedback_attachments', { tokens });
   }
 
-  static submit(request: FeedbackSubmissionRequest): Promise<FeedbackSubmissionResult> {
-    return invoke<FeedbackSubmissionResult>('submit_feedback', { request });
+  static async submit(request: FeedbackSubmissionRequest): Promise<FeedbackSubmissionResult> {
+    let installId: string | null = null;
+    try {
+      installId = await InstallationIdentityService.getOrCreateInstallId();
+    } catch (error) {
+      // Identity persistence must not prevent users from reporting a problem.
+      LoggerService.warn('feedback', 'feedback_installation_identity_unavailable', {
+        requestId: request.requestId,
+        error,
+      });
+    }
+    return invoke<FeedbackSubmissionResult>('submit_feedback', { request: { ...request, installId } });
   }
 
   private static encodeHeaderValue(value: string): string {

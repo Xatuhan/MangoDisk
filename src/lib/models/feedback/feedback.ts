@@ -24,6 +24,7 @@ export interface StagedFeedbackAttachment {
 
 export interface FeedbackSubmissionRequest {
   requestId: string;
+  installId?: string | null;
   category: FeedbackCategory;
   content: string;
   email: string | null;
