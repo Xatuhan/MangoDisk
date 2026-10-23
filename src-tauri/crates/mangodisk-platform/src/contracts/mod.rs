@@ -1,8 +1,13 @@
 mod name_exclusions;
 pub use name_exclusions::{ExcludedNameKind, NameExclusions, ScanNameExclusion};
 mod ai_models;
+mod application_dates;
 mod application_identity;
 mod applications;
+pub use application_dates::{
+    ApplicationDate, ApplicationDatePrecision, ApplicationDateReadStatus, ApplicationDateRecord,
+    ApplicationDateSource, ApplicationDateTarget, ApplicationDates,
+};
 pub use application_identity::{
     ApplicationIdentityMetadata, ApplicationSigningKind, ApplicationSigningMetadata,
 };

@@ -44,6 +44,7 @@ pub use applications::uninstall::{
     ApplicationUninstallResult, ApplicationUninstallRisk, ApplicationUninstallScanResult,
     ApplicationUninstallService,
 };
+pub use applications::usage::{ApplicationUsagePersistence, ApplicationUsageService};
 pub use cleanup::{
     CleanupActionKind, CleanupActionReason, CleanupActionResult, CleanupActionStatus,
     CleanupApplicationCloseIdentity, CleanupApplicationCloseRequest, CleanupApplicationIcon,

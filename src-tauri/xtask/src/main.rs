@@ -234,11 +234,17 @@ fn run_application_uninstall_benchmark(runs: usize) -> Result<(), String> {
             .iter()
             .filter(|candidate| !candidate.associated_data_complete)
             .count();
-        let serialized = serde_json::to_vec(&scan.candidates)
+        // Date evidence is sampled independently on each scan; capture timestamps and live
+        // foreground observations are not part of the uninstall-component consistency digest.
+        let mut component_candidates = scan.candidates.clone();
+        for candidate in &mut component_candidates {
+            candidate.dates = Default::default();
+        }
+        let serialized = serde_json::to_vec(&component_candidates)
             .map_err(|error| format!("failed to serialize benchmark result: {error}"))?;
         let digest = blake3::hash(&serialized).to_hex().to_string();
         println!(
-            "application_uninstall_benchmark_run run={} cold={} inventory_complete={} candidate_count={} component_count={} file_count={} bytes={} incomplete_count={} first_progress_ms={} elapsed_ms={} result_digest={}",
+            "application_uninstall_benchmark_run run={} cold={} inventory_complete={} candidate_count={} component_count={} file_count={} bytes={} incomplete_count={} first_progress_ms={} elapsed_ms={} result_digest={} usage_dates={} estimated_usage_dates={} installation_dates={}",
             run_index + 1,
             run_index == 0,
             scan.inventory_complete,
@@ -250,6 +256,9 @@ fn run_application_uninstall_benchmark(runs: usize) -> Result<(), String> {
             first_progress_ms,
             elapsed_ms,
             digest,
+            scan.candidates.iter().filter(|candidate| candidate.dates.last_used.is_some()).count(),
+            scan.candidates.iter().filter(|candidate| candidate.dates.last_used.as_ref().is_some_and(|date| date.estimated)).count(),
+            scan.candidates.iter().filter(|candidate| candidate.dates.installed.is_some()).count(),
         );
         durations.push(elapsed_ms);
         digests.push(digest);

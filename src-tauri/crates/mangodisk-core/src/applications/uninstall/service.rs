@@ -1291,6 +1291,16 @@ fn scan_without_guard(
             .then_with(|| left.application_id.cmp(&right.application_id))
     });
     let candidate_build_elapsed_ms = candidate_build_started.elapsed().as_millis();
+    let date_capture_started = Instant::now();
+    if include_component_summaries {
+        super::dates::refresh(
+            &mut candidates,
+            installed_applications,
+            &platform_cancellation,
+        );
+        ensure_scan_not_cancelled(&cancellation)?;
+    }
+    let date_capture_elapsed_ms = date_capture_started.elapsed().as_millis();
     if let Some(progress) = &progress {
         progress.set_total_steps(candidates.len() as u64);
     }
@@ -1384,7 +1394,7 @@ fn scan_without_guard(
     }
 
     log::info!(
-            "application_uninstall_catalog_ready operation_id={} candidate_count={} ready_count={} blocked_count={} hidden_count={} self_excluded_count={} catalog_actionable={} inventory_complete={} component_summaries={} inventory_elapsed_ms={} process_snapshot_elapsed_ms={} candidate_build_elapsed_ms={} component_summary_elapsed_ms={} elapsed_ms={}",
+            "application_uninstall_catalog_ready operation_id={} candidate_count={} ready_count={} blocked_count={} hidden_count={} self_excluded_count={} catalog_actionable={} inventory_complete={} component_summaries={} inventory_elapsed_ms={} process_snapshot_elapsed_ms={} candidate_build_elapsed_ms={} date_capture_elapsed_ms={} component_summary_elapsed_ms={} elapsed_ms={}",
             operation_id,
             candidates.len(),
             ready_count,
@@ -1397,6 +1407,7 @@ fn scan_without_guard(
             inventory_elapsed_ms,
             process_snapshot_elapsed_ms,
             candidate_build_elapsed_ms,
+            date_capture_elapsed_ms,
             component_summary_elapsed_ms,
             started.elapsed().as_millis()
         );
@@ -1608,8 +1619,7 @@ fn candidate(
         version: application.version.clone(),
         publisher: application.publisher.clone(),
         estimated_bytes: application.estimated_bytes,
-        last_used_at_ms: application.last_used_at_ms,
-        installed_at_ms: application.installed_at_ms,
+        dates: super::dates::reported(application),
         platform: platform_kind(),
         installer_kind: application
             .uninstall_registration

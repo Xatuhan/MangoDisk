@@ -41,6 +41,13 @@ describe('FormatUtils.dateTime', () => {
 });
 
 describe('explicit formatting context', () => {
+  it('formats and sorts calendar dates without fabricating a time of day', () => {
+    const timestamp = Date.UTC(2024, 2, 5, 23, 18);
+    expect(FormatUtils.date(timestamp, 'en-US', 'Asia/Shanghai')).toBe('03/06/2024');
+    expect(FormatUtils.calendarDateKey(timestamp, 'Asia/Shanghai')).toBe(20240306);
+    expect(FormatUtils.calendarDateKey(timestamp, 'America/Los_Angeles')).toBe(20240305);
+    expect(FormatUtils.date(null, 'en-US', 'UTC')).toBe('—');
+  });
   it('uses the supplied time zone across a date boundary', () => {
     const timestamp = Date.UTC(2024, 2, 5, 23, 18);
     expect(FormatUtils.dateTime(timestamp, 'en-US', 'UTC')).toBe('03/05/2024 23:18');

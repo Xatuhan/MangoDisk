@@ -400,6 +400,8 @@ pub fn run() {
                 code
             );
         } else if matches!(&_event, tauri::RunEvent::Exit) {
+            #[cfg(target_os = "macos")]
+            services::application_usage::close();
             resident::network_traffic::close(_app);
             log::info!("application_exited process_id={}", std::process::id());
         }
@@ -418,6 +420,8 @@ pub fn run() {
             }
         }
         if !webview_update_required && matches!(_event, tauri::RunEvent::Ready) {
+            #[cfg(target_os = "macos")]
+            services::application_usage::install();
             resident::panel::prewarm(_app);
         }
         // Dock reopening does not launch another process, so the single-instance

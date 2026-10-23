@@ -40,6 +40,16 @@ fn catalog_exposes_the_same_redacted_reference_and_typed_reason_as_inventory() {
     let json = serde_json::to_value(&item).expect("candidate should serialize");
     assert_eq!(json["uninstallDiagnostic"], "executableAccessDenied");
     assert_eq!(
+        json["dates"]["lastUsed"]["timestampMs"],
+        1_700_000_000_000_u64
+    );
+    assert_eq!(
+        json["dates"]["installed"]["timestampMs"],
+        1_690_000_000_000_u64
+    );
+    assert_eq!(json["dates"]["lastUsed"]["source"], "platformReported");
+    assert!(json.get("lastUsedAtMs").is_none());
+    assert_eq!(
         json["applicationId"],
         mangodisk_platform::application_uninstall_diagnostic_id(&application.catalog_identifier)
     );

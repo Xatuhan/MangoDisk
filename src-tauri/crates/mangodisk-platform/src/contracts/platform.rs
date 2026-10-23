@@ -99,6 +99,15 @@ pub trait Platform: Send + Sync {
         self.system_inventory_revision()
     }
     fn system_inventory(&self) -> PlatformResult<SystemInventory>;
+    /// Date evidence changes without an application installation revision. Capture it only for
+    /// a visible catalog, independently of the cached identity inventory and execution preflight.
+    fn application_dates(
+        &self,
+        _applications: &[super::ApplicationDateTarget],
+        _cancellation: &PlatformCancellation,
+    ) -> Vec<super::ApplicationDateRecord> {
+        Vec::new()
+    }
     /// Captures application inventory while allowing adapters to stop native
     /// enumeration and child processes. Platforms without a cancellable path
     /// retain the original contract but still fail before starting new work.

@@ -1,8 +1,9 @@
 import type { ApplicationUninstallCandidate } from '@/lib/models/applications/application';
 import * as PathUtils from '@/lib/utils/filesystem/path';
+import { calendarDateKey } from '@/lib/utils/presentation/format';
 
 export type ApplicationCatalogFilter = 'all' | 'ready' | 'requiresElevation' | 'running' | 'unavailable';
-export type ApplicationCatalogSortKey = 'name' | 'status' | 'size' | 'date';
+export type ApplicationCatalogSortKey = 'name' | 'status' | 'size' | 'lastUsed' | 'installed';
 export type ApplicationCatalogSort =
   | 'nameAscending'
   | 'nameDescending'
@@ -10,8 +11,10 @@ export type ApplicationCatalogSort =
   | 'statusDescending'
   | 'sizeAscending'
   | 'sizeDescending'
-  | 'dateAscending'
-  | 'dateDescending';
+  | 'lastUsedAscending'
+  | 'lastUsedDescending'
+  | 'installedAscending'
+  | 'installedDescending';
 
 const SORT_KEY_BY_VALUE: Record<ApplicationCatalogSort, ApplicationCatalogSortKey> = {
   nameAscending: 'name',
@@ -20,8 +23,10 @@ const SORT_KEY_BY_VALUE: Record<ApplicationCatalogSort, ApplicationCatalogSortKe
   statusDescending: 'status',
   sizeAscending: 'size',
   sizeDescending: 'size',
-  dateAscending: 'date',
-  dateDescending: 'date',
+  lastUsedAscending: 'lastUsed',
+  lastUsedDescending: 'lastUsed',
+  installedAscending: 'installed',
+  installedDescending: 'installed',
 };
 
 export function applicationCatalogSortKey(sort: ApplicationCatalogSort): ApplicationCatalogSortKey {
@@ -53,16 +58,10 @@ function compareName(left: ApplicationUninstallCandidate, right: ApplicationUnin
 
 function compareOptionalTimestamp(left: number | null, right: number | null, direction: 1 | -1) {
   if (left === right) return 0;
-  // An unavailable usage date means the application has no observable recent
-  // use. Treat it as the earliest value: it appears first for oldest-first
-  // review and remains last when users sort by most recently used.
-  if (left === null) return -direction;
-  if (right === null) return direction;
+  // Missing evidence does not prove disuse. Keep it after known dates in either direction.
+  if (left === null) return 1;
+  if (right === null) return -1;
   return (left - right) * direction;
-}
-
-function applicationDate(candidate: ApplicationUninstallCandidate): number | null {
-  return candidate.platform === 'windowsRegistry' ? candidate.installedAtMs : candidate.lastUsedAtMs;
 }
 
 function compareOptionalSize(left: number, right: number, direction: 1 | -1) {
@@ -167,7 +166,8 @@ export function filterAndSortApplications(
   candidates: readonly ApplicationUninstallCandidate[],
   query: string,
   filter: ApplicationCatalogFilter,
-  sort: ApplicationCatalogSort
+  sort: ApplicationCatalogSort,
+  timeZone = 'UTC'
 ): ApplicationUninstallCandidate[] {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const windowsPathQuery = normalizedQuery.replaceAll('/', '\\');
@@ -185,6 +185,17 @@ export function filterAndSortApplications(
       : path.includes(normalizedQuery);
   });
 
+  const dateKind = sort.startsWith('lastUsed') ? 'lastUsed' : sort.startsWith('installed') ? 'installed' : null;
+  const dateKeys = new Map<string, number | null>();
+  if (dateKind) {
+    for (const candidate of matches) {
+      const date = candidate.dates[dateKind];
+      dateKeys.set(
+        candidate.applicationId,
+        date ? calendarDateKey(date.timestampMs, date.precision === 'day' ? 'UTC' : timeZone) : null
+      );
+    }
+  }
   // Monterey's WKWebView predates Array.prototype.toSorted. Keep the input
   // immutable while using the legacy-compatible Array sort implementation.
   return [...matches].sort((left, right) => {
@@ -206,11 +217,21 @@ export function filterAndSortApplications(
       case 'sizeDescending':
         comparison = compareOptionalSize(left.totalBytes, right.totalBytes, -1);
         break;
-      case 'dateAscending':
-        comparison = compareOptionalTimestamp(applicationDate(left), applicationDate(right), 1);
+      case 'lastUsedAscending':
+      case 'installedAscending':
+        comparison = compareOptionalTimestamp(
+          dateKeys.get(left.applicationId) ?? null,
+          dateKeys.get(right.applicationId) ?? null,
+          1
+        );
         break;
-      case 'dateDescending':
-        comparison = compareOptionalTimestamp(applicationDate(left), applicationDate(right), -1);
+      case 'lastUsedDescending':
+      case 'installedDescending':
+        comparison = compareOptionalTimestamp(
+          dateKeys.get(left.applicationId) ?? null,
+          dateKeys.get(right.applicationId) ?? null,
+          -1
+        );
         break;
     }
     return comparison || compareName(left, right);

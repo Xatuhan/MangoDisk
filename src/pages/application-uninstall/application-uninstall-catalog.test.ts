@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ApplicationUninstallCandidate } from '@/lib/models/applications/application';
+import type { ApplicationDate, ApplicationUninstallCandidate } from '@/lib/models/applications/application';
+
+function date(days: number): ApplicationDate {
+  return {
+    timestampMs: days * 86_400_000,
+    source: 'platformReported',
+    precision: 'day',
+    capturedAtMs: 1_800_000_000_000,
+    estimated: false,
+    partial: false,
+  };
+}
 
 import {
   applicationCatalogFilters,
@@ -27,8 +38,7 @@ function candidate(
     version: null,
     publisher: 'Example',
     estimatedBytes,
-    lastUsedAtMs,
-    installedAtMs: null,
+    dates: { lastUsed: lastUsedAtMs === null ? null : date(lastUsedAtMs), installed: null, readStatus: 'complete' },
     platform: 'macosBundle',
     installerKind: null,
     executionMode: null,
@@ -54,7 +64,7 @@ describe('application uninstall catalog', () => {
     {
       ...candidate('Elevated', 25, 250, 'requiresElevation'),
       platform: 'windowsRegistry' as const,
-      installedAtMs: 250,
+      dates: { lastUsed: date(250), installed: date(250), readStatus: 'complete' },
     },
     candidate('Unknown', 0, 200),
   ];
@@ -76,35 +86,75 @@ describe('application uninstall catalog', () => {
     ]);
   });
 
-  it('treats unavailable platform dates as the earliest timestamp', () => {
-    expect(filterAndSortApplications(applications, '', 'all', 'dateDescending').map(item => item.name)).toEqual([
+  it('keeps unavailable dates last in either direction', () => {
+    expect(filterAndSortApplications(applications, '', 'all', 'lastUsedDescending').map(item => item.name)).toEqual([
       'Medium',
       'Elevated',
       'Unknown',
       'Small',
       'Large',
     ]);
-    expect(filterAndSortApplications(applications, '', 'all', 'dateAscending').map(item => item.name)).toEqual([
-      'Large',
+    expect(filterAndSortApplications(applications, '', 'all', 'lastUsedAscending').map(item => item.name)).toEqual([
       'Small',
       'Unknown',
       'Elevated',
       'Medium',
+      'Large',
     ]);
   });
 
   it('sorts Windows applications by their install or update date', () => {
     const windowsApplications = [
-      { ...candidate('Older', 10, 900), platform: 'windowsRegistry' as const, installedAtMs: 100 },
-      { ...candidate('Newer', 20, 100), platform: 'windowsRegistry' as const, installedAtMs: 300 },
+      {
+        ...candidate('Older', 10, 900),
+        platform: 'windowsRegistry' as const,
+        dates: { lastUsed: date(900), installed: date(100), readStatus: 'complete' as const },
+      },
+      {
+        ...candidate('Newer', 20, 100),
+        platform: 'windowsRegistry' as const,
+        dates: { lastUsed: date(100), installed: date(300), readStatus: 'complete' as const },
+      },
       { ...candidate('Unknown date', 30, 500), platform: 'windowsRegistry' as const },
     ];
 
-    expect(filterAndSortApplications(windowsApplications, '', 'all', 'dateDescending').map(item => item.name)).toEqual([
-      'Newer',
-      'Older',
-      'Unknown date',
+    expect(
+      filterAndSortApplications(windowsApplications, '', 'all', 'installedDescending').map(item => item.name)
+    ).toEqual(['Newer', 'Older', 'Unknown date']);
+  });
+
+  it('uses independent installation dates and alphabetical ties for the displayed local day', () => {
+    const early = candidate('A early', 1, null);
+    early.dates = {
+      lastUsed: { ...date(1), precision: 'timestamp', timestampMs: Date.UTC(2024, 2, 5, 23) },
+      installed: date(500),
+      readStatus: 'complete',
+    };
+    const late = candidate('Z late', 1, null);
+    late.dates = {
+      lastUsed: { ...date(1), precision: 'timestamp', timestampMs: Date.UTC(2024, 2, 6, 1) },
+      installed: date(100),
+      readStatus: 'complete',
+    };
+    expect(
+      filterAndSortApplications([early, late], '', 'all', 'lastUsedDescending', 'Asia/Shanghai').map(item => item.name)
+    ).toEqual(['A early', 'Z late']);
+    expect(filterAndSortApplications([early, late], '', 'all', 'installedDescending').map(item => item.name)).toEqual([
+      'A early',
+      'Z late',
     ]);
+  });
+
+  it('does not shift calendar-only evidence into the previous day west of UTC', () => {
+    const day = candidate('Z day', 1, null);
+    day.dates.lastUsed = { ...date(1), timestampMs: Date.UTC(2026, 9, 23) };
+    const exact = candidate('A exact', 1, null);
+    exact.dates.lastUsed = { ...date(1), precision: 'timestamp', timestampMs: Date.UTC(2026, 9, 23, 6) };
+    expect(
+      filterAndSortApplications([exact, day], '', 'all', 'lastUsedDescending', 'America/Los_Angeles').map(
+        item => item.name
+      )
+    ).toEqual(['Z day', 'A exact']);
   });
 
   it('keeps elevated uninstallers actionable on both platforms', () => {
@@ -243,8 +293,9 @@ describe('application uninstall catalog', () => {
   it('uses table-header sorting defaults and toggles the active column', () => {
     expect(nextApplicationCatalogSort('sizeDescending', 'name')).toBe('nameAscending');
     expect(nextApplicationCatalogSort('nameAscending', 'name')).toBe('nameDescending');
-    expect(nextApplicationCatalogSort('nameDescending', 'date')).toBe('dateDescending');
-    expect(nextApplicationCatalogSort('dateDescending', 'date')).toBe('dateAscending');
-    expect(nextApplicationCatalogSort('dateAscending', 'status')).toBe('statusDescending');
+    expect(nextApplicationCatalogSort('nameDescending', 'lastUsed')).toBe('lastUsedDescending');
+    expect(nextApplicationCatalogSort('lastUsedDescending', 'lastUsed')).toBe('lastUsedAscending');
+    expect(nextApplicationCatalogSort('lastUsedAscending', 'installed')).toBe('installedDescending');
+    expect(nextApplicationCatalogSort('installedAscending', 'status')).toBe('statusDescending');
   });
 });

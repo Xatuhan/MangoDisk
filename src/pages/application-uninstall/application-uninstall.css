@@ -12,6 +12,9 @@
 .catalog-notice {
   margin: 12px 16px 0;
 }
+.compact-date-sort {
+  display: none;
+}
 .catalog {
   display: flex;
   min-height: 0;
@@ -30,11 +33,14 @@
   display: grid;
   min-height: var(--layout-result-header-height);
   flex: none;
-  grid-template-columns: 20px minmax(0, 1fr) auto minmax(72px, auto) minmax(128px, auto) 30px;
+  grid-template-columns: 20px minmax(0, 1fr) auto minmax(72px, auto) 112px 30px;
   align-items: center;
   gap: 14px;
   padding-block: 0;
   font-size: 11px;
+}
+.application-list-header.has-usage-date {
+  grid-template-columns: 20px minmax(0, 1fr) auto minmax(72px, auto) 112px 112px 30px;
 }
 .application-list-header label {
   display: flex;
@@ -79,13 +85,26 @@
   border: 0;
   box-shadow: none;
 }
-@container application-uninstall (max-width: 760px) {
+@container application-uninstall (max-width: 640px) {
+  .compact-date-sort {
+    display: block;
+    max-width: 148px;
+  }
+  .compact-date-sort :deep([data-slot='select-trigger']) {
+    max-width: 148px;
+    font-size: 11px;
+  }
+  .compact-date-sort :deep([data-slot='select-value']) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   /* Keep the compact header aligned with the four columns rendered by rows. */
   .application-list-header .status-header,
   .application-list-header .application-date-header {
     display: none;
   }
-  .application-list-header {
+  .application-list-header,
+  .application-list-header.has-usage-date {
     grid-template-columns: 20px minmax(0, 1fr) minmax(72px, auto) 30px;
   }
   .application-list-header .size-header {

@@ -2,6 +2,7 @@ import { EMPTY_DISPLAY_TEXT } from '@/lib/models/presentation/ui';
 const INTEGER_FORMATTERS = new Map<string, Intl.NumberFormat>();
 const LIST_FORMATTERS = new Map<string, Intl.ListFormat>();
 const DATE_TIME_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+const DATE_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
 export const BYTE_UNIT_BASES = {
   decimal: 1000,
   binary: 1024,
@@ -50,6 +51,31 @@ export function dateTime(timestamp: number | null | undefined, locale: string, t
     .formatToParts(new Date(timestamp))
     .map(part => (part.type === 'literal' ? part.value.replace(/,\s*/g, ' ') : part.value))
     .join('');
+}
+
+export function date(timestamp: number | null | undefined, locale: string, timeZone: string): string {
+  if (timestamp === null || timestamp === undefined || !Number.isFinite(timestamp)) return EMPTY_DISPLAY_TEXT;
+  const key = `${locale}:${timeZone}`;
+  let formatter = DATE_FORMATTERS.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit', timeZone });
+    DATE_FORMATTERS.set(key, formatter);
+  }
+  return formatter.format(timestamp);
+}
+
+/** Numeric calendar keys keep sorting aligned with the day actually displayed by the adapter. */
+export function calendarDateKey(timestamp: number, timeZone: string): number {
+  if (!Number.isFinite(timestamp)) return 0;
+  const key = `calendar:${timeZone}`;
+  let formatter = DATE_FORMATTERS.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone });
+    DATE_FORMATTERS.set(key, formatter);
+  }
+  const parts = formatter.formatToParts(timestamp);
+  const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(value => value.type === type)?.value ?? 0);
+  return part('year') * 10000 + part('month') * 100 + part('day');
 }
 export function elapsedSeconds(startedAtMs: number, finishedAtMs: number): number {
   if (!Number.isFinite(startedAtMs) || !Number.isFinite(finishedAtMs)) {

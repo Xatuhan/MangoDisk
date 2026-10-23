@@ -2693,6 +2693,7 @@ dependencies = [
  "base64 0.23.1",
  "blake3",
  "core-foundation 0.10.1",
+ "crc32fast",
  "dirs 7.0.0",
  "dispatch2",
  "gdk-pixbuf",

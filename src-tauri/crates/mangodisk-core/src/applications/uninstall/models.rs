@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::ApplicationCloseMode;
 
-pub const APPLICATION_UNINSTALL_SCAN_SCHEMA_VERSION: u32 = 11;
+pub const APPLICATION_UNINSTALL_SCAN_SCHEMA_VERSION: u32 = 12;
 pub const APPLICATION_UNINSTALL_IDENTITY_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Serialize)]
@@ -110,8 +110,7 @@ pub struct ApplicationUninstallCandidate {
     /// Platform catalog estimate. Windows registrations and macOS metadata normally expose
     /// logical sizes and cannot account exactly for compression, clones, or shared package data.
     pub estimated_bytes: u64,
-    pub last_used_at_ms: Option<u64>,
-    pub installed_at_ms: Option<u64>,
+    pub dates: mangodisk_platform::ApplicationDates,
     pub platform: ApplicationUninstallPlatform,
     pub installer_kind: Option<ApplicationUninstallInstallerKind>,
     pub execution_mode: Option<ApplicationUninstallExecutionMode>,

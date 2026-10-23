@@ -28,6 +28,7 @@ import MdDialogHeader from '@/components/custom/md-dialog-header.vue';
 import MdInlineNotice from '@/components/custom/md-inline-notice.vue';
 import MdIcon from '@/components/icons/md-icon.vue';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MdCheckbox from '@/components/custom/md-checkbox.vue';
 import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import type {
@@ -243,14 +244,39 @@ watch(
   }
 );
 const windowsCatalog = OperatingSystemService.isWindows();
+const hasUsageDate = !windowsCatalog && !OperatingSystemService.isLinux();
 const catalogFilters = applicationCatalogFilters(windowsCatalog);
+const dateSortOptions = computed(() => {
+  const columns: [ApplicationCatalogSortKey, string][] = [
+    ['name', 'applicationUninstall.applicationName'],
+    ['size', 'applicationUninstall.applicationSize'],
+    ['status', 'applicationUninstall.status'],
+    ...(hasUsageDate ? [['lastUsed', 'applicationUninstall.lastUsed'] as [ApplicationCatalogSortKey, string]] : []),
+    ['installed', windowsCatalog ? 'applicationUninstall.installedOrUpdated' : 'applicationUninstall.installed'],
+  ];
+  return columns.flatMap(([key, label]) => [
+    { value: `${key}Descending`, label: `${t(label)} ↓` },
+    { value: `${key}Ascending`, label: `${t(label)} ↑` },
+  ]);
+});
+function selectCatalogSort(value: unknown): void {
+  if (typeof value === 'string' && dateSortOptions.value.some(option => option.value === value)) {
+    sort.value = value as ApplicationCatalogSort;
+  }
+}
 const displayCandidates = computed(() => displayedApplications(candidates.value, showSystemItems.value));
 const catalogBytes = computed(() =>
   displayCandidates.value.reduce((total, candidate) => total + candidate.totalBytes, 0)
 );
 const actionableCandidates = computed(() => displayCandidates.value.filter(applicationCanStartUninstall));
 const filteredCandidates = computed(() =>
-  filterAndSortApplications(displayCandidates.value, query.value, filter.value, sort.value)
+  filterAndSortApplications(
+    displayCandidates.value,
+    query.value,
+    filter.value,
+    sort.value,
+    FormatService.timeZone(locale.value)
+  )
 );
 const filteredReadyIds = computed(() =>
   filteredCandidates.value.filter(applicationCanStartUninstall).map(candidate => candidate.applicationId)
@@ -645,6 +671,18 @@ function confirmCancelExecution() {
             @update:model-value="updateCatalogFilter"
           />
           <template #aside>
+            <div class="compact-date-sort">
+              <Select :model-value="sort" :disabled="busy" @update:model-value="selectCatalogSort">
+                <SelectTrigger size="sm" :aria-label="t('applicationUninstall.dateSortLabel')">
+                  <SelectValue>{{ dateSortOptions.find(option => option.value === sort)?.label }}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="option in dateSortOptions" :key="option.value" :value="option.value">{{
+                    option.label
+                  }}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <MdResultSearch v-model="query" :placeholder="t('applicationUninstall.searchPlaceholder')" />
           </template>
         </MdResultFilterToolbar>
@@ -690,7 +728,7 @@ function confirmCancelExecution() {
 
             <MdResultTable v-else ref="applicationList" class="application-list">
               <template #header>
-                <div class="application-list-header">
+                <div class="application-list-header" :class="{ 'has-usage-date': hasUsageDate }">
                   <label>
                     <MdResultCheckbox
                       :checked="allFilteredSelected"
@@ -731,16 +769,27 @@ function confirmCancelExecution() {
                     <MdIcon :name="sortIcon('size')" :size="14" />
                   </button>
                   <button
+                    v-if="hasUsageDate"
                     class="application-date-header md-result-sort"
                     type="button"
-                    :data-active="applicationCatalogSortKey(sort) === 'date'"
-                    :aria-label="t('applicationUninstall.sortByDate')"
-                    @click="changeSort('date')"
+                    :data-active="applicationCatalogSortKey(sort) === 'lastUsed'"
+                    :aria-label="t('applicationUninstall.sortByLastUsed')"
+                    @click="changeSort('lastUsed')"
+                  >
+                    {{ t('applicationUninstall.lastUsed') }}
+                    <MdIcon :name="sortIcon('lastUsed')" :size="14" />
+                  </button>
+                  <button
+                    class="application-date-header md-result-sort"
+                    type="button"
+                    :data-active="applicationCatalogSortKey(sort) === 'installed'"
+                    :aria-label="t('applicationUninstall.sortByInstalled')"
+                    @click="changeSort('installed')"
                   >
                     {{
-                      t(windowsCatalog ? 'applicationUninstall.installedOrUpdated' : 'applicationUninstall.lastUsed')
+                      t(windowsCatalog ? 'applicationUninstall.installedOrUpdated' : 'applicationUninstall.installed')
                     }}
-                    <MdIcon :name="sortIcon('date')" :size="14" />
+                    <MdIcon :name="sortIcon('installed')" :size="14" />
                   </button>
                   <span />
                 </div>

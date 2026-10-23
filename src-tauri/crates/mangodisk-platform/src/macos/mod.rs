@@ -1,5 +1,6 @@
 mod allocated_content;
 mod analysis;
+mod application_dates;
 pub(crate) mod application_identity;
 mod bulk_directory;
 mod change_tracking;
@@ -229,6 +230,14 @@ impl Platform for MacOsPlatform {
 
     fn system_inventory(&self) -> PlatformResult<SystemInventory> {
         inventory::system_inventory(&PlatformCancellation::new(|| false)).map_err(Into::into)
+    }
+
+    fn application_dates(
+        &self,
+        applications: &[crate::ApplicationDateTarget],
+        cancellation: &PlatformCancellation,
+    ) -> Vec<crate::ApplicationDateRecord> {
+        application_dates::capture(applications, cancellation)
     }
 
     fn system_inventory_with_cancellation(

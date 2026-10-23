@@ -96,14 +96,19 @@ const maximumLocaleGzipBytes = 60 * 1024;
 // Display-default confirmation adds three localized strings. Measured de/es/fr/ja/ru
 // raw sizes are 315628/317473/325856/339312/409483 bytes; their gzip sizes are
 // 65459/63326/64869/64380/72560. Extend only the affected locale margins.
+// Application date provenance adds 21 localized labels/hints. Measured de/es/fr/ja/ru
+// raw bytes are 317632/319561/328019/341379/412291; gzip is
+// 65964/63826/65388/64874/73191 (ko/pt/tr: 62321/62893/61593).
+// Extend only measured locale allowances; application chunk limits stay fixed.
 const localeChunkLimitOverrides = new Map([
-  ['fr-fr', { bytes: 325952, gzipBytes: 64928 }],
-  ['de-de', { bytes: 315712, gzipBytes: 65504 }],
-  ['es-es', { bytes: 317568, gzipBytes: 63360 }],
-  ['pt-br', { bytes: 311296, gzipBytes: 62432 }],
-  ['ko-kr', { bytes: 311296, gzipBytes: 61824 }],
-  ['ja-jp', { bytes: 339392, gzipBytes: 64416 }],
-  ['ru-ru', { bytes: 409600, gzipBytes: 72608 }],
+  ['fr-fr', { bytes: 328128, gzipBytes: 65440 }],
+  ['de-de', { bytes: 317760, gzipBytes: 66016 }],
+  ['es-es', { bytes: 319680, gzipBytes: 63888 }],
+  ['pt-br', { bytes: 312960, gzipBytes: 62944 }],
+  ['ko-kr', { bytes: 311872, gzipBytes: 62384 }],
+  ['ja-jp', { bytes: 341504, gzipBytes: 64928 }],
+  ['ru-ru', { bytes: 412416, gzipBytes: 73248 }],
+  ['tr-tr', { bytes: 311296, gzipBytes: 61648 }],
 ]);
 
 function fail(message) {

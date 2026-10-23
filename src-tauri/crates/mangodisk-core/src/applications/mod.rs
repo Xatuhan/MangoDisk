@@ -5,3 +5,4 @@ pub mod process_control;
 pub mod quit;
 pub(crate) mod running_identity;
 pub mod uninstall;
+pub mod usage;

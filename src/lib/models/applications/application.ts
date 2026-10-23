@@ -133,6 +133,37 @@ export type ApplicationUninstallDiagnostic =
 export type ApplicationSystemKind =
   'unclassified' | 'windowsSystemPackage' | 'windowsBuiltinApp' | 'sharedRuntime' | 'windowsSharedPackage';
 
+export type ApplicationDateSource =
+  | 'spotlightLastUsed'
+  | 'spotlightUsedDates'
+  | 'foregroundObservation'
+  | 'knowledgeUsage'
+  | 'biomeFocus'
+  | 'preferencesModified'
+  | 'applicationDataModified'
+  | 'cacheModified'
+  | 'directoryModified'
+  | 'packageReceipt'
+  | 'directoryAdded'
+  | 'spotlightAdded'
+  | 'bundleCreated'
+  | 'platformReported';
+
+export interface ApplicationDate {
+  timestampMs: number;
+  source: ApplicationDateSource;
+  precision: 'timestamp' | 'day';
+  capturedAtMs: number;
+  estimated: boolean;
+  partial: boolean;
+}
+
+export interface ApplicationDates {
+  lastUsed: ApplicationDate | null;
+  installed: ApplicationDate | null;
+  readStatus: 'complete' | 'partial' | 'unavailable';
+}
+
 export interface ApplicationUninstallCandidate {
   applicationId: string;
   primaryIdentifier: string;
@@ -142,8 +173,7 @@ export interface ApplicationUninstallCandidate {
   version: string | null;
   publisher: string | null;
   estimatedBytes: number;
-  lastUsedAtMs: number | null;
-  installedAtMs: number | null;
+  dates: ApplicationDates;
   platform: ApplicationUninstallPlatform;
   installerKind: ApplicationUninstallInstallerKind | null;
   executionMode: ApplicationUninstallExecutionMode | null;
