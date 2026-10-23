@@ -14,6 +14,7 @@ import { Dialog, DialogTitle } from '@/components/ui/dialog';
 import MdDialogContent from '@/components/custom/md-dialog-content.vue';
 import MdDialogHeader from '@/components/custom/md-dialog-header.vue';
 import MdDialogFooter from '@/components/custom/md-dialog-footer.vue';
+import MdConfirmDialog from '@/components/custom/md-confirm-dialog.vue';
 import MdWindowsTemperatureSetup from './md-windows-temperature-setup.vue';
 import { Select, SelectContent, SelectItem } from '@/components/ui/select';
 import { SelectTrigger } from 'reka-ui';
@@ -177,6 +178,14 @@ function enableIcon(enabled: boolean) {
   void settings.change({ showIcon: enabled });
 }
 const settingsOpen = defineModel<boolean>('open', { required: true });
+const resetOpen = ref(false);
+const resetFailed = ref(false);
+async function restoreDefaults() {
+  resetFailed.value = false;
+  resetSectionInteractions();
+  if (await settings.restoreDefaults()) resetOpen.value = false;
+  else resetFailed.value = true;
+}
 function resetSectionInteractions() {
   cancelDrag();
   expandedSelection.value = null;
@@ -218,6 +227,7 @@ watch(settingsOpen, open => {
     void loadCatalogue();
     if (!props.isMacOs && !props.isLinux) void monitoring.load();
   } else {
+    resetOpen.value = false;
     // A dismissed editor must not leave a floating drag preview or a pending
     // reorder that could be committed after reopening. Saved choices stay intact.
     cancelDrag();
@@ -350,10 +360,6 @@ defineExpose({
       >
         <template #content>
           <div class="status-controls">
-            <div class="controls-heading">
-              <h3>{{ t('systemStatus.displayItems') }}</h3>
-              <span>{{ t('systemStatus.dragToReorder') }}</span>
-            </div>
             <MdResidentMetricOrder
               ref="metricOrder"
               :metrics="settings.draft?.metrics"
@@ -377,6 +383,7 @@ defineExpose({
                     />
                     {{ t('systemStatus.showIcon') }}
                   </label>
+                  <span class="reorder-hint">{{ t('systemStatus.dragToReorder') }}</span>
                 </div>
               </template>
               <template #default="{ row, dragging: orderedMetric, pointerDragging, pointerDown, handleKey }">
@@ -480,7 +487,7 @@ defineExpose({
                       v-if="row.id === 'cpuTemperature' && !isMacOs && !isLinux"
                       variant="ghost"
                       size="sm"
-                      class="text-muted-foreground"
+                      class="metric-action text-muted-foreground"
                       @click="
                         selectTemperatureAfterSetup = false;
                         temperatureSetupOpen = true;
@@ -570,7 +577,7 @@ defineExpose({
                       :id="`color-configure-${row.id}`"
                       variant="ghost"
                       size="sm"
-                      class="color-toggle shrink-0 text-muted-foreground"
+                      class="metric-action color-toggle shrink-0 text-muted-foreground"
                       aria-haspopup="dialog"
                       :aria-controls="`color-editor-${row.id}`"
                       :aria-label="t('systemStatus.colorConfigure', { name: t(displayLabelKeys[row.id]) })"
@@ -634,11 +641,36 @@ defineExpose({
           <button @click="loadCatalogue">{{ t('monitoring.refresh') }}</button></template
         >
       </p>
-      <MdDialogFooter>
-        <Button @click="settingsOpen = false">{{ t('systemStatus.done') }}</Button>
+      <MdDialogFooter align="between" class="flex-row flex-wrap justify-between">
+        <Button
+          id="resident-restore-defaults"
+          variant="ghost"
+          :disabled="!settings.draft || settings.loading || settings.saving || settings.resetting"
+          @click="
+            resetFailed = false;
+            resetOpen = true;
+          "
+          >{{ t('systemStatus.restoreDefaults') }}</Button
+        >
+        <Button :disabled="settings.resetting" @click="settingsOpen = false">{{ t('systemStatus.done') }}</Button>
       </MdDialogFooter>
     </MdDialogContent>
   </Dialog>
+  <MdConfirmDialog
+    v-model:open="resetOpen"
+    :title="t('systemStatus.restoreDefaultsTitle')"
+    :description="t('systemStatus.restoreDefaultsDescription')"
+    :cancel-label="t('common.cancel')"
+    :confirm-label="t('systemStatus.restoreDefaults')"
+    :busy="settings.resetting"
+    @confirm="restoreDefaults"
+  >
+    <template v-if="resetFailed" #default>
+      <p class="text-content-secondary text-destructive-text" role="alert">
+        {{ t('systemStatus.saveFailed') }}
+      </p>
+    </template>
+  </MdConfirmDialog>
   <MdStatusColorRuleEditor
     v-if="activeColor && settings.draft"
     :key="activeColor"
@@ -658,30 +690,22 @@ defineExpose({
 </template>
 <style scoped>
 @reference "@assets/main.css";
-.controls-heading {
+.reorder-hint {
   @apply text-muted-foreground;
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin-bottom: 8px;
+  margin-inline-start: auto;
+  text-align: end;
   font-size: var(--font-content-secondary);
   font-weight: 400;
 }
-.controls-heading h3 {
-  margin: 0;
-  font: inherit;
-  font-weight: 500;
-}
 .status-item {
-  @apply border-b border-border/50 bg-transparent;
+  @apply border-b border-border/30 bg-transparent;
   position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  min-height: 42px;
-  padding: 4px 0;
+  min-height: 36px;
+  padding: 2px 0;
 }
 .status-item:last-child {
   border-bottom-color: transparent;
@@ -804,6 +828,17 @@ defineExpose({
   touch-action: none;
   user-select: none;
   cursor: grab;
+  opacity: 0.55;
+}
+.drag-handle:hover,
+.drag-handle:focus-visible,
+.drag-handle[aria-pressed='true'] {
+  opacity: 1;
+}
+.metric-action {
+  padding-inline: 8px;
+  font-size: var(--font-content-secondary);
+  font-weight: 400;
 }
 .selection-toggle {
   display: flex;

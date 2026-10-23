@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "設定分類",
     "settingsTabs": {
-      "content": "顯示內容",
+      "content": "顯示項目",
       "appearance": "外觀",
       "interaction": "互動"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "縮小間距，網速單位簡寫為 K、M、G",
     "configureAction": "設定…",
     "done": "完成",
+    "restoreDefaults": "還原預設",
+    "restoreDefaultsTitle": "還原系統狀態預設設定？",
+    "restoreDefaultsDescription": "還原顯示項目與順序，以及選單列、工作列和懸浮視窗的外觀與互動設定。保留啟用狀態、顯示方式和視窗位置",
     "showIcon": "Logo",
-    "displayItems": "顯示內容",
     "dragToReorder": "拖曳排序",
     "gpu": "GPU",
     "gpuUsageHint": "自動顯示最忙碌的顯示卡，可在設定中固定選擇\nWindows 採標準引擎峰值，不含驅動程式自訂引擎",

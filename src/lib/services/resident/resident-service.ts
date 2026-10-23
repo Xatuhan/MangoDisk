@@ -43,6 +43,9 @@ export class ResidentService {
   static savePreferences(preferences: ResidentPreferences): Promise<ResidentPreferences> {
     return invoke('resident_save_preferences', { preferences });
   }
+  static defaultPreferences(): Promise<ResidentPreferences> {
+    return invoke('resident_default_preferences');
+  }
   static catalogue(): Promise<ResidentReading> {
     return invoke('resident_get_catalogue');
   }

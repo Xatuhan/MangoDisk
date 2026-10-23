@@ -15,6 +15,11 @@ vi.mock('@tauri-apps/api/window', () => ({
 }));
 
 describe('resident desktop protocol', () => {
+  it('reads native defaults without writing preferences or resetting placement', async () => {
+    invoke.mockResolvedValueOnce(preferencesFixture());
+    expect(await ResidentService.defaultPreferences()).toEqual(preferencesFixture());
+    expect(invoke).toHaveBeenCalledExactlyOnceWith('resident_default_preferences');
+  });
   it('binds traffic resets to the displayed interface and accumulation start', async () => {
     await ResidentService.resetNetworkTraffic('lan', 1234);
     expect(invoke).toHaveBeenCalledWith('monitoring_reset_network_traffic', { interfaceId: 'lan', startedAtMs: 1234 });

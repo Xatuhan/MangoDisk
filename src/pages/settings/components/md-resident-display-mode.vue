@@ -36,7 +36,13 @@ function changeMode(value: unknown) {
 </script>
 <template>
   <MdSettingsGroup plain>
-    <MdSettingsRow compact :title="t('floatingMonitor.displayMode')" description="" :label-for="controlId">
+    <MdSettingsRow
+      compact
+      class="display-mode-row"
+      :title="t('floatingMonitor.displayMode')"
+      description=""
+      :label-for="controlId"
+    >
       <Select :model-value="value" @update:model-value="changeMode">
         <SelectTrigger :id="controlId" class="w-auto min-w-32"
           ><SelectValue>{{ t(`floatingMonitor.${value}`) }}</SelectValue></SelectTrigger
@@ -48,3 +54,12 @@ function changeMode(value: unknown) {
     </MdSettingsRow>
   </MdSettingsGroup>
 </template>
+<style scoped>
+.display-mode-row.setting-row--compact {
+  min-height: 32px;
+  padding: 2px 0;
+}
+.display-mode-row.setting-row--compact :deep(.setting-controls [data-slot='select-trigger']) {
+  height: 32px;
+}
+</style>

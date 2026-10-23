@@ -4,9 +4,10 @@ import { useResidentSettingsStore } from './resident-settings-store';
 import { ResidentService } from '@/lib/services/resident/resident-service';
 import { preferencesFixture } from '@/tests/fixtures/resident';
 import type { ResidentPreferences } from '@/lib/models/resident/resident';
+import { watch } from 'vue';
 
 vi.mock('@/lib/services/resident/resident-service', () => ({
-  ResidentService: { preferences: vi.fn(), savePreferences: vi.fn() },
+  ResidentService: { preferences: vi.fn(), savePreferences: vi.fn(), defaultPreferences: vi.fn() },
 }));
 vi.mock('@/lib/services/diagnostics/logger-service', () => ({ LoggerService: { warn: vi.fn(), info: vi.fn() } }));
 
@@ -17,14 +18,157 @@ const conflict = {
 };
 
 describe('resident preference transactions', () => {
+  it.each(['default', 'darkGray'] as const)(
+    'restores every option after a native conflict when the original background is %s',
+    async background => {
+      const defaults = preferencesFixture();
+      const base: ResidentPreferences = {
+        ...defaults,
+        metrics: [...defaults.metrics].reverse(),
+        floating: { ...defaults.floating, background },
+      };
+      const latest: ResidentPreferences = {
+        ...base,
+        revision: 1,
+        floating: { ...base.floating, background: 'black' },
+        enabled: false,
+        macosDisplayMode: 'both',
+      };
+      vi.mocked(ResidentService.preferences).mockResolvedValueOnce(base).mockResolvedValue(latest);
+      vi.mocked(ResidentService.savePreferences).mockRejectedValueOnce(conflict);
+      const store = useResidentSettingsStore();
+      await store.load();
+      expect(await store.restoreDefaults()).toBe(true);
+      expect(store.preferences).toEqual({
+        ...defaults,
+        revision: 2,
+        enabled: latest.enabled,
+        macosDisplayMode: latest.macosDisplayMode,
+      });
+    }
+  );
+
+  it('reports a failed restore even if a pending native refresh clears the shared error flag', async () => {
+    const store = useResidentSettingsStore();
+    await store.load();
+    vi.mocked(ResidentService.savePreferences).mockRejectedValueOnce(new Error('disk full'));
+    // Match the editor's pending native notification refresh after saving ends.
+    const stop = watch(
+      () => store.saving,
+      saving => {
+        if (!saving) void store.load();
+      },
+      { flush: 'post' }
+    );
+    try {
+      expect(await store.restoreDefaults()).toBe(false);
+    } finally {
+      stop();
+    }
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     vi.mocked(ResidentService.preferences).mockResolvedValue(preferencesFixture());
+    vi.mocked(ResidentService.defaultPreferences).mockResolvedValue(preferencesFixture());
     vi.mocked(ResidentService.savePreferences).mockImplementation(async value => ({
       ...value,
       revision: value.revision + 1,
     }));
+  });
+
+  it.each([true, false])('restores native defaults while preserving destinations and enabled=%s', async enabled => {
+    const defaults = preferencesFixture();
+    const custom: ResidentPreferences = {
+      ...defaults,
+      revision: 17,
+      enabled,
+      windowsDisplayMode: 'both',
+      macosDisplayMode: 'floating',
+      linuxDisplayMode: 'both',
+      metrics: [...defaults.metrics].reverse().map(metric => ({ ...metric, enabled: true })),
+      floating: { ...defaults.floating, layout: 'vertical', fontSize: 'extraLarge', background: 'black', locked: true },
+      networkInterface: 'wifi',
+      diskVolume: 'data',
+      gpuDisplay: { mode: 'selected', adapterIds: ['gpu'] },
+      usageColors: false,
+      colorRules: defaults.colorRules.map(rule => ({ ...rule, enabled: false })),
+    };
+    vi.mocked(ResidentService.preferences).mockResolvedValue(custom);
+    const store = useResidentSettingsStore();
+    await store.load();
+    expect(await store.restoreDefaults()).toBe(true);
+    expect(store.preferences).toEqual({
+      ...defaults,
+      revision: 18,
+      enabled,
+      windowsDisplayMode: 'both',
+      macosDisplayMode: 'floating',
+      linuxDisplayMode: 'both',
+    });
+    expect(ResidentService.savePreferences).toHaveBeenCalledTimes(1);
+    expect(store.resetting).toBe(false);
+  });
+
+  it('keeps existing settings when defaults cannot be read and permits retry', async () => {
+    const store = useResidentSettingsStore();
+    await store.load();
+    vi.mocked(ResidentService.defaultPreferences).mockRejectedValueOnce(new Error('IPC unavailable'));
+    expect(await store.restoreDefaults()).toBe(false);
+    expect(ResidentService.savePreferences).not.toHaveBeenCalled();
+    expect(store.preferences).toEqual(preferencesFixture());
+    expect(store.error).toBe(true);
+    expect(store.resetting).toBe(false);
+    expect(await store.restoreDefaults()).toBe(true);
+    expect(store.error).toBe(false);
+  });
+
+  it('rolls back a rejected restore through the existing save transaction', async () => {
+    const custom = { ...preferencesFixture(), revision: 9, usageColors: false };
+    vi.mocked(ResidentService.preferences).mockResolvedValue(custom);
+    const store = useResidentSettingsStore();
+    await store.load();
+    vi.mocked(ResidentService.savePreferences).mockRejectedValueOnce(new Error('disk full'));
+    expect(await store.restoreDefaults()).toBe(false);
+    expect(store.preferences).toEqual(custom);
+    expect(store.draft).toEqual(custom);
+    expect(store.error).toBe(true);
+  });
+
+  it('ignores duplicate resets and preserves mode changes made while defaults are loading', async () => {
+    const store = useResidentSettingsStore();
+    await store.load();
+    let complete!: (value: ResidentPreferences) => void;
+    vi.mocked(ResidentService.defaultPreferences).mockReturnValueOnce(new Promise(resolve => (complete = resolve)));
+    const reset = store.restoreDefaults();
+    expect(await store.restoreDefaults()).toBe(false);
+    expect(ResidentService.defaultPreferences).toHaveBeenCalledTimes(1);
+    await store.change({ macosDisplayMode: 'both' });
+    complete(preferencesFixture());
+    expect(await reset).toBe(true);
+    expect(store.preferences?.macosDisplayMode).toBe('both');
+    expect(store.preferences?.revision).toBe(2);
+  });
+
+  it('does not report success when a write starts while native defaults are loading', async () => {
+    const store = useResidentSettingsStore();
+    await store.load();
+    let defaultsReady!: (value: ResidentPreferences) => void;
+    let saved!: (value: ResidentPreferences) => void;
+    vi.mocked(ResidentService.defaultPreferences).mockReturnValueOnce(
+      new Promise(resolve => (defaultsReady = resolve))
+    );
+    const reset = store.restoreDefaults();
+    vi.mocked(ResidentService.savePreferences).mockReturnValueOnce(new Promise(resolve => (saved = resolve)));
+    const change = store.change({ macosDisplayMode: 'both' });
+    defaultsReady(preferencesFixture());
+    expect(await reset).toBe(false);
+    expect(ResidentService.savePreferences).toHaveBeenCalledTimes(1);
+    saved({ ...preferencesFixture(), revision: 1, macosDisplayMode: 'both' });
+    await change;
+    expect(store.preferences?.macosDisplayMode).toBe('both');
+    expect(store.resetting).toBe(false);
   });
 
   it('coalesces fifty edits behind one in-flight write and uses its committed revision', async () => {

@@ -93,14 +93,17 @@ const maximumLocaleGzipBytes = 60 * 1024;
 // CPU idle/state guidance measures de/es/fr/ja/ru raw bytes
 // 315268/317072/325397/338909/408950; fr/ja/pt gzip is 64760/64307/62306.
 // Extend only these measured locale margins; application budgets remain fixed.
+// Display-default confirmation adds three localized strings. Measured de/es/fr/ja/ru
+// raw sizes are 315628/317473/325856/339312/409483 bytes; their gzip sizes are
+// 65459/63326/64869/64380/72560. Extend only the affected locale margins.
 const localeChunkLimitOverrides = new Map([
-  ['fr-fr', { bytes: 325536, gzipBytes: 64832 }],
-  ['de-de', { bytes: 315392, gzipBytes: 65408 }],
-  ['es-es', { bytes: 317184, gzipBytes: 63264 }],
-  ['pt-br', { bytes: 311296, gzipBytes: 62368 }],
-  ['ko-kr', { bytes: 311296, gzipBytes: 61728 }],
-  ['ja-jp', { bytes: 339008, gzipBytes: 64368 }],
-  ['ru-ru', { bytes: 409088, gzipBytes: 72480 }],
+  ['fr-fr', { bytes: 325952, gzipBytes: 64928 }],
+  ['de-de', { bytes: 315712, gzipBytes: 65504 }],
+  ['es-es', { bytes: 317568, gzipBytes: 63360 }],
+  ['pt-br', { bytes: 311296, gzipBytes: 62432 }],
+  ['ko-kr', { bytes: 311296, gzipBytes: 61824 }],
+  ['ja-jp', { bytes: 339392, gzipBytes: 64416 }],
+  ['ru-ru', { bytes: 409600, gzipBytes: 72608 }],
 ]);
 
 function fail(message) {

@@ -84,7 +84,7 @@ watch(
         v-for="tab in tabs"
         :key="tab"
         :value="tab"
-        class="settings-tab-panel scrollbar-stable"
+        class="settings-tab-panel scrollbar-stable-end"
         @scroll.passive="rememberScroll(tab, $event)"
       >
         <slot :name="tab" />
@@ -96,7 +96,7 @@ watch(
 @reference "@assets/main.css";
 .display-mode-header {
   flex: none;
-  padding: 8px 20px;
+  padding: 4px 20px;
 }
 .settings-tabs,
 .display-options {
@@ -111,14 +111,14 @@ watch(
   display: flex;
   flex: none;
   padding: 0 20px;
-  gap: 16px;
+  gap: 8px;
 }
 .settings-tab {
   @apply text-muted-foreground;
   flex: 1;
   min-width: 0;
   border-bottom: 2px solid transparent;
-  padding: 9px 2px;
+  padding: 7px 8px;
   font-size: var(--font-content-body);
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -141,7 +141,7 @@ watch(
   min-height: 0;
   min-width: 0;
   overflow-y: auto;
-  padding: 12px 20px;
+  padding: 10px 20px;
 }
 .settings-tab-panel[hidden] {
   display: none;

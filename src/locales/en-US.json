@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "Settings categories",
     "settingsTabs": {
-      "content": "Content",
+      "content": "Display items",
       "appearance": "Appearance",
       "interaction": "Behavior"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "Tighter spacing, with network units shortened to K, M, G",
     "configureAction": "Configure…",
     "done": "Done",
+    "restoreDefaults": "Restore defaults",
+    "restoreDefaultsTitle": "Restore system status defaults?",
+    "restoreDefaultsDescription": "Reset display items, their order, appearance, and behavior for the menu bar, taskbar, and floating window. Keep the enabled state, display mode, and window position",
     "showIcon": "Logo",
-    "displayItems": "Display items",
     "dragToReorder": "Drag to reorder",
     "gpu": "GPU",
     "gpuUsageHint": "Shows the busiest GPU; choose a fixed GPU in settings\nWindows uses the busiest standard engine, excluding custom driver engines",

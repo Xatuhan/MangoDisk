@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "Categorías de ajustes",
     "settingsTabs": {
-      "content": "Contenido",
+      "content": "Elementos visibles",
       "appearance": "Apariencia",
       "interaction": "Comportamiento"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "Espaciado más reducido, con unidades de red reducidas a K, M, G",
     "configureAction": "Configurar…",
     "done": "Hecho",
+    "restoreDefaults": "Restaurar valores predeterminados",
+    "restoreDefaultsTitle": "¿Restaurar los ajustes de estado del sistema?",
+    "restoreDefaultsDescription": "Restablece los elementos, su orden, la apariencia y el comportamiento de la barra de menús, la barra de tareas y la ventana flotante. Se conservan la activación, el modo de visualización y la posición de la ventana",
     "showIcon": "Logotipo",
-    "displayItems": "Mostrar elementos",
     "dragToReorder": "Arrastra para reordenar",
     "gpu": "GPU",
     "gpuUsageHint": "Muestra la GPU más ocupada; elige una GPU fija en la configuración\nWindows utiliza el motor estándar más ocupado, excluyendo los motores de controladores personalizados",

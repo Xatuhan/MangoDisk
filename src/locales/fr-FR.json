@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "Catégories de réglages",
     "settingsTabs": {
-      "content": "Contenu",
+      "content": "Éléments affichés",
       "appearance": "Apparence",
       "interaction": "Comportement"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "Espacement plus serré, avec unités réseau raccourcies en K, M, G",
     "configureAction": "Configurer…",
     "done": "Terminé",
+    "restoreDefaults": "Rétablir les valeurs par défaut",
+    "restoreDefaultsTitle": "Réinitialiser les réglages de l’état du système ?",
+    "restoreDefaultsDescription": "Réinitialise les éléments affichés, leur ordre, l’apparence et le comportement de la barre des menus, de la barre des tâches et de la fenêtre flottante. L’activation, le mode d’affichage et la position de la fenêtre sont conservés",
     "showIcon": "Logo",
-    "displayItems": "Afficher les éléments",
     "dragToReorder": "Faites glisser pour réorganiser",
     "gpu": "GPU",
     "gpuUsageHint": "Affiche le GPU le plus occupé ; choisissez un GPU fixe dans les paramètres\nWindows utilise le moteur standard le plus utilisé, à l'exclusion des moteurs de pilotes personnalisés",

@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "Categorias de configurações",
     "settingsTabs": {
-      "content": "Conteúdo",
+      "content": "Itens exibidos",
       "appearance": "Aparência",
       "interaction": "Comportamento"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "Espaçamento reduzido, com as unidades de rede abreviadas para K, M e G",
     "configureAction": "Configurar…",
     "done": "Concluído",
+    "restoreDefaults": "Restaurar padrões",
+    "restoreDefaultsTitle": "Restaurar os padrões do estado do sistema?",
+    "restoreDefaultsDescription": "Redefine os itens, sua ordem, a aparência e o comportamento da barra de menus, da barra de tarefas e da janela flutuante. Mantém a ativação, o modo de exibição e a posição da janela",
     "showIcon": "Logo",
-    "displayItems": "Itens exibidos",
     "dragToReorder": "Arraste para reordenar",
     "gpu": "GPU",
     "gpuUsageHint": "Mostra a GPU mais ocupada; fixe uma GPU nos ajustes\nO Windows usa o pico dos motores padrão, sem motores próprios do driver",

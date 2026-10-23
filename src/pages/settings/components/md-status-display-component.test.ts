@@ -5,6 +5,7 @@ import { createPinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import Settings from './md-status-display-settings.vue';
+import MdConfirmDialog from '@/components/custom/md-confirm-dialog.vue';
 import TaskbarPosition from './md-taskbar-position.vue';
 import { Select } from '@/components/ui/select';
 import WindowsFeedback from './md-windows-display-feedback.vue';
@@ -18,6 +19,8 @@ vi.mock('@/lib/services/resident/resident-service', () => ({
   ResidentService: {
     preferences: vi.fn(),
     savePreferences: vi.fn(),
+    defaultPreferences: vi.fn(),
+    onPreferencesChanged: vi.fn(),
     catalogue: vi.fn(),
     onReading: vi.fn(),
     displayStatus: vi.fn(),
@@ -77,6 +80,8 @@ beforeEach(() => {
   vi.mocked(ResidentService.displayStatus).mockResolvedValue('tray');
   vi.mocked(ResidentService.onDisplayStatus).mockResolvedValue(vi.fn());
   vi.mocked(ResidentService.preferences).mockResolvedValue(preferencesFixture());
+  vi.mocked(ResidentService.defaultPreferences).mockResolvedValue(preferencesFixture());
+  vi.mocked(ResidentService.onPreferencesChanged).mockResolvedValue(vi.fn());
   vi.mocked(ResidentService.savePreferences).mockImplementation(async value => {
     const committed = { ...value, revision: value.revision + 1 };
     vi.mocked(ResidentService.preferences).mockResolvedValue(committed);
@@ -90,6 +95,59 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('status display interactions', () => {
+  it('retains a failed reset confirmation when a queued native notification reloads preferences', async () => {
+    let notify!: () => void;
+    vi.mocked(ResidentService.onPreferencesChanged).mockImplementation(async callback => {
+      notify = callback;
+      return vi.fn<() => void>();
+    });
+    const wrapper = mount(Settings, { props: { isMacOs: true }, global: global() });
+    wrappers.push(wrapper);
+    await flushPromises();
+    await openConfiguration(wrapper);
+    let reject!: (error: Error) => void;
+    vi.mocked(ResidentService.savePreferences).mockReturnValueOnce(new Promise((_, fail) => (reject = fail)));
+    await wrapper.get('#resident-restore-defaults').trigger('click');
+    const confirmation = wrapper.findComponent(MdConfirmDialog);
+    confirmation.vm.$emit('confirm');
+    await flushPromises();
+    expect(confirmation.props('busy')).toBe(true);
+    notify();
+    reject(new Error('disk full'));
+    await flushPromises();
+    expect(useResidentSettingsStore().error).toBe(false);
+    expect(confirmation.props('open')).toBe(true);
+    expect(confirmation.props('busy')).toBe(false);
+    expect(wrapper.get('[role="alert"]').text()).toContain('systemStatus.saveFailed');
+    confirmation.vm.$emit('confirm');
+    await flushPromises();
+    expect(confirmation.props('open')).toBe(false);
+  });
+
+  it('requires confirmation for defaults, supports cancellation and applies the confirmed reset', async () => {
+    const wrapper = mount(Settings, { props: { isMacOs: true }, global: global() });
+    wrappers.push(wrapper);
+    await flushPromises();
+    await openConfiguration(wrapper);
+    const store = useResidentSettingsStore();
+    await store.change({ macosDisplayMode: 'both', usageColors: false });
+    vi.mocked(ResidentService.savePreferences).mockClear();
+    await wrapper.get('#resident-restore-defaults').trigger('click');
+    const confirmation = wrapper.findComponent(MdConfirmDialog);
+    expect(confirmation.props('open')).toBe(true);
+    expect(ResidentService.defaultPreferences).not.toHaveBeenCalled();
+    confirmation.vm.$emit('update:open', false);
+    await flushPromises();
+    expect(ResidentService.savePreferences).not.toHaveBeenCalled();
+    await wrapper.get('#resident-restore-defaults').trigger('click');
+    confirmation.vm.$emit('confirm');
+    await flushPromises();
+    expect(confirmation.props('open')).toBe(false);
+    expect(store.preferences).toMatchObject({ usageColors: true, macosDisplayMode: 'both', enabled: true });
+    expect(ResidentService.savePreferences).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('#resident-restore-defaults').exists()).toBe(true);
+  });
+
   it('defaults to content, preserves per-mode tab scroll and resets on reopening', async () => {
     const wrapper = mount(Settings, { props: { isMacOs: false }, global: global() });
     wrappers.push(wrapper);

@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "Einstellungskategorien",
     "settingsTabs": {
-      "content": "Inhalte",
+      "content": "Anzeigeelemente",
       "appearance": "Darstellung",
       "interaction": "Verhalten"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "Engere Abstände, mit verkürzten Netzwerkeinheiten auf K, M, G",
     "configureAction": "Konfigurieren…",
     "done": "Fertig",
+    "restoreDefaults": "Standard wiederherstellen",
+    "restoreDefaultsTitle": "Systemstatus zurücksetzen?",
+    "restoreDefaultsDescription": "Anzeigeelemente, Reihenfolge, Darstellung und Verhalten von Menüleiste, Taskleiste und schwebendem Fenster zurücksetzen. Aktivierung, Anzeigemodus und Fensterposition bleiben erhalten",
     "showIcon": "Logo",
-    "displayItems": "Elemente anzeigen",
     "dragToReorder": "Zum Neuordnen ziehen",
     "gpu": "GPU",
     "gpuUsageHint": "Zeigt die am stärksten ausgelastete GPU an; Wählen Sie in den Einstellungen eine feste GPU\nWindows verwendet die am stärksten ausgelastete Standard-Engine, mit Ausnahme benutzerdefinierter Treiber-Engines",

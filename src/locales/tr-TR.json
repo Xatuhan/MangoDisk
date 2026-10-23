@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "Ayar kategorileri",
     "settingsTabs": {
-      "content": "İçerik",
+      "content": "Görüntülenecek öğeler",
       "appearance": "Görünüm",
       "interaction": "Davranış"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "Daha dar aralıklar; ağ birimleri K, M, G olarak kısaltılır",
     "configureAction": "Yapılandır…",
     "done": "Bitti",
+    "restoreDefaults": "Varsayılanları geri yükle",
+    "restoreDefaultsTitle": "Sistem durumu ayarları sıfırlansın mı?",
+    "restoreDefaultsDescription": "Menü çubuğu, görev çubuğu ve kayan pencerenin görüntülenen öğelerini, sırasını, görünümünü ve davranışını sıfırlar. Etkinlik durumu, görüntüleme modu ve pencere konumu korunur",
     "showIcon": "Logo",
-    "displayItems": "Görüntülenecek öğeler",
     "dragToReorder": "Sıralamak için sürükleyin",
     "gpu": "GPU",
     "gpuUsageHint": "En yoğun GPU gösterilir; ayarlardan sabit bir GPU seçebilirsiniz\nWindows standart motorların en yüksek değerini kullanır; özel sürücü motorları hariçtir",

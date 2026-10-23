@@ -215,6 +215,7 @@ pub fn run() {
             commands::resident::resident_get_panel_metric,
             commands::resident::resident_select_metric,
             commands::resident::resident_save_preferences,
+            commands::resident::resident_default_preferences,
             commands::resident::resident_open_panel,
             commands::resident::resident_panel_ready,
             commands::resident::resident_hide_panel,

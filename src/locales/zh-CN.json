@@ -4071,7 +4071,7 @@
   "systemStatus": {
     "settingsCategories": "设置分类",
     "settingsTabs": {
-      "content": "显示内容",
+      "content": "显示项",
       "appearance": "外观",
       "interaction": "交互"
     },
@@ -4097,8 +4097,10 @@
     "menuBarCompactHint": "缩小间距，网速单位简写为 K、M、G",
     "configureAction": "配置…",
     "done": "完成",
+    "restoreDefaults": "恢复默认",
+    "restoreDefaultsTitle": "恢复系统状态默认设置？",
+    "restoreDefaultsDescription": "恢复显示项及顺序、菜单栏、任务栏和悬浮窗的外观与交互设置。保留启用状态、显示方式和窗口位置",
     "showIcon": "Logo",
-    "displayItems": "显示内容",
     "dragToReorder": "拖动排序",
     "gpu": "GPU",
     "gpuUsageHint": "自动显示最忙显卡，可在设置中固定选择\nWindows 取标准引擎峰值，不含驱动自定义引擎",

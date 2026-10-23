@@ -231,6 +231,15 @@ to an unrelated outer gap. Unknown environments prefer right,
 and collision checks still apply. These defaults do not replace saved choices.
 
 Resident preferences use schema version 38; resource readings use version 33.
+The system-status editor can restore the native platform defaults through the
+existing revision-checked save transaction. Reset preserves the enabled state and
+all platform display modes. Floating placement is stored independently and is
+not reset; resizing restores its existing monitor-relative anchor. The shared
+dialog footer is unchanged; only this editor adds the confirmation action.
+On a revision conflict, reset retries the full default options once while retaining
+the latest enabled state and display modes. Ordinary edits still rebase only
+disjoint fields. Reset completion follows the save result, independently of error
+flags that a queued native-preference refresh may clear.
 The runtime and IPC accept only the current structure. Persisted configurations from
 release tags v1.1.1–v1.1.9 (schemas 7, 8, 10, 21 and 25) and the previous monitoring schemas 28, 29, 30, 31, 32, 33, 34, 35, 36 and 37 upgrade directly to schema 38;
 development-only schemas, including 26 and 27, have no migration contract. Each

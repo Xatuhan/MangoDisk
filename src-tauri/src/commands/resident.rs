@@ -77,6 +77,11 @@ pub fn resident_get_preferences(
 }
 
 #[tauri::command]
+pub fn resident_default_preferences() -> ResidentPreferences {
+    ResidentPreferences::default()
+}
+
+#[tauri::command]
 pub async fn resident_save_preferences(
     app: tauri::AppHandle,
     preferences: ResidentPreferences,
