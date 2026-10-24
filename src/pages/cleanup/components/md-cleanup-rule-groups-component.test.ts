@@ -35,7 +35,7 @@ const rule: PresentedScanRuleResult = {
   categoryLabel: 'Projects',
 };
 
-it('shows restart guidance for restricted native cleanup and reserves admin check for previous installations', async () => {
+it('shares one category restart action and reserves admin check for previous installations', async () => {
   const wrapper = mount(MdCleanupRuleGroups, {
     props: {
       busy: false,
@@ -74,21 +74,49 @@ it('shows restart guidance for restricted native cleanup and reserves admin chec
   });
   await flushPromises();
   const summaries = wrapper.findAllComponents(MdResultItemContent);
-  expect(summaries.map(summary => summary.props('description'))).toEqual([
-    i18n.global.t('cleanup.privilegedScan.restartHint'),
-    i18n.global.t('cleanup.privilegedScan.restartHint'),
-    undefined,
-  ]);
+  expect(summaries.map(summary => summary.props('description'))).toEqual([undefined, undefined, undefined]);
   expect(summaries.map(summary => summary.props('value'))).toEqual([
-    ByteSizeService.bytes(12 * 1024 * 1024),
-    i18n.global.t('cleanup.privilegedScan.sizePending'),
+    i18n.global.t('cleanup.privilegedScan.adminRequired'),
+    i18n.global.t('cleanup.privilegedScan.adminRequired'),
     i18n.global.t('cleanup.privilegedScan.required'),
   ]);
+  expect(summaries.map(summary => summary.props('valueTone'))).toEqual(['default', 'default', 'warning']);
   expect(summaries.map(summary => summary.props('valueDetail'))).toEqual([
-    i18n.global.t('cleanup.privilegedScan.sizePending'),
+    undefined,
     undefined,
     i18n.global.t('cleanup.privilegedScan.sizePending'),
   ]);
+  const restartButtons = wrapper.findAll('.administrator-restart-button');
+  expect(restartButtons).toHaveLength(1);
+  expect(wrapper.find('.administrator-restart-notice').text()).toContain(
+    i18n.global.t('cleanup.privilegedScan.restartNotice')
+  );
+  expect(wrapper.findAll('.rule-summary .administrator-restart-button')).toHaveLength(0);
+  await restartButtons[0]!.trigger('click');
+  expect(wrapper.emitted('restartAsAdministrator')).toEqual([[]]);
+  for (const blockingProps of [
+    { busy: true },
+    { administratorRestartDisabled: true },
+    { administratorRestartBusy: true },
+    { privilegedScanRuleId: 'special.windows-previous-installations' },
+  ]) {
+    await wrapper.setProps({
+      busy: false,
+      administratorRestartDisabled: false,
+      administratorRestartBusy: false,
+      privilegedScanRuleId: null,
+      ...blockingProps,
+    });
+    expect(restartButtons.every(button => button.attributes('disabled') !== undefined)).toBe(true);
+    await restartButtons[0]!.trigger('click');
+    expect(wrapper.emitted('restartAsAdministrator')).toHaveLength(1);
+  }
+  await wrapper.setProps({
+    busy: false,
+    administratorRestartDisabled: false,
+    administratorRestartBusy: false,
+    privilegedScanRuleId: null,
+  });
   const buttons = wrapper.findAll('.privileged-scan-button');
   expect(buttons).toHaveLength(1);
   await buttons[0]!.trigger('click');
@@ -96,6 +124,11 @@ it('shows restart guidance for restricted native cleanup and reserves admin chec
   for (const checkbox of wrapper.findAllComponents(MdResultCheckbox)) {
     expect(checkbox.props('disabled')).toBe(true);
   }
+  await wrapper.setProps({
+    rules: wrapper.props('rules').filter(rule => rule.ruleId === 'special.windows-previous-installations'),
+  });
+  expect(wrapper.find('.administrator-restart-notice').exists()).toBe(false);
+  expect(wrapper.find('.privileged-scan-button').exists()).toBe(true);
   wrapper.unmount();
 });
 

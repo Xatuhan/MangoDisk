@@ -1819,11 +1819,17 @@
       "protectedScanHint": "Wenn macOS nach Zugriff fragt, wählen Sie „Zulassen“ oder „Nicht zulassen“. Der Scan wird fortgesetzt, nachdem Sie geantwortet haben"
     },
     "privilegedScan": {
+      "restartNotice": "Einige Elemente benötigen Administratorrechte",
+      "restartDescription": "Nach dem Neustart erneut scannen",
+      "adminRequired": "Adminrechte nötig",
       "required": "Nicht geprüft",
       "sizePending": "Administratorzugriff erforderlich",
       "action": "Als Administrator prüfen",
       "checking": "Überprüfen…",
-      "restartHint": "Starten Sie MangoDisk als Administrator neu und scannen Sie erneut"
+      "restartHint": "Starten Sie MangoDisk als Administrator neu und scannen Sie erneut",
+      "restartAction": "Als Administrator neu starten",
+      "restarting": "Warten auf Bestätigung…",
+      "restartFailed": "Neustart als Administrator fehlgeschlagen. Bitte erneut versuchen"
     },
     "categoryItemCount": "{count} Element | {count} Elemente",
     "categoryTitles": {

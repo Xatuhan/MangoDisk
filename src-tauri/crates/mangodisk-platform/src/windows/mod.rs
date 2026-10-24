@@ -1,4 +1,8 @@
 mod allocated_content;
+mod application_restart;
+pub use application_restart::{
+    prepare_elevated_restart_startup, restart_current_application_elevated,
+};
 mod change_tracking;
 mod directories;
 mod directory_aggregate;

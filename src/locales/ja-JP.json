@@ -1819,11 +1819,17 @@
       "protectedScanHint": "macOS がアクセス許可を求めた場合は、許可または拒否を選んでください。応答後にスキャンが続行します"
     },
     "privilegedScan": {
+      "restartNotice": "一部の項目には管理者権限が必要です",
+      "restartDescription": "再起動後にもう一度スキャンしてください",
+      "adminRequired": "管理者権限が必要",
       "required": "未確認",
       "sizePending": "管理者権限が必要です",
       "action": "管理者として確認",
       "checking": "確認中…",
-      "restartHint": "MangoDisk を管理者として起動し直し、再スキャンしてください"
+      "restartHint": "MangoDisk を管理者として起動し直し、再スキャンしてください",
+      "restartAction": "管理者として再起動",
+      "restarting": "承認を待っています…",
+      "restartFailed": "管理者として再起動できませんでした。もう一度お試しください"
     },
     "categoryItemCount": "{count} 項目 | {count} 項目",
     "categoryTitles": {

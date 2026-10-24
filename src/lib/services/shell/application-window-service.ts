@@ -6,6 +6,10 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LoggerService } from '@/lib/services/diagnostics/logger-service';
 
 export class ApplicationWindowService {
+  static restartAsAdministrator(): Promise<boolean> {
+    return invoke<boolean>('restart_application_as_administrator');
+  }
+
   static async showAfterMount(): Promise<ResidentDestination | null> {
     // Rust owns presentation intent. Mounting a WebView alone must not reveal it.
     try {

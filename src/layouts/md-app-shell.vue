@@ -239,6 +239,22 @@ const busyPages = computed<PageId[]>(() => [
   ...(systemMaintenanceStore.scanning || systemMaintenanceStore.executing ? [PAGE_IDS.systemMaintenance] : []),
   ...(historyStore.loading ? [PAGE_IDS.history] : []),
 ]);
+const administratorRestartBusy = ref(false);
+const administratorRestartDisabled = computed(
+  () => busyPages.value.length > 0 || appUpdateStore.busy || cleanupStore.privilegedScanRuleId !== null
+);
+async function restartAsAdministrator() {
+  if (administratorRestartBusy.value || administratorRestartDisabled.value || !isWindows) return;
+  administratorRestartBusy.value = true;
+  try {
+    const launched = await ApplicationWindowService.restartAsAdministrator();
+    if (!launched) administratorRestartBusy.value = false;
+  } catch (error) {
+    administratorRestartBusy.value = false;
+    LoggerService.warn('application-window', 'administrator_restart_failed', { error });
+    toast.error(t('cleanup.privilegedScan.restartFailed'));
+  }
+}
 const noticePages = computed<PageId[]>(() => (appUpdateStore.updateNoticeUnread ? [PAGE_IDS.settings] : []));
 
 let navigationRequest = 0;
@@ -697,6 +713,8 @@ async function cancelDeepCleanup() {
           :closing-applications="cleanupStore.closingApplications"
           :close-result="cleanupStore.applicationCloseResult"
           :privileged-scan-rule-id="cleanupStore.privilegedScanRuleId"
+          :administrator-restart-busy="administratorRestartBusy"
+          :administrator-restart-disabled="administratorRestartDisabled"
           @scan="scanCleanup"
           @toggle-source="cleanupStore.toggleSource"
           @select-all="cleanupStore.setRulesSelected"
@@ -705,6 +723,7 @@ async function cancelDeepCleanup() {
           @close-applications="closeApplicationsBeforeCleanup"
           @open="openPath"
           @privileged-scan="cleanupStore.scanPreviousInstallationsWithPrivileges()"
+          @restart-as-administrator="restartAsAdministrator"
           @open-exclusions="openScanExclusions"
         />
         <AnalysisPage

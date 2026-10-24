@@ -102,6 +102,8 @@ const props = defineProps<{
   closingApplications: boolean;
   closeResult: ApplicationCloseBatchResult | null;
   privilegedScanRuleId: string | null;
+  administratorRestartBusy?: boolean;
+  administratorRestartDisabled?: boolean;
 }>();
 const emit = defineEmits<{
   cancel: [];
@@ -112,6 +114,7 @@ const emit = defineEmits<{
   selectAll: [ruleIds: string[], selected: boolean];
   toggleSource: [ruleId: string, path: string];
   privilegedScan: [];
+  restartAsAdministrator: [];
   openExclusions: [];
 }>();
 
@@ -559,12 +562,15 @@ watch(
         :selected-rule-ids="selectedRuleIds"
         :source-selections="sourceSelections"
         :privileged-scan-rule-id="privilegedScanRuleId"
+        :administrator-restart-busy="administratorRestartBusy"
+        :administrator-restart-disabled="administratorRestartDisabled"
         @toggle-source="toggleSource"
         @toggle-leftover="toggleLeftover"
         @select-leftover-group="setLeftoverGroupSelected"
         @select-all="selectAll"
         @open="emit('open', $event)"
         @privileged-scan="emit('privilegedScan')"
+        @restart-as-administrator="emit('restartAsAdministrator')"
       />
     </MdResultWorkspace>
 

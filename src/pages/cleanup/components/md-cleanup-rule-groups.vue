@@ -3,6 +3,7 @@ import { FormatService } from '@/lib/services/presentation/format-service';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import MdTooltip from '@/components/custom/md-tooltip.vue';
 import MdLoadMoreButton from '@/components/custom/md-load-more-button.vue';
 import MdApplicationIcon from '@/components/custom/md-application-icon.vue';
 import MdIconAction from '@/components/custom/md-icon-action.vue';
@@ -70,6 +71,8 @@ const props = withDefaults(
     selectedRuleIds: string[];
     sourceSelections: CleanupSourceSelection[];
     privilegedScanRuleId: string | null;
+    administratorRestartBusy?: boolean;
+    administratorRestartDisabled?: boolean;
     embedded?: boolean;
   }>(),
   { embedded: false }
@@ -81,6 +84,7 @@ const emit = defineEmits<{
   toggleLeftover: [candidate: ApplicationLeftoverCandidate];
   toggleSource: [ruleId: string, path: string];
   privilegedScan: [];
+  restartAsAdministrator: [];
 }>();
 
 const activeViewId = ref<CleanupViewId>('system');
@@ -102,6 +106,10 @@ const activeRuleRows = computed(() =>
     selectedBytes: selectedBytes(rule),
     selection: ruleSelectionLevel(rule),
   }))
+);
+const activeCategoryRequiresRestart = computed(
+  () =>
+    OperatingSystemService.isWindows() && activeRuleRows.value.some(({ rule }) => requiresAdministratorRestart(rule))
 );
 const applicationOptimizationRule = computed(
   () => activeCategory.value?.rules.find(rule => isUniversalBinaryRule(rule)) ?? null
@@ -191,7 +199,7 @@ function ruleValueDetail(
 ): string | undefined {
   if (rule.status === 'excluded') return t('storageScanExclusions.unsupportedCleaner');
   if (rule.status === 'requiresElevation') {
-    return requiresAdministratorRestart(rule) && rule.bytes === 0 ? undefined : t('cleanup.privilegedScan.sizePending');
+    return requiresAdministratorRestart(rule) ? undefined : t('cleanup.privilegedScan.sizePending');
   }
   if (selection !== 'none' && selectedRuleBytes !== rule.bytes) {
     return t('cleanup.totalSize', { size: ByteSizeService.bytes(rule.bytes) });
@@ -206,7 +214,7 @@ function requiresAdministratorRestart(rule: PresentedScanRuleResult): boolean {
 function ruleSummaryValue(rule: PresentedScanRuleResult, bytes: number): string {
   if (rule.status === 'requiresElevation') {
     if (!requiresAdministratorRestart(rule)) return t('cleanup.privilegedScan.required');
-    return rule.bytes > 0 ? ByteSizeService.bytes(rule.bytes) : t('cleanup.privilegedScan.sizePending');
+    return t('cleanup.privilegedScan.adminRequired');
   }
   if (rule.status === 'excluded') return t('storageScanExclusions.skipped');
   return ByteSizeService.bytes(bytes);
@@ -568,6 +576,33 @@ watch(
         </template>
       </MdResultDetailHeader>
 
+      <div v-if="activeCategoryRequiresRestart" class="administrator-restart-notice">
+        <span class="administrator-restart-copy">{{ t('cleanup.privilegedScan.restartNotice') }}</span>
+        <MdTooltip :text="t('cleanup.privilegedScan.restartDescription')">
+          <Button
+            class="administrator-restart-button"
+            variant="ghost"
+            size="sm"
+            type="button"
+            :disabled="
+              busy || administratorRestartDisabled || administratorRestartBusy || privilegedScanRuleId !== null
+            "
+            :aria-busy="administratorRestartBusy || undefined"
+            @click="emit('restartAsAdministrator')"
+          >
+            <span
+              v-if="administratorRestartBusy"
+              class="privileged-scan-spinner icon-spin md-operational-motion"
+              aria-hidden="true"
+            />
+            <MdIcon v-else :name="ICON_NAMES.shield" :size="15" />
+            {{
+              t(administratorRestartBusy ? 'cleanup.privilegedScan.restarting' : 'cleanup.privilegedScan.restartAction')
+            }}
+          </Button>
+        </MdTooltip>
+      </div>
+
       <MdResultTable ref="detailList" class="detail-list">
         <div class="detail-list-content">
           <article
@@ -576,6 +611,7 @@ watch(
             class="rule-card"
             :class="{
               'requires-elevation': row.rule.status === 'requiresElevation',
+              'administrator-required': requiresAdministratorRestart(row.rule),
             }"
           >
             <MdResultTableRow
@@ -595,14 +631,15 @@ watch(
                 :disclosure-label="row.rule.name"
                 :disclosure-disabled="!hasCleanupRuleDetails(row.rule)"
                 :title="row.rule.name"
-                :description="
-                  requiresAdministratorRestart(row.rule) ? t('cleanup.privilegedScan.restartHint') : undefined
-                "
                 :badge="activeCategory.id !== 'userCache' && row.rule.risk === 'safe' ? t('common.safe') : undefined"
                 badge-tone="positive"
                 :value="ruleSummaryValue(row.rule, row.selection === 'none' ? row.rule.bytes : row.selectedBytes)"
                 :value-detail="ruleValueDetail(row.rule, row.selection, row.selectedBytes)"
-                :value-tone="row.rule.status === 'requiresElevation' ? 'warning' : 'default'"
+                :value-tone="
+                  row.rule.status === 'requiresElevation' && !requiresAdministratorRestart(row.rule)
+                    ? 'warning'
+                    : 'default'
+                "
                 :expandable="hasCleanupRuleDetails(row.rule)"
                 :expanded="expandedRuleIds.has(row.rule.ruleId)"
                 @toggle="toggleRuleDetails(row.rule)"

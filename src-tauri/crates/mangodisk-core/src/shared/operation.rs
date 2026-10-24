@@ -306,6 +306,43 @@ struct OperationCoordinator {
 struct CoordinatorState {
     active: Vec<ActiveOperation>,
     waiting: Vec<WaitingOperation>,
+    restarting: bool,
+}
+
+/// Reserves an idle process for an application restart without interrupting Core work.
+/// Dropping the reservation restores normal operation after a cancelled or failed launch.
+pub struct ApplicationRestartGuard {
+    committed: bool,
+}
+
+impl ApplicationRestartGuard {
+    pub fn acquire() -> CoreResult<Self> {
+        let mut state = OperationCoordinator::global().state.lock().map_err(|_| {
+            CoreError::operation_failed("the operation coordinator is temporarily unavailable")
+        })?;
+        if state.restarting || !state.active.is_empty() || !state.waiting.is_empty() {
+            return Err(CoreError::operation_busy(
+                "application restart requires an idle process",
+            ));
+        }
+        state.restarting = true;
+        Ok(Self { committed: false })
+    }
+
+    /// Keep rejecting new work until the adapter terminates this process.
+    pub fn commit(mut self) {
+        self.committed = true;
+    }
+}
+
+impl Drop for ApplicationRestartGuard {
+    fn drop(&mut self) {
+        if !self.committed {
+            if let Ok(mut state) = OperationCoordinator::global().state.lock() {
+                state.restarting = false;
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -440,6 +477,11 @@ impl OperationGuard {
         // A second operation of the same kind is almost always a duplicate click or a repeated
         // adapter request. Reject it instead of queueing surprising work that starts only after the
         // visible first request has completed.
+        if state.restarting {
+            return Err(CoreError::operation_busy(
+                "application restart is in progress",
+            ));
+        }
         if let Some((operation_id, operation_kind)) = state
             .active
             .iter()
@@ -714,6 +756,35 @@ pub(crate) fn test_operation_lock() -> std::sync::MutexGuard<'static, ()> {
 mod tests {
     use super::*;
     use crate::CoreErrorCode;
+
+    #[test]
+    fn restart_reservation_rejects_active_work_and_releases_after_cancellation() {
+        let _test_guard = test_operation_lock();
+        for kind in [
+            CoordinatedOperationKind::CleanupScan,
+            CoordinatedOperationKind::Cleanup,
+            CoordinatedOperationKind::PermanentDelete,
+        ] {
+            let operation = OperationGuard::start(kind).expect("start active work");
+            assert!(
+                matches!(ApplicationRestartGuard::acquire(), Err(error) if error.code() == CoreErrorCode::OperationBusy)
+            );
+            drop(operation);
+        }
+        let restart = ApplicationRestartGuard::acquire().expect("reserve idle process");
+        assert!(ApplicationRestartGuard::acquire().is_err());
+        assert!(
+            matches!(OperationGuard::start(CoordinatedOperationKind::CleanupScan), Err(error) if error.code() == CoreErrorCode::OperationBusy)
+        );
+        assert!(
+            matches!(OperationGuard::start(CoordinatedOperationKind::PermanentDelete), Err(error) if error.code() == CoreErrorCode::OperationBusy)
+        );
+        drop(restart);
+        let operation = OperationGuard::start(CoordinatedOperationKind::CleanupScan)
+            .expect("cancelled restart restores scans");
+        drop(operation);
+        assert!(ApplicationRestartGuard::acquire().is_ok());
+    }
 
     fn wait_until_queued(kind: CoordinatedOperationKind) {
         for _ in 0..1_000 {

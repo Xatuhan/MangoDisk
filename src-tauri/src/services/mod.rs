@@ -11,3 +11,6 @@ pub(crate) mod feedback;
 pub(crate) mod native_labels;
 
 pub(crate) mod windows_monitoring;
+
+#[cfg(any(windows, test))]
+pub(crate) mod application_restart;

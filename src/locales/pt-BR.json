@@ -1819,11 +1819,17 @@
       "protectedScanHint": "Se o macOS solicitar acesso, escolha Permitir ou Não Permitir; a verificação continuará após sua resposta"
     },
     "privilegedScan": {
+      "restartNotice": "Alguns itens exigem permissão de administrador",
+      "restartDescription": "Verifique novamente após reiniciar",
+      "adminRequired": "Requer administrador",
       "required": "Não verificado",
       "sizePending": "Acesso de administrador necessário",
       "action": "Verificação como administrador",
       "checking": "Verificando…",
-      "restartHint": "Reinicie o MangoDisk como administrador e faça uma nova verificação"
+      "restartHint": "Reinicie o MangoDisk como administrador e faça uma nova verificação",
+      "restartAction": "Reiniciar como administrador",
+      "restarting": "Aguardando autorização…",
+      "restartFailed": "Não foi possível reiniciar como administrador. Tente novamente"
     },
     "categoryItemCount": "{count} item | {count} itens",
     "categoryTitles": {

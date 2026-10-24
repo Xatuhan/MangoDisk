@@ -29,6 +29,18 @@ describe('ApplicationWindowService', () => {
     windowMock.onResized.mockResolvedValue(() => undefined);
   });
 
+  it('delegates administrator restart without accepting a path and preserves cancellation or failure', async () => {
+    invoke.mockResolvedValueOnce(false);
+    expect(await ApplicationWindowService.restartAsAdministrator()).toBe(false);
+    expect(invoke).toHaveBeenLastCalledWith('restart_application_as_administrator');
+    expect(windowMock.close).not.toHaveBeenCalled();
+    invoke.mockRejectedValueOnce({ code: 'operationBusy' });
+    await expect(ApplicationWindowService.restartAsAdministrator()).rejects.toEqual({ code: 'operationBusy' });
+    expect(windowMock.close).not.toHaveBeenCalled();
+    invoke.mockResolvedValueOnce(true);
+    expect(await ApplicationWindowService.restartAsAdministrator()).toBe(true);
+  });
+
   it('hands readiness to Rust and returns navigation without showing the window itself', async () => {
     invoke.mockResolvedValueOnce('settings');
     expect(await ApplicationWindowService.showAfterMount()).toBe('settings');

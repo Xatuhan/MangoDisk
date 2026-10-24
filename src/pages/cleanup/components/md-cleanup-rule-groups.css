@@ -76,12 +76,56 @@
 .rule-card.requires-elevation .rule-summary {
   height: auto;
   min-height: 52px;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  gap: 6px;
+  grid-template-columns: 20px minmax(0, 1fr);
 }
 
-.rule-card.requires-elevation :deep(.result-item-value) {
-  min-width: 118px;
+.rule-card.requires-elevation .rule-summary:has(.privileged-scan-button) {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+}
+
+.rule-card.administrator-required :deep(.result-item-title strong) {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.rule-card.administrator-required :deep(.result-item-value) {
+  min-width: 0;
+  max-width: 12em;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.rule-card.administrator-required :deep(.result-item-value strong) {
+  @apply text-muted-foreground;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.administrator-restart-notice {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  padding: 6px 16px;
+}
+
+.administrator-restart-copy {
+  @apply text-muted-foreground;
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.administrator-restart-button {
+  flex: 0 1 auto;
+  margin-left: auto;
+  font-weight: 500;
 }
 
 .rule-card.requires-elevation :deep(.result-item-description) {
@@ -90,9 +134,15 @@
   white-space: normal;
 }
 
-.privileged-scan-button {
+.privileged-scan-button,
+.administrator-restart-button {
   min-width: 104px;
   padding-inline: 10px;
+  max-width: 100%;
+  height: auto;
+  min-height: 32px;
+  white-space: normal;
+  text-align: center;
 }
 
 @container (max-width: 760px) {

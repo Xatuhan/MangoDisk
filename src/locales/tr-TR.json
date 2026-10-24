@@ -1819,11 +1819,17 @@
       "protectedScanHint": "macOS erişim isterse İzin Ver veya İzin Verme'yi seçin; yanıtınızdan sonra tarama devam eder"
     },
     "privilegedScan": {
+      "restartNotice": "Bazı öğeler yönetici izni gerektirir",
+      "restartDescription": "Yeniden başlattıktan sonra tekrar tarayın",
+      "adminRequired": "Yönetici izni gerekli",
       "required": "Kontrol edilmedi",
       "sizePending": "Yönetici erişimi gerekli",
       "action": "Yönetici kontrolü",
       "checking": "Kontrol ediliyor…",
-      "restartHint": "MangoDisk’i yönetici olarak yeniden başlatıp tekrar tarayın"
+      "restartHint": "MangoDisk’i yönetici olarak yeniden başlatıp tekrar tarayın",
+      "restartAction": "Yönetici olarak yeniden başlat",
+      "restarting": "Onay bekleniyor…",
+      "restartFailed": "Yönetici olarak yeniden başlatılamadı. Lütfen tekrar deneyin"
     },
     "categoryItemCount": "{count} öğe | {count} öğe",
     "categoryTitles": {

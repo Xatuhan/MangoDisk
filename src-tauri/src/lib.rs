@@ -121,6 +121,14 @@ fn restore_main_window_state(app: &tauri::AppHandle) {
 }
 
 pub fn run() {
+    #[cfg(windows)]
+    let startup_environment = match services::application_restart::prepare_startup_environment() {
+        Ok(environment) => environment,
+        Err(error) => {
+            eprintln!("administrator_restart_startup_failed error={error}");
+            std::process::exit(1);
+        }
+    };
     let webview_version = tauri::webview_version();
     let webview_update_required = cfg!(target_os = "windows")
         && webview_runtime::requires_update(
@@ -144,6 +152,9 @@ pub fn run() {
             }
         },
     ));
+    // The process and updater plugins must inherit only reusable startup arguments.
+    #[cfg(windows)]
+    let builder = builder.manage(startup_environment);
     #[cfg(target_os = "macos")]
     let builder = builder
         .menu(application_menu::build)
@@ -221,6 +232,7 @@ pub fn run() {
             commands::resident::resident_hide_panel,
             commands::resident::resident_open_main,
             commands::resident::resident_quit,
+            commands::application_restart::restart_application_as_administrator,
             commands::resident::resident_main_ready,
             commands::resident::resident_get_autostart,
             commands::resident::resident_set_autostart,

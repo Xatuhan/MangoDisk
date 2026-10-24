@@ -1819,11 +1819,17 @@
       "protectedScanHint": "若 macOS 顯示授權要求，請選擇「允許」或「不允許」；掃描會在你回應後繼續"
     },
     "privilegedScan": {
+      "restartNotice": "部分項目需要管理員權限",
+      "restartDescription": "重新啟動後需再次掃描",
+      "adminRequired": "需要管理員權限",
       "required": "尚未檢查",
       "sizePending": "需要系統管理員權限",
       "action": "系統管理員檢查",
       "checking": "檢查中…",
-      "restartHint": "以系統管理員身分重新啟動 MangoDisk 後再次掃描"
+      "restartHint": "以系統管理員身分重新啟動 MangoDisk 後再次掃描",
+      "restartAction": "以系統管理員身分重新啟動",
+      "restarting": "等待授權…",
+      "restartFailed": "無法以系統管理員身分重新啟動，請再試一次"
     },
     "categoryItemCount": "{count} 個項目",
     "categoryTitles": {

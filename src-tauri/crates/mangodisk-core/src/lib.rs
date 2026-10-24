@@ -93,8 +93,9 @@ pub use reporting::{
     EngineBenchmarkService,
 };
 pub use shared::{
-    configure_application_paths, ApplicationPaths, CoreError, CoreErrorCode, CoreErrorReason,
-    CoreResult, OperationCancellationToken, ProgressSink, TraversalProgress, TraversalStage,
+    configure_application_paths, ApplicationPaths, ApplicationRestartGuard, CoreError,
+    CoreErrorCode, CoreErrorReason, CoreResult, OperationCancellationToken, ProgressSink,
+    TraversalProgress, TraversalStage,
 };
 pub use startup::{
     StartupAggregateConfiguredState, StartupAggregateControlState, StartupArtifact, StartupCatalog,
