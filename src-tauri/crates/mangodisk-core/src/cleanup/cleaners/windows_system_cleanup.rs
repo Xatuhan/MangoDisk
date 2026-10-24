@@ -1,5 +1,7 @@
 use std::sync::atomic::Ordering;
 
+use super::windows_system_temp;
+
 use crate::{
     cleanup::{
         CleanupActionKind, CleanupActionReason, CleanupActionResult, CleanupActionStatus,
@@ -48,13 +50,15 @@ const CLEANERS: [(&str, WindowsDiskCleanupKind); 7] = [
 
 pub(super) fn preview_all(cancellation: &PlatformCancellation) -> Vec<ScanRuleResult> {
     let kinds = CLEANERS.iter().map(|(_, kind)| *kind).collect::<Vec<_>>();
-    windows_disk_cleanup_estimates(&kinds, cancellation)
+    let mut results: Vec<_> = windows_disk_cleanup_estimates(&kinds, cancellation)
         .into_iter()
         .filter_map(|estimate| {
             let rule_id = id_for_kind(estimate.kind)?;
             Some(scan_rule_from_estimate(rule_id, estimate))
         })
-        .collect()
+        .collect();
+    results.push(windows_system_temp::preview(cancellation));
+    results
 }
 
 pub(super) fn preview_previous_installations_with_privileges(
@@ -104,7 +108,7 @@ fn scan_rule_from_estimate(
 }
 
 pub(super) fn preview_limited_all() -> Vec<ScanRuleResult> {
-    CLEANERS
+    let mut results: Vec<_> = CLEANERS
         .iter()
         .map(|(id, kind)| ScanRuleResult {
             rule_id: (*id).to_string(),
@@ -125,19 +129,23 @@ pub(super) fn preview_limited_all() -> Vec<ScanRuleResult> {
             sources_truncated: false,
             scan_elapsed_ms: 0,
         })
-        .collect()
+        .collect();
+    results.push(windows_system_temp::limited_rule());
+    results
 }
 
 pub(super) fn contains(id: &str) -> bool {
-    CLEANERS.iter().any(|(candidate, _)| *candidate == id)
+    id == windows_system_temp::CLEANER_ID || CLEANERS.iter().any(|(candidate, _)| *candidate == id)
 }
 
 pub(super) fn count() -> usize {
-    CLEANERS.len()
+    CLEANERS.len() + 1
 }
 
 pub(super) fn catalog_digest() -> String {
     let mut hasher = blake3::Hasher::new();
+    hasher.update(windows_system_temp::CLEANER_ID.as_bytes());
+    hasher.update(windows_system_temp::CLEANER_REVISION.as_bytes());
     for (id, kind) in CLEANERS {
         hasher.update(id.as_bytes());
         hasher.update(kind.stable_id().as_bytes());
@@ -147,6 +155,9 @@ pub(super) fn catalog_digest() -> String {
 }
 
 pub(super) fn execute(id: &str, dry_run: bool, operation: &OperationGuard) -> CleanupActionResult {
+    if id == windows_system_temp::CLEANER_ID {
+        return windows_system_temp::execute(dry_run, operation);
+    }
     let Some(kind) = kind_for_id(id) else {
         return failed_action(id, CleanupActionReason::CleanerUnavailable, 0);
     };
@@ -248,7 +259,7 @@ fn action_status_and_reason(
 }
 
 pub(super) fn action_kind(id: &str) -> CleanupActionKind {
-    if id == RECYCLE_BIN_ID {
+    if id == RECYCLE_BIN_ID || id == windows_system_temp::CLEANER_ID {
         CleanupActionKind::Delete
     } else {
         CleanupActionKind::Command

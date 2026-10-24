@@ -3707,6 +3707,11 @@
         "description": "当前账户在 Windows 回收站中的所有项目",
         "impact": "清空后这些文件和文件夹将无法从回收站恢复；此项不会默认勾选。"
       },
+      "special.windows-system-temp": {
+        "name": "系统临时文件",
+        "description": "清理 SystemTemp 中超过 7 天的文件。",
+        "impact": "保留近期文件，跳过无法删除的文件，可能需要管理员权限。"
+      },
       "special.windows-system-logs": {
         "name": "Windows 日志文件",
         "description": "Windows 目录下 Panther、Logs 和 System32\\LogFiles 中超过 3 天的安装、升级和诊断日志",

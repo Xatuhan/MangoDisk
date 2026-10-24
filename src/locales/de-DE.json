@@ -3707,6 +3707,11 @@
         "description": "Alle Elemente im Windows-Papierkorb des aktuellen Kontos",
         "impact": "Dateien und Ordner können nach dem Leeren des Papierkorbs nicht wiederhergestellt werden. Dieses Element ist standardmäßig nie ausgewählt"
       },
+      "special.windows-system-temp": {
+        "name": "Temporäre Systemdateien",
+        "description": "SystemTemp-Dateien bereinigen, die älter als 7 Tage sind.",
+        "impact": "Neue Dateien bleiben erhalten. Nicht löschbare Dateien werden übersprungen. Möglicherweise sind Administratorrechte nötig."
+      },
       "special.windows-system-logs": {
         "name": "Windows-Protokolldateien",
         "description": "Setup-, Upgrade- und Diagnoseprotokolle, die älter als drei Tage sind, unter Panther, Logs und System32\\LogFiles im Windows-Verzeichnis",

@@ -3707,6 +3707,11 @@
         "description": "目前帳號在 Windows 資源回收筒中的所有項目",
         "impact": "清空後這些檔案和資料夾將無法從資源回收筒復原；此項不會預設勾選。"
       },
+      "special.windows-system-temp": {
+        "name": "系統暫存檔案",
+        "description": "清理 SystemTemp 中超過 7 天的檔案。",
+        "impact": "保留近期檔案，略過無法刪除的檔案，可能需要系統管理員權限。"
+      },
       "special.windows-system-logs": {
         "name": "Windows 記錄檔檔案",
         "description": "Windows 資料夾下 Panther、Logs 和 System32\\LogFiles 中超過 3 天的安裝、升級和診斷記錄檔",

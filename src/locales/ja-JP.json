@@ -3707,6 +3707,11 @@
         "description": "現在のアカウントのWindowsごみ箱内のすべての項目。",
         "impact": "ごみ箱を空にした後、ファイルやフォルダーは復元できません。この項目はデフォルトで選択されることはありません。"
       },
+      "special.windows-system-temp": {
+        "name": "システム一時ファイル",
+        "description": "SystemTemp 内の 7 日以上経過したファイルを削除します。",
+        "impact": "最近のファイルは保持し、削除できないファイルはスキップします。管理者権限が必要な場合があります。"
+      },
       "special.windows-system-logs": {
         "name": "Windowsログファイル",
         "description": "Panther、Logs、WindowsディレクトリのSystem32\\LogFiles内の3日以上前のセットアップ、アップグレード、および診断ログ。",

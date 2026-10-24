@@ -3707,6 +3707,11 @@
         "description": "현재 계정의 Windows 휴지통에 있는 모든 항목입니다.",
         "impact": "휴지통을 비운 뒤에는 파일과 폴더를 복원할 수 없습니다. 이 항목은 기본적으로 선택되지 않습니다."
       },
+      "special.windows-system-temp": {
+        "name": "시스템 임시 파일",
+        "description": "SystemTemp에서 7일이 지난 파일을 정리합니다.",
+        "impact": "최근 파일은 보존하고 삭제할 수 없는 파일은 건너뜁니다. 관리자 권한이 필요할 수 있습니다."
+      },
       "special.windows-system-logs": {
         "name": "Windows 로그 파일",
         "description": "Windows 디렉터리의 Panther, Logs 및 System32\\LogFiles 아래에 있는 3일이 지난 설치, 업그레이드 및 진단 로그입니다.",

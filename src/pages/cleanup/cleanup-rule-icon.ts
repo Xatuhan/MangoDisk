@@ -40,6 +40,7 @@ const CLEANUP_RULE_ICONS: Readonly<Record<string, IconName>> = {
   'system.gtk-icon-cache': ICON_NAMES.fileImage,
   [CLEANUP_RULE_IDS.windowsRecycleBin]: ICON_NAMES.trash,
   'special.windows-system-logs': ICON_NAMES.brandWindows,
+  'special.windows-system-temp': ICON_NAMES.brandWindows,
   'special.windows-internet-cache': ICON_NAMES.brandWindows,
   'special.windows-delivery-optimization': ICON_NAMES.brandWindows,
   'special.windows-defender-cache': ICON_NAMES.brandWindows,

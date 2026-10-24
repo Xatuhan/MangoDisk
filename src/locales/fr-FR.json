@@ -3707,6 +3707,11 @@
         "description": "Tous les éléments de la corbeille Windows du compte actuel",
         "impact": "Les fichiers et dossiers ne peuvent pas être restaurés à partir de la corbeille une fois celle-ci vidée. Cet élément n'est jamais sélectionné par défaut"
       },
+      "special.windows-system-temp": {
+        "name": "Fichiers temporaires système",
+        "description": "Nettoie les fichiers SystemTemp de plus de 7 jours.",
+        "impact": "Conserve les fichiers récents et ignore ceux qui ne peuvent pas être supprimés. Des droits administrateur peuvent être nécessaires."
+      },
       "special.windows-system-logs": {
         "name": "Fichiers journaux Windows",
         "description": "Journaux d'installation, de mise à niveau et de diagnostic datant de plus de trois jours sous Panther, Logs et System32\\LogFiles dans le répertoire Windows",

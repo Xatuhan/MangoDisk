@@ -22,6 +22,8 @@ mod macos_video_offline_downloads;
 #[cfg(windows)]
 mod windows_system_cleanup;
 #[cfg(windows)]
+mod windows_system_temp;
+#[cfg(windows)]
 mod windows_video_offline_downloads;
 #[cfg(windows)]
 mod windows_video_playback_caches;
@@ -562,11 +564,15 @@ where
     let mut actions = Vec::with_capacity(ids.len());
     for id in direct_ids {
         progress(id, None);
+        #[cfg(windows)]
+        let windows_action_kind = windows_system_cleanup::action_kind(id);
+        #[cfg(not(windows))]
+        let windows_action_kind = CleanupActionKind::Command;
         if exclusions.has_names() {
             log::info!("cleanup_specialized_execution_blocked operation_id={} rule_id={} reason=nameExclusionsUnsupported outcome=unchanged", operation.id(), id);
             let action = CleanupActionResult {
                 rule_id: id.clone(),
-                action_kind: CleanupActionKind::Command,
+                action_kind: windows_action_kind,
                 status: CleanupActionStatus::Blocked,
                 reason_code: Some(CleanupActionReason::NameExclusionsUnsupported),
                 bytes_expected: 0,
@@ -585,16 +591,12 @@ where
         // where an intermediate branch is compiled out.
         let action = (|| {
             if operation.ensure_not_cancelled().is_err() {
-                #[cfg(windows)]
-                let is_windows_recycle_bin = id == windows_system_cleanup::RECYCLE_BIN_ID;
-                #[cfg(not(windows))]
-                let is_windows_recycle_bin = false;
                 let action_kind = if ai_model_storage::contains(id)
                     || id == codex_archived_sessions::CLEANER_ID
                     || dropbox_cache_cleaner_contains(id)
                     || video_offline_cleaner_contains(id)
                     || windows_video_playback_cleaner_contains(id)
-                    || is_windows_recycle_bin
+                    || windows_action_kind == CleanupActionKind::Delete
                 {
                     CleanupActionKind::Delete
                 } else if id == macos_universal_binaries::CLEANER_ID {

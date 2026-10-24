@@ -26,6 +26,11 @@ mod shortcut_overlay;
 mod startup;
 mod system_maintenance;
 mod system_settings;
+mod temporary_files;
+pub use temporary_files::{
+    probe_windows_file_delete_access, windows_process_is_elevated,
+    windows_system_temporary_directory,
+};
 pub mod volume_filesystem;
 mod volumes;
 mod winget_retry;

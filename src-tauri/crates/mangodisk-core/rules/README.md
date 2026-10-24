@@ -21,6 +21,17 @@ The in-app privileged check remains limited to previous Windows installations. E
 does not bypass locked files, ACLs, reparse-point checks, or verification. Item failures retain bounded path, stage,
 and native-error diagnostics.
 
+The opt-in Windows system-temporary-file cleaner owns only the native Windows
+directory's `SystemTemp` child. It preserves the root, directories, read-only
+files, links/reparse points, and files modified within the last seven days.
+Incomplete inventories block execution; changed objects, locked files, and
+denied deletion access remain in place and are reported. It uses the existing
+permanent-deletion identity checks and never changes ACLs or takes ownership.
+Permission-limited scans require an administrator restart and rescan, not an
+in-app elevation helper. The retention window is a conservative product policy;
+the [Windows temporary-path contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppath2w)
+establishes this location's purpose and access boundary, not universal disposability.
+
 The macOS additional-user-cache cleaner retains reviewed snapshots for failed and unselected
 sources across cleanup steps. Only successfully deleted sources leave the snapshot. Retries
 must recheck ownership, running processes, links, and metadata against the original review.

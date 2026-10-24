@@ -3707,6 +3707,11 @@
         "description": "Todos los elementos de la Papelera de reciclaje de Windows de la cuenta actual",
         "impact": "Los archivos y carpetas no se pueden restaurar desde la Papelera de reciclaje después de vaciarla. Este elemento nunca se selecciona de forma predeterminada"
       },
+      "special.windows-system-temp": {
+        "name": "Archivos temporales del sistema",
+        "description": "Limpia archivos de SystemTemp de más de 7 días.",
+        "impact": "Conserva los archivos recientes y omite los que no se pueden eliminar. Puede requerir permisos de administrador."
+      },
       "special.windows-system-logs": {
         "name": "Archivos de registro de Windows",
         "description": "Registros de configuración, actualización y diagnóstico con más de tres días de antigüedad en Panther, Logs y System32\\LogFiles en el directorio de Windows",

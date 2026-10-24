@@ -3707,6 +3707,11 @@
         "description": "Todos os itens na Lixeira do Windows da conta atual.",
         "impact": "Arquivos e pastas não podem ser restaurados da Lixeira depois que ela é esvaziada. Este item nunca é selecionado por padrão."
       },
+      "special.windows-system-temp": {
+        "name": "Arquivos temporários do sistema",
+        "description": "Limpa arquivos do SystemTemp com mais de 7 dias.",
+        "impact": "Preserva arquivos recentes e ignora os que não podem ser excluídos. Pode exigir permissões de administrador."
+      },
       "special.windows-system-logs": {
         "name": "Arquivos de log do Windows",
         "description": "Logs de instalação, atualização e diagnóstico com mais de três dias em Panther, Logs e System32LogFiles no diretório do Windows.",

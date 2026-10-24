@@ -91,7 +91,9 @@ pub use system_settings_helper::run_system_settings_helper_mode;
 pub use windows::{
     estimate_windows_previous_installations_with_privileges, execute_windows_disk_cleanup,
     execute_windows_previous_installations_with_privileges, fresh_windows_disk_cleanup_estimates,
-    run_application_record_helper_mode, windows_disk_cleanup_estimates,
+    probe_windows_file_delete_access, run_application_record_helper_mode,
+    windows_disk_cleanup_estimates, windows_process_is_elevated,
+    windows_system_temporary_directory,
 };
 
 #[cfg(test)]

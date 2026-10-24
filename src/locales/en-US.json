@@ -3707,6 +3707,11 @@
         "description": "All items in the current account's Windows Recycle Bin.",
         "impact": "Files and folders cannot be restored from the Recycle Bin after it is emptied. This item is never selected by default."
       },
+      "special.windows-system-temp": {
+        "name": "System temporary files",
+        "description": "Clean SystemTemp files older than 7 days.",
+        "impact": "Keeps recent files and skips files that cannot be deleted. Administrator access may be required."
+      },
       "special.windows-system-logs": {
         "name": "Windows log files",
         "description": "Setup, upgrade, and diagnostic logs older than three days under Panther, Logs, and System32\\LogFiles in the Windows directory.",

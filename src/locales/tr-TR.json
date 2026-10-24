@@ -3707,6 +3707,11 @@
         "description": "Mevcut hesabın Windows Geri Dönüşüm Kutusu'ndaki tüm öğeler.",
         "impact": "Geri Dönüşüm Kutusu boşaltıldıktan sonra dosya ve klasörler geri yüklenemez. Bu öğe varsayılan olarak hiçbir zaman seçilmez."
       },
+      "special.windows-system-temp": {
+        "name": "Sistem geçici dosyaları",
+        "description": "SystemTemp içindeki 7 günden eski dosyaları temizler.",
+        "impact": "Yeni dosyaları korur ve silinemeyen dosyaları atlar. Yönetici izni gerekebilir."
+      },
       "special.windows-system-logs": {
         "name": "Windows günlük dosyaları",
         "description": "Windows dizinindeki Panther, Logs ve System32\\LogFiles altında bulunan üç günden eski kurulum, yükseltme ve tanılama günlükleri.",
