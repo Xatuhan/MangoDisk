@@ -68,10 +68,6 @@ import {
   type ApplicationCatalogSortKey,
 } from './application-uninstall-catalog';
 import {
-  shouldNotifyUninstallCancellation,
-  UNINSTALL_CANCELLATION_TOAST_ID,
-} from './application-uninstall-confirmation';
-import {
   applicationCloseRequestIds,
   applyApplicationCloseResult,
   beginApplicationCloseWorkflow,
@@ -582,15 +578,9 @@ function sortIcon(key: ApplicationCatalogSortKey) {
 
 function updateConfirmation(open: boolean) {
   if (props.executing) return;
-  const notifyCancellation = shouldNotifyUninstallCancellation(confirmOpen.value, open);
   confirmOpen.value = open;
   if (!open) {
     emit('cancelPlan');
-    if (notifyCancellation) {
-      toast.info(t('applicationUninstall.cancelledTitle'), {
-        id: UNINSTALL_CANCELLATION_TOAST_ID,
-      });
-    }
   }
 }
 

@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "Die ausgewählten Elemente befinden sich bereits im angeforderten Status",
       "alreadyOptimized": "Es sind keine Einstellungsänderungen ausstehend",
-      "draftNotice": "Änderungen werden wirksam, nachdem Sie unten auf „Änderungen übernehmen“ klicken",
       "completed": "Geänderte Einstellungen: {count}",
       "completedRestart": "Geänderte Einstellungen: {count}. Einige erfordern, betroffene Systemkomponenten erneut zu öffnen oder sich neu anzumelden",
       "cancelled": "Die Administratorautorisierung wurde nach {changed} abgeschlossenen Änderungen aufgehoben",

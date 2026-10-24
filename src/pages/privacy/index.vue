@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FormatService } from '@/lib/services/presentation/format-service';
-import { computed, ref, watch } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onDeactivated, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
@@ -46,6 +46,16 @@ const { t, locale } = useI18n({ useScope: 'global' });
 const store = usePrivacyStore();
 const confirmationOpen = ref(false);
 const resultOpen = ref(false);
+let pageActive = true;
+onActivated(() => {
+  pageActive = true;
+});
+onDeactivated(() => {
+  pageActive = false;
+});
+onBeforeUnmount(() => {
+  pageActive = false;
+});
 const permissionPromptOpen = ref(false);
 const permissionPromptShown = ref(false);
 const detailOpen = ref(false);
@@ -232,7 +242,10 @@ async function execute(excludedSourceIds: string[] = []) {
     toast.warning(t('privacy.feedback.noRemainingSelection'));
     return;
   }
-  resultOpen.value = true;
+  resultOpen.value = pageActive;
+  // The visible result dialog already includes success and incomplete-item details.
+  // Cached pages still report completion when the user has navigated elsewhere.
+  if (pageActive) return;
   if (resultIncompleteCount.value) {
     toast.warning(
       t('privacy.feedback.completedWithWarnings', {

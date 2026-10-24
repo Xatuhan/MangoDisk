@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "選択した項目はすでに目的の状態です",
       "alreadyOptimized": "適用待ちの設定変更はありません",
-      "draftNotice": "変更は下部の「変更を適用」をクリックすると反映されます",
       "completed": "{count} 件のシステム設定変更を適用しました",
       "completedRestart": "{count} 件の変更を適用しました。一部は関連するシステム機能を開き直すか、再ログインすると反映されます",
       "cancelled": "管理者認証がキャンセルされました。それまでに {changed} 件の変更が完了しました",

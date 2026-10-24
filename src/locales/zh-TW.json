@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "所選項目已經處於目標狀態",
       "alreadyOptimized": "目前沒有等待套用的設定變更",
-      "draftNotice": "變更會在點擊底部「套用變更」後生效",
       "completed": "已套用 {count} 項系統設定變更",
       "completedRestart": "已套用 {count} 項變更，部分設定需重新開啟相關系統元件或重新登入後生效",
       "cancelled": "已取消管理員授權，此前已完成 {changed} 項變更",

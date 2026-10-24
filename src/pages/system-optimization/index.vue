@@ -49,7 +49,6 @@ type OptimizationCategoryFilter = 'pending' | 'all' | SystemSettingCategory;
 const activeCategory = ref<OptimizationCategoryFilter>('all');
 const optimizationScroll = ref<InstanceType<typeof MdCatalogList> | null>(null);
 const riskDialogOpen = ref(false);
-const draftNoticeShown = ref(false);
 
 const categories: SystemSettingCategory[] = [
   'performance',
@@ -192,10 +191,6 @@ function itemMessage(item: SystemSettingItem, field: 'description' | 'name'): st
 
 function toggleItem(item: SystemSettingItem, optimized: boolean) {
   store.setDesiredOptimized(item.settingId, optimized);
-  if (!draftNoticeShown.value) {
-    draftNoticeShown.value = true;
-    toast.info(t('systemOptimization.feedback.draftNotice'));
-  }
 }
 
 function desiredState(item: SystemSettingItem): boolean {

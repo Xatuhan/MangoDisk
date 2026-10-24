@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "Les éléments sélectionnés sont déjà dans l'état demandé",
       "alreadyOptimized": "Il n'y a aucune modification de paramètre en attente",
-      "draftNotice": "Les modifications prennent effet après avoir cliqué sur Appliquer les modifications en bas",
       "completed": "Réglages modifiés : {count}",
       "completedRestart": "Réglages modifiés : {count}. Certains nécessitent de rouvrir les composants concernés ou de se reconnecter",
       "cancelled": "L'autorisation de l'administrateur a été annulée après {changed} modifications terminées",

@@ -18,11 +18,15 @@ import ru from '@/locales/ru-RU.json';
 import zh from '@/locales/zh-CN.json';
 import tw from '@/locales/zh-TW.json';
 import StartupPage from './index.vue';
+import StartupRow from './components/md-startup-row.vue';
 
 vi.mock('@tauri-apps/plugin-os', () => ({ platform: () => 'windows' }));
 vi.mock('@/stores/ai-store', () => ({ useAiStore: () => ({ dismissModule: vi.fn() }) }));
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), warning: vi.fn() } }));
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.useRealTimers();
+});
 const messages = {
   'zh-CN': zh,
   'zh-TW': tw,
@@ -96,10 +100,10 @@ function result(reason: StartupChangeFailureReason, service: boolean): StartupCh
   };
 }
 
-function render(locale: keyof typeof messages) {
+function render(locale: keyof typeof messages, catalog: StartupCatalog | null = null) {
   return shallowMount(StartupPage, {
     props: {
-      catalog: null,
+      catalog,
       scanning: false,
       cancelling: false,
       preparingChange: false,
@@ -108,11 +112,83 @@ function render(locale: keyof typeof messages) {
       pendingPlan: null,
       lastChangeResult: null,
     },
-    global: { plugins: [createI18n({ legacy: false, locale, messages })] },
+    global: { plugins: [createI18n({ legacy: false, locale, messages })], renderStubDefaultSlot: true },
   });
 }
 
 describe.each(Object.keys(messages) as (keyof typeof messages)[])('startup failure feedback in %s', locale => {
+  it.each(['enabled', 'disabled'] as const)('uses the updated row for one verified %s change', async desiredState => {
+    vi.useFakeTimers();
+    const catalog = result('platformFailure', false).catalog!;
+    const item = catalog.artifacts[0]!;
+    item.configuredState = desiredState === 'enabled' ? 'disabled' : 'enabled';
+    catalog.groups = [
+      {
+        groupId: 'fixture',
+        name: 'Fixture',
+        publisher: null,
+        summary: null,
+        summarySource: 'sourceLabel',
+        version: null,
+        iconPath: null,
+        identityConfidence: 'strong',
+        itemIds: [item.itemId],
+        sourceKinds: ['launchAgent'],
+        triggers: ['userLogon'],
+        scopes: ['currentUser'],
+        configuredState: desiredState === 'enabled' ? 'allDisabled' : 'allEnabled',
+        controlState: 'allToggleable',
+        systemItem: false,
+      },
+    ];
+    const wrapper = render(locale, catalog);
+    wrapper.getComponent(StartupRow).vm.$emit('toggle-artifact', item);
+    await vi.advanceTimersByTimeAsync(350);
+    expect(wrapper.emitted('prepareChange')).toHaveLength(1);
+    const updated = structuredClone(catalog);
+    updated.artifacts[0]!.configuredState = desiredState;
+    updated.groups[0]!.configuredState = desiredState === 'enabled' ? 'allEnabled' : 'allDisabled';
+    await wrapper.setProps({
+      catalog: updated,
+      lastChangeResult: {
+        planId: 'plan',
+        changedCount: 1,
+        failedCount: 0,
+        catalog: updated,
+        items: [
+          {
+            itemId: item.itemId,
+            status: 'changed',
+            configuredState: desiredState,
+            verified: true,
+            failureReason: null,
+          },
+        ],
+      },
+    });
+    expect(wrapper.getComponent(StartupRow).props('state')).toBe(desiredState);
+    expect(wrapper.getComponent(StartupRow).props('busy')).toBe(false);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('retains result feedback when there is no visible toggle confirming the outcome', async () => {
+    const wrapper = render(locale);
+    const completed = result('platformFailure', false);
+    completed.failedCount = 0;
+    completed.changedCount = 1;
+    completed.items[0] = {
+      ...completed.items[0]!,
+      status: 'changed',
+      configuredState: 'disabled',
+      verified: true,
+      failureReason: null,
+    };
+    await wrapper.setProps({ lastChangeResult: completed });
+    expect(toast.success).toHaveBeenCalledOnce();
+    wrapper.unmount();
+  });
   it('explains a service permission denial without requesting another authorization', async () => {
     const wrapper = render(locale);
     await wrapper.setProps({ lastChangeResult: result('permissionDenied', true) });

@@ -20,6 +20,7 @@ import ru from '@/locales/ru-RU.json';
 import zh from '@/locales/zh-CN.json';
 import tw from '@/locales/zh-TW.json';
 import ApplicationUninstallPage from './index.vue';
+import PlanDialog from './components/md-application-uninstall-plan-dialog.vue';
 
 vi.mock('@tauri-apps/plugin-os', () => ({ platform: () => 'windows' }));
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -111,11 +112,36 @@ function render(locale: keyof typeof messages) {
       closingApplications: false,
       closeResult: null,
     },
-    global: { plugins: [createPinia(), createI18n({ legacy: false, locale, messages })] },
+    global: { plugins: [createPinia(), createI18n({ legacy: false, locale, messages })], renderStubDefaultSlot: true },
   });
 }
 
 describe.each(Object.keys(messages) as (keyof typeof messages)[])('uninstall result messages in %s', locale => {
+  it('closes an unexecuted confirmation without reporting an execution cancellation', async () => {
+    const wrapper = render(locale);
+    await wrapper.setProps({
+      plan: {
+        schemaVersion: 1,
+        batchId: 'batch',
+        batchHash: 'hash',
+        createdAtMs: 0,
+        catalogRevision: 'revision',
+        plans: [],
+        expectedBytes: 0,
+      },
+    });
+    const dialog = wrapper.getComponent(PlanDialog);
+    expect(dialog.props('open')).toBe(true);
+    dialog.vm.$emit('update:open', false);
+    await wrapper.vm.$nextTick();
+    expect(dialog.props('open')).toBe(false);
+    expect(wrapper.emitted('cancelPlan')).toEqual([[]]);
+    expect(toast.info).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('formats released space with the platform formatter after successful removal', async () => {
     const wrapper = render(locale);
     const batch = result(['completed']);

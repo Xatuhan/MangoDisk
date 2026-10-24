@@ -28,11 +28,14 @@ import type {
   SystemMaintenanceJob,
 } from '@/lib/models/system-maintenance/system-maintenance';
 import { ICON_NAMES, OPERATION_PROGRESS_CLOCK_INTERVAL_MS } from '@/lib/models/presentation/ui';
+import { PAGE_IDS } from '@/lib/models/shell/application-shell';
+import { useAppStore } from '@/stores/app-store';
 import { useSystemMaintenanceStore } from '@/stores/system-maintenance-store';
 
 const { t, locale } = useI18n({ useScope: 'global' });
 const aiStore = useAiStore();
 const store = useSystemMaintenanceStore();
+const appStore = useAppStore();
 type MaintenanceFilter = 'all' | 'recommended' | SystemMaintenanceCategory;
 
 const activeCategory = ref<MaintenanceFilter>('all');
@@ -95,6 +98,17 @@ watch(
       toast.success(t('systemMaintenance.feedback.restartRequired', { name }));
       return;
     }
+    if (
+      result.status === 'completed' &&
+      result.verified &&
+      result.mutationState !== 'mayHaveChanged' &&
+      // Navigation changes synchronously; KeepAlive deactivation runs after result watchers.
+      appStore.currentPage === PAGE_IDS.systemMaintenance &&
+      visibleItems.value.some(
+        item => item.taskId === result.taskId && (item.status === 'healthy' || taskJob(item)?.status === 'finished')
+      )
+    )
+      return;
     toast.success(t(`systemMaintenance.feedback.${result.status}`, { name }));
   }
 );

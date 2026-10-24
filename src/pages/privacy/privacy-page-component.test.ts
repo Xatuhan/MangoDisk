@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { flushPromises, mount } from '@vue/test-utils';
+import { h, KeepAlive, ref, type Ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toast } from 'vue-sonner';
@@ -107,8 +108,11 @@ const result: PrivacyExecutionResult = {
 
 const passthroughStub = { template: '<div><slot name="actions" /><slot /><slot name="footer" /></div>' };
 
-function mountPage() {
-  return mount(PrivacyPage, {
+function mountPage(active?: Ref<boolean>) {
+  const root = active
+    ? { setup: () => () => h(KeepAlive, () => (active.value ? h(PrivacyPage) : h('div'))) }
+    : PrivacyPage;
+  return mount(root, {
     global: {
       plugins: [i18n],
       stubs: {
@@ -127,7 +131,8 @@ function mountPage() {
             '<button v-if="modelValue" class="execute-plan" type="button" @click="$emit(\'execute\')">execute</button>',
         },
         MdPrivacyResultDialog: {
-          props: ['modelValue'],
+          name: 'MdPrivacyResultDialog',
+          props: ['modelValue', 'result'],
           template: '<div class="privacy-result-dialog" :data-open="modelValue" />',
         },
         MdPrivacyResultList: true,
@@ -214,7 +219,81 @@ describe('privacy page cleanup flow', () => {
     expect(serviceMocks.scan).not.toHaveBeenCalled();
     expect(serviceMocks.scanWithProgress).not.toHaveBeenCalled();
     expect(wrapper.get('.privacy-result-dialog').attributes('data-open')).toBe('true');
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
     expect(store.scanResult?.items[0]).toMatchObject({ capability: 'empty', itemCount: 0 });
+    wrapper.unmount();
+  });
+
+  it.each(['failed', 'cancelled'] as const)(
+    'keeps %s details in the result dialog without a duplicate toast',
+    async status => {
+      const store = usePrivacyStore();
+      store.scanResult = structuredClone(scan);
+      store.selectedTokens = ['history-token'];
+      serviceMocks.prepare.mockResolvedValue(structuredClone(plan));
+      const incomplete = {
+        ...structuredClone(result),
+        affectedItemCount: 0,
+        failedItemCount: 1,
+        items: [
+          {
+            token: 'history-token',
+            status,
+            affectedItemCount: 0,
+            verified: false,
+            failureReason: status === 'failed' ? ('partiallyCleared' as const) : ('operationCancelled' as const),
+          },
+        ],
+      };
+      serviceMocks.executeWithProgress.mockResolvedValue(incomplete);
+      const wrapper = mountPage();
+      await wrapper.get('.prepare-cleanup').trigger('click');
+      await flushPromises();
+      await wrapper.get('.execute-plan').trigger('click');
+      await flushPromises();
+      expect(wrapper.getComponent({ name: 'MdPrivacyResultDialog' }).props('result')).toEqual(incomplete);
+      expect(wrapper.get('.privacy-result-dialog').attributes('data-open')).toBe('true');
+      expect(toast.warning).not.toHaveBeenCalled();
+      expect(toast.success).not.toHaveBeenCalled();
+      wrapper.unmount();
+    }
+  );
+
+  it.each([false, true])('retains background completion feedback (partial=%s)', async partial => {
+    const store = usePrivacyStore();
+    store.scanResult = structuredClone(scan);
+    store.selectedTokens = ['history-token'];
+    serviceMocks.prepare.mockResolvedValue(structuredClone(plan));
+    let finish!: (value: PrivacyExecutionResult) => void;
+    serviceMocks.executeWithProgress.mockReturnValue(
+      new Promise<PrivacyExecutionResult>(resolve => {
+        finish = resolve;
+      })
+    );
+    const active = ref(true);
+    const wrapper = mountPage(active);
+    await wrapper.get('.prepare-cleanup').trigger('click');
+    await flushPromises();
+    await wrapper.get('.execute-plan').trigger('click');
+    active.value = false;
+    await wrapper.vm.$nextTick();
+    const completed = structuredClone(result);
+    if (partial) {
+      completed.failedItemCount = 1;
+      completed.items[0] = {
+        ...completed.items[0]!,
+        status: 'failed',
+        verified: false,
+        failureReason: 'partiallyCleared',
+      };
+    }
+    finish(completed);
+    await flushPromises();
+    expect(partial ? toast.warning : toast.success).toHaveBeenCalledOnce();
+    active.value = true;
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.privacy-result-dialog').attributes('data-open')).toBe('false');
     wrapper.unmount();
   });
 });

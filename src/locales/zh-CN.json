@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "所选项目已经处于目标状态",
       "alreadyOptimized": "当前没有等待应用的设置更改",
-      "draftNotice": "更改将在点击底部“应用更改”后生效",
       "completed": "已应用 {count} 项系统设置更改",
       "completedRestart": "已应用 {count} 项更改，部分设置需要重新打开相关系统组件或重新登录后生效",
       "cancelled": "已取消管理员授权，此前已完成 {changed} 项更改",

@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "Os itens selecionados já estão no estado solicitado",
       "alreadyOptimized": "Não há alterações de configuração pendentes",
-      "draftNotice": "As alterações entram em vigor após você clicar em Aplicar Alterações na parte inferior",
       "completed": "{count} alteração de configuração do sistema aplicada | {count} alterações de configuração do sistema aplicadas",
       "completedRestart": "{count} alteração aplicada; pode ser necessário reabrir os componentes do sistema relacionados ou fazer login novamente | {count} alterações aplicadas; pode ser necessário reabrir os componentes do sistema relacionados ou fazer login novamente",
       "cancelled": "A autorização de administrador foi cancelada após {changed} alterações serem concluídas",

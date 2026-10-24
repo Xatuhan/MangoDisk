@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "The selected items are already in the requested state",
       "alreadyOptimized": "There are no pending setting changes",
-      "draftNotice": "Changes take effect after you click Apply Changes at the bottom",
       "completed": "Applied {count} system setting changes",
       "completedRestart": "Applied {count} changes; some require reopening related system components or signing in again",
       "cancelled": "Administrator authorization was cancelled after {changed} changes completed",

@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "Los elementos seleccionados ya se encuentran en el estado solicitado",
       "alreadyOptimized": "No hay cambios de configuración pendientes",
-      "draftNotice": "Los cambios entran en vigor después de hacer clic en Aplicar cambios en la parte inferior",
       "completed": "Ajustes modificados: {count}",
       "completedRestart": "Ajustes modificados: {count}. Algunos requieren volver a abrir los componentes afectados o iniciar sesión de nuevo",
       "cancelled": "La autorización del administrador se canceló después de completar {changed} cambios",

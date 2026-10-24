@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "Seçili öğeler zaten istenen durumda",
       "alreadyOptimized": "Bekleyen ayar değişikliği yok",
-      "draftNotice": "Değişiklikler alttaki Değişiklikleri Uygula düğmesine tıkladığınızda geçerli olur",
       "completed": "{count} sistem ayarı değişikliği uygulandı",
       "completedRestart": "{count} değişiklik uygulandı; bazıları için ilgili sistem bileşenlerini veya oturumu yeniden açmak gerekir",
       "cancelled": "{changed} değişiklik tamamlandıktan sonra yönetici onayı iptal edildi",

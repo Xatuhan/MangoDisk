@@ -557,7 +557,6 @@
     "feedback": {
       "nothingToApply": "선택한 항목은 이미 요청한 상태입니다",
       "alreadyOptimized": "대기 중인 설정 변경이 없습니다",
-      "draftNotice": "변경 사항은 하단의 '변경 적용'을 클릭하면 적용됩니다",
       "completed": "{count}개 시스템 설정 변경을 적용했습니다",
       "completedRestart": "{count}개 변경을 적용했으며, 일부는 관련 시스템 구성 요소를 다시 열거나 다시 로그인해야 적용됩니다",
       "cancelled": "{changed}개 변경이 완료된 후 관리자 인증이 취소되었습니다",

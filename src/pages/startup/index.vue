@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FormatService } from '@/lib/services/presentation/format-service';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onDeactivated, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
@@ -109,6 +109,13 @@ const emit = defineEmits<{
 const aiStore = useAiStore();
 const { locale, t } = useI18n({ useScope: 'global' });
 const query = ref('');
+let pageActive = true;
+onActivated(() => {
+  pageActive = true;
+});
+onDeactivated(() => {
+  pageActive = false;
+});
 const stateFilter = ref<StartupStateFilter>('all');
 const expandedGroupId = ref<string | null>(null);
 const changeOpen = ref(false);
@@ -239,6 +246,14 @@ watch(
   result => {
     if (!result) return;
     const feedback = changeFeedback.value;
+    const singleItem = result.items.length === 1 ? result.items[0] : undefined;
+    const singleToggleHasVisibleResult =
+      pageActive &&
+      feedback?.itemCount === 1 &&
+      (feedback.desiredState === 'enabled' || feedback.desiredState === 'disabled') &&
+      singleItem?.verified === true &&
+      singleItem.configuredState === feedback.desiredState &&
+      visibleGroups.value.some(group => group.itemIds.includes(singleItem.itemId));
     if (!result.catalog) {
       toast.warning(t('startup.change.refreshFailedResult'));
     } else if (result.failedCount) {
@@ -271,7 +286,7 @@ watch(
         ),
         { description }
       );
-    } else {
+    } else if (!singleToggleHasVisibleResult) {
       const batchMessage = feedback && feedback.itemCount > 1 && feedback.desiredState !== 'removed';
       const messageKey = batchMessage
         ? feedback.desiredState === 'enabled'
