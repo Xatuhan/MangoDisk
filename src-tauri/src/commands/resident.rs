@@ -98,6 +98,14 @@ pub async fn resident_open_panel(app: tauri::AppHandle) -> CommandResult<()> {
 }
 
 #[tauri::command]
+pub async fn resident_is_panel_visible(app: tauri::AppHandle) -> CommandResult<bool> {
+    into_command_result(
+        "resident_is_panel_visible",
+        resident::panel::is_visible(&app),
+    )
+}
+
+#[tauri::command]
 pub fn resident_panel_ready(app: tauri::AppHandle) {
     resident::panel::ready(&app);
 }

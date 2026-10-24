@@ -29,13 +29,15 @@ describe('resident desktop protocol', () => {
   it('seeds visibility without focus and preserves an event received during the query', async () => {
     const dispose = vi.fn();
     windowListen.mockResolvedValue(dispose);
-    isVisible.mockResolvedValueOnce(true);
+    invoke.mockResolvedValueOnce(true);
     const handler = vi.fn();
     const stop = await ResidentService.onPanelVisibility(handler);
     expect(handler).toHaveBeenLastCalledWith(true);
+    expect(invoke).toHaveBeenLastCalledWith('resident_is_panel_visible');
+    expect(isVisible).not.toHaveBeenCalled();
     stop();
     let resolve: (value: boolean) => void = () => {};
-    isVisible.mockReturnValueOnce(
+    invoke.mockReturnValueOnce(
       new Promise<boolean>(done => {
         resolve = done;
       })
@@ -52,7 +54,7 @@ describe('resident desktop protocol', () => {
   it('disposes visibility subscription if initial visibility cannot be read', async () => {
     const dispose = vi.fn();
     windowListen.mockResolvedValueOnce(dispose);
-    isVisible.mockRejectedValueOnce(new Error('window unavailable'));
+    invoke.mockRejectedValueOnce(new Error('window unavailable'));
     await expect(ResidentService.onPanelVisibility(vi.fn())).rejects.toThrow('window unavailable');
     expect(dispose).toHaveBeenCalledOnce();
   });
@@ -120,5 +122,7 @@ describe('resident desktop protocol', () => {
     expect(handler).toHaveBeenLastCalledWith(false);
     windowListen.mock.calls.at(-1)?.[1]({ payload: true });
     expect(handler).toHaveBeenLastCalledWith(true);
+    expect(invoke).toHaveBeenLastCalledWith('resident_is_panel_visible');
+    expect(isVisible).not.toHaveBeenCalled();
   });
 });

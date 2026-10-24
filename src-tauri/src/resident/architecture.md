@@ -429,11 +429,24 @@ counts are queued without blocking sampling.
 Blur during a primary press over the entry is deferred to the toggle; keyboard
 switching and outside clicks still dismiss it. Preference and locale refreshes
 update the retained menu without attaching it to the status item. The panel
+uses a real nonactivating `NSPanel` to host its Tauri-owned WebView. It can
+become key without becoming the main window or activating the application, so
+opening it does not leave another app's fullscreen Space. The hidden Tauri host
+retains its original window and delegate; no Objective-C class is replaced.
+The main-thread adapter moves the WebView back before releasing the panel on
+exit. Visibility queries read the displayed native panel, not its hidden host,
+and focus loss still follows the existing entry-click dismissal policy. It
 explicitly uses AppKit's
 [stationary collection behavior](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/stationary)
-so Show Desktop cannot sweep a newly opened panel offscreen. This replaces only
-the mutually exclusive Mission Control flags and preserves workspace/fullscreen
-policy. Check opening after clicking the wallpaper to reveal the desktop,
+so Show Desktop cannot sweep a newly opened panel offscreen. The panel explicitly
+joins all Spaces as a fullscreen auxiliary window, clearing mutually exclusive
+workspace/fullscreen flags. On macOS 13 and later it also uses
+`CanJoinAllApplications` to appear over another application's fullscreen Space;
+older versions retain the supported Spaces/fullscreen auxiliary flags. This
+policy is confined to the tray panel and does not change the main window or the
+application's activation policy. Check opening over another application's native
+fullscreen window with the main window both visible and hidden, remaining in the
+same Space, opening after clicking the wallpaper to reveal the desktop,
 primary open/close, secondary menu dismissal
 and actions, locale refresh, and entry recreation in a packaged app when changing
 this path; macOS 15 regression results do not establish macOS 27 compatibility.

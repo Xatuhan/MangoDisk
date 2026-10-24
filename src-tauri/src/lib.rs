@@ -229,6 +229,7 @@ pub fn run() {
             commands::resident::resident_default_preferences,
             commands::resident::resident_open_panel,
             commands::resident::resident_panel_ready,
+            commands::resident::resident_is_panel_visible,
             commands::resident::resident_hide_panel,
             commands::resident::resident_open_main,
             commands::resident::resident_quit,
@@ -414,6 +415,8 @@ pub fn run() {
         } else if matches!(&_event, tauri::RunEvent::Exit) {
             #[cfg(target_os = "macos")]
             services::application_usage::close();
+            #[cfg(target_os = "macos")]
+            resident::panel::shutdown(_app);
             resident::network_traffic::close(_app);
             log::info!("application_exited process_id={}", std::process::id());
         }

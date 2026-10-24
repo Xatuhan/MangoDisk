@@ -5,6 +5,9 @@ use tauri::{Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder
 
 use super::{runtime::ResidentState, PANEL_LABEL};
 
+#[cfg(target_os = "macos")]
+mod macos;
+
 const WIDTH: f64 = 390.0;
 const HEIGHT: f64 = 610.0;
 
@@ -206,26 +209,15 @@ fn ensure_created(app: &tauri::AppHandle) -> tauri::Result<()> {
         #[cfg(windows)]
         crate::webview_recovery::install(&window);
         #[cfg(target_os = "macos")]
-        window.with_webview(|webview| {
-            use objc2_app_kit::{NSWindow, NSWindowButton};
-
-            // Tauri runs this callback on the main thread and owns the NSWindow
-            // throughout the callback. Only public AppKit APIs are used here.
-            let native = unsafe { &*webview.ns_window().cast::<NSWindow>() };
-            // Show Desktop must not sweep a newly opened tray panel offscreen.
-            // Keep Tauri's workspace/fullscreen flags, replacing only the
-            // mutually exclusive Mission Control behavior.
-            native.setCollectionBehavior(macos_panel_behavior(native.collectionBehavior()));
-            for kind in [
-                NSWindowButton::CloseButton,
-                NSWindowButton::MiniaturizeButton,
-                NSWindowButton::ZoomButton,
-            ] {
-                if let Some(button) = native.standardWindowButton(kind) {
-                    button.setHidden(true);
-                }
-            }
-        })?;
+        {
+            let app = app.clone();
+            window.with_webview(move |webview| {
+                // Tauri owns both native objects for the duration of this main-thread callback.
+                let native = unsafe { &*webview.ns_window().cast::<objc2_app_kit::NSWindow>() };
+                let view = unsafe { &*webview.inner().cast::<objc2_app_kit::NSView>() };
+                macos::create(&app, native, view);
+            })?;
+        }
         let app = app.clone();
         window.on_window_event(move |event| match event {
             WindowEvent::Focused(false) => {
@@ -255,19 +247,7 @@ fn ensure_created(app: &tauri::AppHandle) -> tauri::Result<()> {
                     log::info!("resident_panel_focus_ignored reason=stale_focus");
                     return;
                 }
-                log::info!("resident_panel_focus_changed focused=true");
-                let state = app.state::<Arc<ResidentState>>();
-                if let Some(started) = state
-                    .panel_requested_at
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner())
-                    .take()
-                {
-                    log::info!(
-                        "resident_panel_focused elapsed_ms={}",
-                        started.elapsed().as_millis()
-                    );
-                };
+                focused(&app);
             }
             WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
@@ -282,6 +262,42 @@ fn ensure_created(app: &tauri::AppHandle) -> tauri::Result<()> {
     }
     drop(creation);
     Ok(())
+}
+
+fn focused(app: &tauri::AppHandle) {
+    log::info!("resident_panel_focus_changed focused=true");
+    let state = app.state::<Arc<ResidentState>>();
+    if let Some(started) = state
+        .panel_requested_at
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .take()
+    {
+        log::info!(
+            "resident_panel_focused elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
+    };
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn shutdown(app: &tauri::AppHandle) {
+    app.state::<Arc<ResidentState>>()
+        .panel_open
+        .store(false, Ordering::Relaxed);
+    macos::destroy();
+}
+
+pub fn is_visible(app: &tauri::AppHandle) -> tauri::Result<bool> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::query(app, macos::is_visible)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        app.get_webview_window(PANEL_LABEL)
+            .map_or(Ok(false), |window| window.is_visible())
+    }
 }
 
 #[cfg(windows)]
@@ -299,10 +315,30 @@ pub(crate) fn recreate_webview(app: &tauri::AppHandle, visible: bool) -> tauri::
 #[cfg(target_os = "macos")]
 fn macos_panel_behavior(
     current: objc2_app_kit::NSWindowCollectionBehavior,
+    joins_applications: bool,
 ) -> objc2_app_kit::NSWindowCollectionBehavior {
     use objc2_app_kit::NSWindowCollectionBehavior as Behavior;
 
-    (current & !(Behavior::Managed | Behavior::Transient)) | Behavior::Stationary
+    // The panel belongs to the clicked entry's Space, including another app's
+    // fullscreen Space. Stationary also keeps Show Desktop from sweeping it away.
+    let mut behavior = (current
+        & !(Behavior::Managed
+            | Behavior::Transient
+            | Behavior::MoveToActiveSpace
+            | Behavior::FullScreenPrimary
+            | Behavior::FullScreenNone
+            | Behavior::Primary
+            | Behavior::Auxiliary
+            | Behavior::CanJoinAllApplications))
+        | Behavior::Stationary
+        | Behavior::CanJoinAllSpaces
+        | Behavior::FullScreenAuxiliary;
+    // macOS 13 added an explicit cross-application overlay policy. Older systems
+    // retain the supported Spaces/fullscreen auxiliary flags.
+    if joins_applications {
+        behavior |= Behavior::CanJoinAllApplications;
+    }
+    behavior
 }
 
 #[cfg(windows)]
@@ -483,13 +519,23 @@ pub fn hide(app: &tauri::AppHandle) {
         if expects_blur {
             state.panel_hide_blurs.fetch_add(1, Ordering::Relaxed);
         }
-        if let Err(error) = window.hide() {
+        #[cfg(target_os = "macos")]
+        let result = {
+            let app = app.clone();
+            // with_webview can hold its dispatcher lock during a synchronous IPC
+            // callback; emitting visibility from there would reenter that lock.
+            window.run_on_main_thread(move || macos::hide(&app))
+        };
+        #[cfg(not(target_os = "macos"))]
+        let result = window.hide();
+        if let Err(error) = result {
             #[cfg(windows)]
             if expects_blur {
                 ignore_queued_blur(&state.panel_hide_blurs, false);
             }
             log::warn!("resident_panel_hide_failed error={error}");
         } else {
+            #[cfg(not(target_os = "macos"))]
             let _ = app.emit_to(PANEL_LABEL, VISIBILITY_EVENT, false);
         }
     }
@@ -633,21 +679,15 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
             mangodisk_platform::diagnostics::text(&source)
         );
     }
+    #[cfg(not(target_os = "macos"))]
     window.show()?;
-    // Windows can reveal a taskbar popup before granting native focus. Its
-    // visible content must resume independently of that later focus event.
+    #[cfg(not(target_os = "macos"))]
     let _ = app.emit_to(PANEL_LABEL, VISIBILITY_EVENT, true);
     #[cfg(target_os = "macos")]
-    window.with_webview(|webview| {
-        use objc2_app_kit::NSWindow;
-
-        // Activation restores the app's main/key windows. Select the panel first,
-        // then let Tauri perform its native focus/activation sequence across macOS
-        // versions; this prevents the product window from being brought forward.
-        let native = unsafe { &*webview.ns_window().cast::<NSWindow>() };
-        native.makeMainWindow();
-        native.makeKeyAndOrderFront(None);
-    })?;
+    {
+        let app = app.clone();
+        window.run_on_main_thread(move || macos::show(&app))?;
+    }
     #[cfg(target_os = "linux")]
     {
         use gtk::prelude::GtkWindowExt;
@@ -674,7 +714,7 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
             }
         });
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     window.set_focus()?;
     if let Some(started) = state
         .panel_requested_at
@@ -731,20 +771,35 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn macos_panel_stays_on_desktop_without_changing_workspace_or_fullscreen_policy() {
+    fn macos_panel_joins_fullscreen_spaces_without_conflicting_collection_flags() {
         use objc2_app_kit::NSWindowCollectionBehavior as Behavior;
 
-        let preserved = Behavior::MoveToActiveSpace | Behavior::FullScreenAuxiliary;
-        for previous in [Behavior::Managed, Behavior::Transient, Behavior::Stationary] {
-            assert_eq!(
-                macos_panel_behavior(preserved | previous),
-                preserved | Behavior::Stationary
-            );
+        let required =
+            Behavior::Stationary | Behavior::CanJoinAllSpaces | Behavior::FullScreenAuxiliary;
+        let conflicting = Behavior::Managed
+            | Behavior::Transient
+            | Behavior::MoveToActiveSpace
+            | Behavior::FullScreenPrimary
+            | Behavior::FullScreenNone;
+        for joins_applications in [false, true] {
+            for previous in [
+                Behavior::Default,
+                conflicting | Behavior::Primary,
+                required | Behavior::Auxiliary,
+                required | Behavior::CanJoinAllApplications,
+            ] {
+                let result =
+                    macos_panel_behavior(previous | Behavior::IgnoresCycle, joins_applications);
+                assert!(result.contains(required));
+                assert!(!result.intersects(conflicting | Behavior::Primary | Behavior::Auxiliary));
+                assert!(result.contains(Behavior::IgnoresCycle));
+                assert_eq!(
+                    result.contains(Behavior::CanJoinAllApplications),
+                    joins_applications
+                );
+                assert_eq!(macos_panel_behavior(result, joins_applications), result);
+            }
         }
-        assert_eq!(
-            macos_panel_behavior(Behavior::Default),
-            Behavior::Stationary
-        );
     }
 
     #[test]

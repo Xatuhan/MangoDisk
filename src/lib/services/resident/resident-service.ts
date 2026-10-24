@@ -97,7 +97,7 @@ export class ResidentService {
     try {
       // Showing can precede focus or listener registration. Seed actual visibility,
       // but never let an older query overwrite a newer native show/hide event.
-      const visible = await current.isVisible();
+      const visible = await invoke<boolean>('resident_is_panel_visible');
       if (!receivedEvent) handler(visible);
       return dispose;
     } catch (error) {
