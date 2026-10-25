@@ -39,6 +39,11 @@ pub struct SetupResult {
     pub observation: Observation,
 }
 
+/// Hardened local build: the LocalSystem service and PawnIO kernel driver for CPU
+/// temperature are never installed. Existing installations can still be removed.
+#[cfg(windows)]
+const INSTALL_DISABLED: bool = true;
+
 pub fn observe() -> Observation {
     #[cfg(windows)]
     return native::observe();
@@ -103,6 +108,15 @@ mod native {
     pub(super) fn observe() -> Observation {
         let installation = client::service_installed();
         let service_installed = matches!(installation, Ok(true));
+        // Installation is disabled, so present the capability as unavailable. An existing
+        // service keeps its real state so the user can still remove it and its driver.
+        if super::INSTALL_DISABLED && !service_installed {
+            return Observation {
+                state: ServiceState::UnsupportedHardware,
+                driver_available: false,
+                service_installed,
+            };
+        }
         if !deployment::hardware_supported() {
             return Observation {
                 state: ServiceState::UnsupportedHardware,
@@ -166,6 +180,14 @@ mod native {
             })
     }
     pub(super) async fn install(_app: tauri::AppHandle) -> SetupResult {
+        // Rejected before staging the helper or requesting UAC.
+        if super::INSTALL_DISABLED {
+            log::info!("windows_monitoring_install_rejected reason=hardened_local_build");
+            return SetupResult {
+                outcome: SetupOutcome::UnsupportedHardware,
+                observation: observe_async().await,
+            };
+        }
         let Some(guard) = OperationGuard::acquire() else {
             return SetupResult {
                 outcome: SetupOutcome::Busy,

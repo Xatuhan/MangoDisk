@@ -87,6 +87,9 @@ pub async fn explain(
     cancel: watch::Receiver<bool>,
     emit: impl FnMut(AiDelta) -> bool,
 ) -> Result<AiUsage, AiError> {
+    if super::network_blocked() {
+        return Err(AiError::Disabled);
+    }
     config.validate()?;
     let body = payload(&config, &request)?;
     if *cancel.borrow() {
@@ -182,6 +185,10 @@ fn is_opencode_go(endpoint: &str) -> bool {
 }
 
 pub(super) fn client(timeout_seconds: u64) -> Result<reqwest::Client, AiError> {
+    // Single choke point: no AI HTTP client exists while the network is blocked.
+    if super::network_blocked() {
+        return Err(AiError::Disabled);
+    }
     crate::http_client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .retry(reqwest::retry::never())

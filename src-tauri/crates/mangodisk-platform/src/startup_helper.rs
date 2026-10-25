@@ -16,8 +16,8 @@ use crate::{
     PlatformStartupDesiredState,
 };
 
-pub(crate) const HELPER_FLAG: &str = "--mangodisk-startup-helper-v4";
-const PROTOCOL: &str = "mangodisk-startup-helper-v4";
+pub(crate) const HELPER_FLAG: &str = "--mangodisk-startup-helper-v5";
+const PROTOCOL: &str = "mangodisk-startup-helper-v5";
 const MAX_MESSAGE_BYTES: u64 = 1024 * 1024;
 const MAX_BATCH_ITEMS: usize = 128;
 const HELPER_SUCCESS_EXIT_CODE: i32 = 0;
@@ -123,8 +123,8 @@ where
         }
         return None;
     }
-    let exit_code = match helper_paths(&arguments).and_then(|(request, response)| {
-        execute_helper_request(&request, &response)
+    let exit_code = match helper_paths(&arguments).and_then(|(request, response, digest)| {
+        execute_helper_request(&request, &response, &digest)
             .and_then(|value| write_helper_response(&request, &response, &value))
     }) {
         Ok(()) => HELPER_SUCCESS_EXIT_CODE,
@@ -188,11 +188,21 @@ pub(crate) fn change_many_with_privileges(
         #[cfg(target_os = "macos")]
         interactive_user_id: unsafe { libc::geteuid() },
     };
-    if let Err(error) = write_private_message(&paths.request, &request_message) {
-        let _ = fs::remove_file(&paths.request);
-        return Err(error);
-    }
-    let launch_result = launch_elevated(&paths.request, &paths.response, authorization_prompt);
+    // The digest of the exact bytes written travels to the elevated helper outside the
+    // user-writable temporary directory, so a request replaced after writing is rejected.
+    let request_digest = match write_private_message(&paths.request, &request_message) {
+        Ok(digest) => digest,
+        Err(error) => {
+            let _ = fs::remove_file(&paths.request);
+            return Err(error);
+        }
+    };
+    let launch_result = launch_elevated(
+        &paths.request,
+        &paths.response,
+        &request_digest,
+        authorization_prompt,
+    );
     let response_result = launch_result.and_then(|()| read_message(&paths.response));
     let _ = fs::remove_file(&paths.request);
     let _ = fs::remove_file(&paths.response);
@@ -304,8 +314,8 @@ fn message_paths(nonce: &str) -> PlatformResult<MessagePaths> {
     })
 }
 
-fn helper_paths(arguments: &[OsString]) -> PlatformResult<(PathBuf, PathBuf)> {
-    if arguments.len() != 4 {
+fn helper_paths(arguments: &[OsString]) -> PlatformResult<(PathBuf, PathBuf, String)> {
+    if arguments.len() != 5 {
         return Err(PlatformError::new(
             PlatformErrorCode::InvalidData,
             "startup helper argument count is invalid",
@@ -326,7 +336,16 @@ fn helper_paths(arguments: &[OsString]) -> PlatformResult<(PathBuf, PathBuf)> {
             "startup helper messages are outside the temporary directory",
         ));
     }
-    Ok((request, response))
+    let digest = arguments[4]
+        .to_str()
+        .filter(|value| valid_digest(value))
+        .ok_or_else(|| {
+            PlatformError::new(
+                PlatformErrorCode::InvalidData,
+                "startup helper request digest is invalid",
+            )
+        })?;
+    Ok((request, response, digest.to_owned()))
 }
 
 #[cfg(target_os = "macos")]
@@ -342,9 +361,11 @@ fn helper_temporary_directory() -> PathBuf {
 fn execute_helper_request(
     request_path: &Path,
     response_path: &Path,
+    request_digest: &str,
 ) -> PlatformResult<HelperResponse> {
     validate_request_file(request_path)?;
-    let request: HelperRequest = read_message(request_path)?;
+    // The bytes are read once; the same buffer is verified and then parsed.
+    let request: HelperRequest = read_message_verified(request_path, request_digest)?;
     if request.protocol != PROTOCOL || !valid_nonce(&request.nonce) {
         return Err(PlatformError::new(
             PlatformErrorCode::InvalidData,
@@ -504,7 +525,25 @@ fn validate_macos_request_owner(path: &Path, interactive_user_id: u32) -> Platfo
 }
 
 fn read_message<T: for<'de> Deserialize<'de>>(path: &Path) -> PlatformResult<T> {
-    let mut file = fs::File::open(path)
+    deserialize_message(&read_message_bytes(path)?)
+}
+
+fn read_message_verified<T: for<'de> Deserialize<'de>>(
+    path: &Path,
+    expected_digest: &str,
+) -> PlatformResult<T> {
+    let bytes = read_message_bytes(path)?;
+    if blake3::hash(&bytes).to_hex().as_str() != expected_digest {
+        return Err(PlatformError::new(
+            PlatformErrorCode::InvalidData,
+            "startup helper request integrity check failed",
+        ));
+    }
+    deserialize_message(&bytes)
+}
+
+fn read_message_bytes(path: &Path) -> PlatformResult<Vec<u8>> {
+    let file = fs::File::open(path)
         .map_err(|error| PlatformError::io("open startup helper message", &error))?;
     let metadata = file
         .metadata()
@@ -516,9 +555,21 @@ fn read_message<T: for<'de> Deserialize<'de>>(path: &Path) -> PlatformResult<T> 
         ));
     }
     let mut bytes = Vec::with_capacity(metadata.len() as usize);
-    file.read_to_end(&mut bytes)
+    // Bound the read itself: the file can grow after its length was inspected.
+    file.take(MAX_MESSAGE_BYTES + 1)
+        .read_to_end(&mut bytes)
         .map_err(|error| PlatformError::io("read startup helper message", &error))?;
-    serde_json::from_slice(&bytes).map_err(|_| {
+    if bytes.len() as u64 > MAX_MESSAGE_BYTES {
+        return Err(PlatformError::new(
+            PlatformErrorCode::InvalidData,
+            "startup helper message exceeds its size limit",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn deserialize_message<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> PlatformResult<T> {
+    serde_json::from_slice(bytes).map_err(|_| {
         PlatformError::new(
             PlatformErrorCode::InvalidData,
             "startup helper message is invalid",
@@ -526,7 +577,14 @@ fn read_message<T: for<'de> Deserialize<'de>>(path: &Path) -> PlatformResult<T> 
     })
 }
 
-fn write_private_message<T: Serialize>(path: &Path, message: &T) -> PlatformResult<()> {
+/// Writes a new private request and returns the digest of the exact bytes written.
+fn write_private_message<T: Serialize>(path: &Path, message: &T) -> PlatformResult<String> {
+    let bytes = serde_json::to_vec(message).map_err(|_| {
+        PlatformError::new(
+            PlatformErrorCode::InvalidData,
+            "serialize startup helper request failed",
+        )
+    })?;
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -537,15 +595,11 @@ fn write_private_message<T: Serialize>(path: &Path, message: &T) -> PlatformResu
     let mut file = options
         .open(path)
         .map_err(|error| PlatformError::io("create startup helper request", &error))?;
-    serde_json::to_writer(&mut file, message).map_err(|_| {
-        PlatformError::new(
-            PlatformErrorCode::InvalidData,
-            "serialize startup helper request failed",
-        )
-    })?;
-    file.flush()
+    file.write_all(&bytes)
+        .and_then(|()| file.flush())
         .and_then(|()| file.sync_all())
-        .map_err(|error| PlatformError::io("persist startup helper request", &error))
+        .map_err(|error| PlatformError::io("persist startup helper request", &error))?;
+    Ok(blake3::hash(&bytes).to_hex().to_string())
 }
 
 fn write_message_new<T: Serialize>(
@@ -632,6 +686,10 @@ fn valid_nonce(value: &str) -> bool {
     value.len() == 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+fn valid_digest(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
 impl From<PlatformStartupDesiredState> for WireState {
     fn from(value: PlatformStartupDesiredState) -> Self {
         match value {
@@ -710,24 +768,27 @@ impl From<WireErrorCode> for PlatformErrorCode {
 fn launch_elevated(
     request: &Path,
     response: &Path,
+    request_digest: &str,
     _authorization_prompt: Option<&str>,
 ) -> PlatformResult<()> {
-    windows_launcher::launch(request, response)
+    windows_launcher::launch(request, response, request_digest)
 }
 
 #[cfg(target_os = "macos")]
 fn launch_elevated(
     request: &Path,
     response: &Path,
+    request_digest: &str,
     authorization_prompt: Option<&str>,
 ) -> PlatformResult<()> {
-    macos_launcher::launch(request, response, authorization_prompt)
+    macos_launcher::launch(request, response, request_digest, authorization_prompt)
 }
 
 #[cfg(not(any(windows, target_os = "macos")))]
 fn launch_elevated(
     _request: &Path,
     _response: &Path,
+    _request_digest: &str,
     _authorization_prompt: Option<&str>,
 ) -> PlatformResult<()> {
     Err(PlatformError::new(
@@ -746,11 +807,12 @@ mod windows_launcher {
 
     use super::*;
 
-    pub(super) fn launch(request: &Path, response: &Path) -> PlatformResult<()> {
+    pub(super) fn launch(request: &Path, response: &Path, digest: &str) -> PlatformResult<()> {
         let process =
             crate::elevation::launch_platform(crate::elevation::LaunchRequest::Startup {
                 request: request.to_owned(),
                 response: response.to_owned(),
+                digest: digest.to_owned(),
             })?;
         let wait = unsafe { WaitForSingleObject(process, INFINITE) };
         let mut exit_code = HELPER_FAILURE_EXIT_CODE as u32;
@@ -779,6 +841,7 @@ mod macos_launcher {
     pub(super) fn launch(
         request: &Path,
         response: &Path,
+        request_digest: &str,
         authorization_prompt: Option<&str>,
     ) -> PlatformResult<()> {
         let executable = std::env::current_exe()
@@ -797,6 +860,7 @@ mod macos_launcher {
             // The localized prompt remains process data and is never inserted
             // into AppleScript source or the privileged shell command.
             .arg(authorization_prompt.unwrap_or_default())
+            .arg(request_digest)
             .output()
             .map_err(|error| PlatformError::io("launch startup helper authorization", &error))?;
         if !output.status.success() {
@@ -929,6 +993,7 @@ mod tests {
             OsString::from(HELPER_FLAG),
             OsString::from("request.json"),
             OsString::from("response.json"),
+            OsString::from("a".repeat(64)),
         ];
         assert!(helper_paths(&arguments).is_err());
     }
@@ -941,6 +1006,7 @@ mod tests {
             OsString::from(HELPER_FLAG),
             outside.join("request.json").into_os_string(),
             outside.join("response.json").into_os_string(),
+            OsString::from("a".repeat(64)),
         ];
 
         assert!(helper_paths(&arguments).is_err());
@@ -963,14 +1029,69 @@ mod tests {
             #[cfg(target_os = "macos")]
             interactive_user_id: unsafe { libc::geteuid() },
         };
-        write_private_message(&paths.request, &request)
+        let digest = write_private_message(&paths.request, &request)
             .expect("the isolated helper request fixture must be created");
 
-        let result = execute_helper_request(&paths.request, &paths.response);
+        let result = execute_helper_request(&paths.request, &paths.response, &digest);
         let _ = fs::remove_file(&paths.request);
         let _ = fs::remove_file(&paths.response);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn helper_request_replaced_after_writing_is_rejected_before_dispatch() {
+        let nonce = unique_nonce();
+        let paths = message_paths(&nonce).expect("helper paths must be available");
+        let item = |provider_item_id: &str| HelperRequestItem {
+            source_id: "test.startup".to_owned(),
+            provider_item_id: provider_item_id.to_owned(),
+            expected_artifact_digest: "fixture-digest".to_owned(),
+            desired_state: WireState::Removed,
+        };
+        let request = HelperRequest {
+            protocol: PROTOCOL.to_owned(),
+            nonce,
+            items: vec![item("approved")],
+            #[cfg(target_os = "macos")]
+            interactive_user_id: unsafe { libc::geteuid() },
+        };
+        let digest = write_private_message(&paths.request, &request)
+            .expect("the isolated helper request fixture must be created");
+        // Another process of the same user swaps the target before the helper reads it.
+        let tampered = HelperRequest {
+            items: vec![item("attacker-selected")],
+            ..request
+        };
+        fs::write(&paths.request, serde_json::to_vec(&tampered).unwrap()).unwrap();
+
+        let result = execute_helper_request(&paths.request, &paths.response, &digest);
+        let _ = fs::remove_file(&paths.request);
+        let _ = fs::remove_file(&paths.response);
+
+        let error = result.expect_err("a replaced request must not reach platform dispatch");
+        assert_eq!(error.code(), PlatformErrorCode::InvalidData);
+        assert!(error.diagnostic().contains("integrity check failed"));
+    }
+
+    #[test]
+    fn helper_paths_require_a_well_formed_request_digest() {
+        let directory = helper_temporary_directory();
+        let arguments = |digest: &str| {
+            vec![
+                OsString::from("MangoDisk"),
+                OsString::from(HELPER_FLAG),
+                directory.join("request.json").into_os_string(),
+                directory.join("response.json").into_os_string(),
+                OsString::from(digest),
+            ]
+        };
+        assert!(helper_paths(&arguments(&"a".repeat(64))).is_ok());
+        let short = "a".repeat(63);
+        let non_hex = "g".repeat(64);
+        for invalid in ["", "a;whoami", short.as_str(), non_hex.as_str()] {
+            assert!(helper_paths(&arguments(invalid)).is_err());
+        }
     }
 
     #[test]
@@ -984,10 +1105,10 @@ mod tests {
             #[cfg(target_os = "macos")]
             interactive_user_id: unsafe { libc::geteuid() },
         };
-        write_private_message(&paths.request, &request)
+        let digest = write_private_message(&paths.request, &request)
             .expect("the isolated helper request fixture must be created");
 
-        let result = execute_helper_request(&paths.request, &paths.response);
+        let result = execute_helper_request(&paths.request, &paths.response, &digest);
         let _ = fs::remove_file(&paths.request);
         let _ = fs::remove_file(&paths.response);
 
@@ -1012,14 +1133,14 @@ mod tests {
         let nonce = unique_nonce();
         let paths = message_paths(&nonce).unwrap();
         let request = HelperRequest {
-            protocol: "mangodisk-startup-helper-v3".to_string(),
+            protocol: "mangodisk-startup-helper-v4".to_string(),
             nonce,
             items: Vec::new(),
             #[cfg(target_os = "macos")]
             interactive_user_id: unsafe { libc::geteuid() },
         };
-        write_private_message(&paths.request, &request).unwrap();
-        let result = execute_helper_request(&paths.request, &paths.response);
+        let digest = write_private_message(&paths.request, &request).unwrap();
+        let result = execute_helper_request(&paths.request, &paths.response, &digest);
         fs::remove_file(&paths.request).unwrap();
         let error = result.unwrap_err();
         assert!(error.diagnostic().contains("protocol is invalid"));

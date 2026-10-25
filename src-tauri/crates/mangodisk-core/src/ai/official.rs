@@ -187,6 +187,9 @@ pub(super) fn request(
     path: &str,
     body: Vec<u8>,
 ) -> Result<reqwest::RequestBuilder, AiError> {
+    if super::network_blocked() {
+        return Err(AiError::Disabled);
+    }
     let (key_id, key) = credentials()?;
     let origin = origin()?;
     let timestamp = chrono::Utc::now().timestamp().to_string();
@@ -219,6 +222,9 @@ pub(super) fn request(
 }
 
 pub async fn official_quota(metadata: AiClientMetadata) -> Result<AiQuota, AiError> {
+    if super::network_blocked() {
+        return Err(AiError::Disabled);
+    }
     let id = Uuid::new_v4().to_string();
     let started = std::time::Instant::now();
     let mut status = None;
@@ -276,6 +282,9 @@ pub async fn official_explain(
     cancel: watch::Receiver<bool>,
     emit: impl FnMut(AiDelta) -> bool,
 ) -> Result<AiUsage, AiError> {
+    if super::network_blocked() {
+        return Err(AiError::Disabled);
+    }
     if config.mode != AiServiceMode::Free {
         return Err(AiError::InvalidConfiguration);
     }

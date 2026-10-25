@@ -364,6 +364,26 @@ fn icon_candidate_score(path: &Path) -> (u8, Reverse<u64>, usize, String) {
     (rank, Reverse(bytes), name.len(), name)
 }
 
+/// `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, resolved through
+/// `GetSystemDirectoryW` rather than PATH, the executable's directory or an environment
+/// variable, so a planted `powershell.exe` cannot be picked up.
+fn system_powershell_path() -> Option<std::path::PathBuf> {
+    use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
+
+    let mut directory = vec![0u16; 32_768];
+    let length = unsafe { GetSystemDirectoryW(directory.as_mut_ptr(), directory.len() as u32) };
+    if length == 0 || length as usize >= directory.len() {
+        log::warn!("application_icon_powershell_unavailable stage=system_directory");
+        return None;
+    }
+    directory.truncate(length as usize);
+    let powershell = std::path::PathBuf::from(String::from_utf16_lossy(&directory))
+        .join("WindowsPowerShell")
+        .join("v1.0")
+        .join("powershell.exe");
+    powershell.is_file().then_some(powershell)
+}
+
 fn decode_icons(pending: &[PendingIcon]) -> HashMap<String, Vec<u8>> {
     if pending.is_empty() {
         return HashMap::new();
@@ -378,7 +398,10 @@ fn decode_icons(pending: &[PendingIcon]) -> HashMap<String, Vec<u8>> {
     let Ok(input) = serde_json::to_vec(&requests) else {
         return HashMap::new();
     };
-    let mut command = Command::new("powershell.exe");
+    let Some(powershell) = system_powershell_path() else {
+        return HashMap::new();
+    };
+    let mut command = Command::new(powershell);
     configure_background_process(&mut command);
     let Ok(mut child) = command
         .args([

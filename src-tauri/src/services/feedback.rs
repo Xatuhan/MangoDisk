@@ -22,6 +22,7 @@ const MAX_LOG_FILE_COUNT: usize = 3;
 const FEEDBACK_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const FEEDBACK_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 const PRODUCTION_FEEDBACK_URL: &str = "https://mangodisk.app/api/v1/feedbacks";
+const FEEDBACK_UPLOAD_DISABLED: bool = true;
 
 #[derive(Debug)]
 pub enum FeedbackError {
@@ -261,6 +262,12 @@ impl FeedbackSubmissionService {
         app_version: &str,
         request: SubmitFeedbackRequest,
     ) -> Result<SubmitFeedbackResult, FeedbackError> {
+        // Hardened local build: neither the message, attachments nor the
+        // diagnostic log archive is prepared or sent anywhere.
+        if FEEDBACK_UPLOAD_DISABLED {
+            log::info!("feedback_submission_blocked reason=hardened_local_build");
+            return Err(FeedbackError::Network);
+        }
         validate_submission(&request)?;
         let started_at = Instant::now();
         let request_id = request.request_id.clone();

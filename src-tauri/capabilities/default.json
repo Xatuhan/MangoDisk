@@ -33,7 +33,6 @@
     "os:allow-locale",
     "os:allow-platform",
     "process:allow-restart",
-    "store:default",
-    "updater:default"
+    "store:default"
   ]
 }

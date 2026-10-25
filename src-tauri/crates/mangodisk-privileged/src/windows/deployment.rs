@@ -224,7 +224,19 @@ pub(super) fn stop_service(service: &windows_service::service::Service) -> Resul
     }
     Ok(())
 }
+/// Hardened local build: the LocalSystem service and the PawnIO kernel driver are
+/// never installed. Removal stays available for machines that installed them earlier.
+const INSTALL_DISABLED: bool = true;
+
 pub(crate) fn install(installer: &[u8], module: &[u8], artifact: &Artifact) -> Result<()> {
+    if INSTALL_DISABLED {
+        super::diagnostics::info("service_install_rejected reason=hardened_local_build");
+        return Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "privileged service and kernel driver installation is disabled",
+        )
+        .into());
+    }
     let started = Instant::now();
     super::diagnostics::info(format!(
         "service_install_started version={}",

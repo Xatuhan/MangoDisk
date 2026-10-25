@@ -26,6 +26,7 @@ pub(crate) enum LaunchRequest {
     Startup {
         request: PathBuf,
         response: PathBuf,
+        digest: String,
     },
     DiskCleanup {
         execute: bool,
@@ -97,10 +98,15 @@ impl LaunchRequest {
                 response.into(),
                 digest.into(),
             ],
-            Self::Startup { request, response } if valid_paths(&request, &response) => vec![
+            Self::Startup {
+                request,
+                response,
+                digest,
+            } if valid_paths(&request, &response) && valid_digest(&digest) => vec![
                 crate::startup_helper::HELPER_FLAG.into(),
                 request.into(),
                 response.into(),
+                digest.into(),
             ],
             Self::DiskCleanup {
                 execute,
@@ -235,6 +241,7 @@ mod tests {
             LaunchRequest::Startup {
                 request: r"C:\Temp\request.json".into(),
                 response: r"C:\Temp\response.json".into(),
+                digest: "a".repeat(64),
             },
             LaunchRequest::DiskCleanup {
                 execute: false,
@@ -277,7 +284,15 @@ mod tests {
     fn helper_launch_rejects_relative_paths_and_invalid_tokens() {
         assert!(LaunchRequest::Startup {
             request: "request.json".into(),
-            response: "response.json".into()
+            response: "response.json".into(),
+            digest: "a".repeat(64),
+        }
+        .helper_arguments()
+        .is_err());
+        assert!(LaunchRequest::Startup {
+            request: r"C:\Temp\request.json".into(),
+            response: r"C:\Temp\response.json".into(),
+            digest: "a;whoami".into(),
         }
         .helper_arguments()
         .is_err());

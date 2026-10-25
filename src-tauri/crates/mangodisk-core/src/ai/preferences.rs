@@ -17,7 +17,8 @@ impl Default for AiPreferences {
     fn default() -> Self {
         Self {
             schema_version: 1,
-            enabled: true,
+            // Hardened local build: AI stays off until the user enables it explicitly.
+            enabled: false,
         }
     }
 }
@@ -66,11 +67,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn absent_preferences_preserve_existing_behavior_and_round_trip_independently() {
+    fn absent_preferences_default_to_disabled_and_round_trip_independently() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("ai-preferences.json");
         let provider = directory.path().join("ai.json");
         std::fs::write(&provider, "provider-fixture").unwrap();
+        assert!(!AiPreferences::read_from(&path).unwrap().enabled);
+        AiPreferences::write_to(&path, true).unwrap();
         assert!(AiPreferences::read_from(&path).unwrap().enabled);
         AiPreferences::write_to(&path, false).unwrap();
         assert!(!AiPreferences::read_from(&path).unwrap().enabled);

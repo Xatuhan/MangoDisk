@@ -47,6 +47,9 @@ pub async fn official_feedback(
     request_id: String,
     rating: Option<AiFeedbackRating>,
 ) -> Result<AiFeedback, AiError> {
+    if super::network_blocked() {
+        return Err(AiError::Disabled);
+    }
     if request_id.len() != 36 || Uuid::parse_str(&request_id).is_err() {
         return Err(AiError::InvalidContext);
     }

@@ -44,14 +44,14 @@ impl Lease {
                 }
             }
         }
-        if std::fs::read(&path).ok().as_deref() != Some(bytes.as_slice()) {
-            let temporary: PathBuf = cache.join(format!("xaml-{}.tmp", std::process::id()));
-            std::fs::write(&temporary, bytes).map_err(io_failure)?;
-            std::fs::rename(&temporary, &path).map_err(io_failure)?;
-        }
+        // The cache is user-writable. Verify the bytes through a handle that denies
+        // writers and renames, and keep it open until the loader has mapped the image,
+        // so the file cannot be swapped between verification and LoadLibraryW.
+        let pinned = pin_adapter(&cache, &path, bytes)?;
         let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
         unsafe {
             let module = LoadLibraryW(path.as_ptr());
+            drop(pinned);
             if module.is_null() {
                 return Err(Failure::new(Stage::Xaml, GetLastError()));
             }
@@ -123,4 +123,62 @@ impl Drop for Lease {
 }
 fn io_failure(error: std::io::Error) -> Failure {
     Failure::new(Stage::Xaml, error.raw_os_error().unwrap_or(0) as u32)
+}
+
+// Win32 values; the desktop crate does not enable the windows-sys FileSystem feature.
+const SHARE_READ_ONLY: u32 = 0x0000_0001; // FILE_SHARE_READ: deny writers, renames and deletes.
+const OPEN_REPARSE_POINT: u32 = 0x0020_0000; // FILE_FLAG_OPEN_REPARSE_POINT
+const ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400; // FILE_ATTRIBUTE_REPARSE_POINT
+
+/// Returns a read-only handle to the cached adapter whose contents equal `bytes`.
+/// While the handle is open no other process can modify, replace or rename the file.
+fn pin_adapter(
+    cache: &std::path::Path,
+    path: &std::path::Path,
+    bytes: &[u8],
+) -> Result<std::fs::File, Failure> {
+    use std::io::Read;
+    use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
+
+    for attempt in 0..2 {
+        if std::fs::symlink_metadata(cache)
+            .map_err(io_failure)?
+            .file_attributes()
+            & ATTRIBUTE_REPARSE_POINT
+            != 0
+        {
+            return Err(Failure::new(Stage::Xaml, ERROR_INVALID_DATA));
+        }
+        match std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(SHARE_READ_ONLY)
+            .custom_flags(OPEN_REPARSE_POINT)
+            .open(path)
+        {
+            Ok(mut file) => {
+                let metadata = file.metadata().map_err(io_failure)?;
+                if metadata.file_attributes() & ATTRIBUTE_REPARSE_POINT != 0 || !metadata.is_file()
+                {
+                    return Err(Failure::new(Stage::Xaml, ERROR_INVALID_DATA));
+                }
+                let mut current = Vec::with_capacity(bytes.len());
+                (&mut file)
+                    .take(bytes.len() as u64 + 1)
+                    .read_to_end(&mut current)
+                    .map_err(io_failure)?;
+                if current == bytes {
+                    return Ok(file);
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(io_failure(error)),
+        }
+        if attempt == 0 {
+            let temporary: PathBuf = cache.join(format!("xaml-{}.tmp", std::process::id()));
+            std::fs::write(&temporary, bytes).map_err(io_failure)?;
+            std::fs::rename(&temporary, path).map_err(io_failure)?;
+        }
+    }
+    // A freshly written adapter did not verify: another process is interfering.
+    Err(Failure::new(Stage::Xaml, ERROR_INVALID_DATA))
 }

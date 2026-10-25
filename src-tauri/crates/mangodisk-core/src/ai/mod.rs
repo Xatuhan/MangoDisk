@@ -27,6 +27,13 @@ pub use official::{official_explain, official_quota, AiClientMetadata, AiQuota};
 pub use preferences::AiPreferences;
 pub use transport::{explain, AiDelta, AiRequest, AiUsage};
 
+/// Hardened local build: no AI request may leave the machine, for the official
+/// service or any custom provider. Only this crate's unit tests keep the transport
+/// reachable so its loopback fixtures still run; application builds never reach it.
+pub(crate) fn network_blocked() -> bool {
+    !cfg!(test)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AiError {
