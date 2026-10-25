@@ -2,7 +2,7 @@ mod coordinator;
 mod demand;
 mod observation;
 
-use mangodisk_core::system_resources::{metrics::MetricId, readings::ResourceReadings};
+use mangodisk_core::system_resources::readings::ResourceReadings;
 use serde::Serialize;
 use std::{
     sync::{
@@ -41,7 +41,7 @@ pub struct ResidentState {
     pub panel_requested_at: Mutex<Option<Instant>>,
     #[cfg(windows)]
     pub panel_hide_blurs: std::sync::atomic::AtomicU32,
-    pub panel_metric: Mutex<MetricId>,
+    pub panel_page: Mutex<super::panel_page::PanelPage>,
     pub panel_source: Mutex<String>,
     pub reading: Mutex<ResidentReading>,
     pub published_reading: Mutex<ResidentReading>,
@@ -87,7 +87,7 @@ pub fn start(app: &tauri::AppHandle, preferences: ResidentPreferences) -> Arc<Re
         panel_requested_at: Mutex::new(None),
         #[cfg(windows)]
         panel_hide_blurs: std::sync::atomic::AtomicU32::new(0),
-        panel_metric: Mutex::new(MetricId::Cpu),
+        panel_page: Mutex::new(super::panel_page::PanelPage::Cpu),
         panel_source: Mutex::new(TRAY_ID.into()),
         reading: Mutex::new(ResidentReading {
             revision: 0,

@@ -45,7 +45,7 @@ pub struct Snapshot {
 pub use sizing::LayoutMeasurement;
 
 #[cfg(windows)]
-pub use interaction::{anchor, panel_position, toggle_click_through, toggle_metric};
+pub use interaction::{anchor, panel_position, toggle_click_through, toggle_page};
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 pub use window::{install, prepare, prewarm, ready, set_layout, show, update, update_title};
 
@@ -89,9 +89,9 @@ pub fn set_layout(_app: &tauri::AppHandle, _measurement: LayoutMeasurement) -> b
 }
 
 #[cfg(not(windows))]
-pub fn toggle_metric(
+pub fn toggle_page(
     _app: &tauri::AppHandle,
-    _metric: mangodisk_core::system_resources::metrics::MetricId,
+    _page: crate::resident::panel_page::PanelPage,
 ) -> tauri::Result<()> {
     Ok(())
 }

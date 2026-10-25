@@ -1,9 +1,8 @@
 use std::sync::{atomic::Ordering, Arc};
 
-use mangodisk_core::system_resources::metrics::MetricId;
 use tauri::{Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
-use super::{runtime::ResidentState, PANEL_LABEL};
+use super::{panel_page::PanelPage, runtime::ResidentState, PANEL_LABEL};
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -11,54 +10,73 @@ mod macos;
 const WIDTH: f64 = 390.0;
 const HEIGHT: f64 = 610.0;
 
-pub const METRIC_EVENT: &str = "resident-panel-metric";
+pub const PAGE_EVENT: &str = "resident-panel-page";
 pub const VISIBILITY_EVENT: &str = "resident-panel-visibility";
 
-pub fn select_metric(app: &tauri::AppHandle, metric: MetricId) {
-    set_metric(app, metric);
-    let _ = app.emit_to(PANEL_LABEL, METRIC_EVENT, metric);
+pub fn select_page(app: &tauri::AppHandle, page: PanelPage) {
+    let page = set_page(app, page);
+    let _ = app.emit_to(PANEL_LABEL, PAGE_EVENT, page);
 }
 
 /// A frontend selection already updates that panel; native shortcuts also notify it.
-pub fn set_metric(app: &tauri::AppHandle, metric: MetricId) {
+pub fn set_page(app: &tauri::AppHandle, page: PanelPage) -> PanelPage {
     let state = app.state::<Arc<ResidentState>>();
+    let page = page.available_for_battery(
+        state
+            .reading
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .resources
+            .battery_present,
+    );
     *state
-        .panel_metric
+        .panel_page
         .lock()
-        .unwrap_or_else(|error| error.into_inner()) = metric;
-    if metric == MetricId::Cpu && state.panel_open.load(Ordering::Relaxed) {
+        .unwrap_or_else(|error| error.into_inner()) = page;
+    if page == PanelPage::Cpu && state.panel_open.load(Ordering::Relaxed) {
         state.refresh_cpu_processes();
     } else {
         state.wake();
     }
+    page
 }
 
 pub fn toggle_from(
     app: &tauri::AppHandle,
     source: &str,
-    metric: Option<MetricId>,
+    page: Option<PanelPage>,
 ) -> tauri::Result<()> {
-    toggle_entry(app, source, EntryRequest::Resume(metric))
+    toggle_entry(app, source, EntryRequest::Resume(page))
 }
 
 #[cfg(windows)]
-pub fn toggle_metric_from(
+pub fn toggle_page_from(
     app: &tauri::AppHandle,
     source: &str,
-    metric: MetricId,
+    page: PanelPage,
 ) -> tauri::Result<()> {
-    toggle_entry(app, source, EntryRequest::Select(metric))
+    toggle_entry(app, source, EntryRequest::Select(page))
 }
 
 #[derive(Clone, Copy)]
 enum EntryRequest {
-    Resume(Option<MetricId>),
+    Resume(Option<PanelPage>),
     #[cfg(any(windows, test))]
-    Select(MetricId),
+    Select(PanelPage),
 }
 
 impl EntryRequest {
-    fn selection(self, previous: MetricId, is_open: bool) -> MetricId {
+    fn available_for_battery(self, present: Option<bool>) -> Self {
+        match self {
+            Self::Resume(page) => {
+                Self::Resume(page.map(|page| page.available_for_battery(present)))
+            }
+            #[cfg(any(windows, test))]
+            Self::Select(page) => Self::Select(page.available_for_battery(present)),
+        }
+    }
+
+    fn selection(self, previous: PanelPage, is_open: bool) -> PanelPage {
         match self {
             Self::Resume(requested) => entry_selection(previous, requested, is_open),
             #[cfg(any(windows, test))]
@@ -66,7 +84,7 @@ impl EntryRequest {
         }
     }
 
-    fn repeats(self, previous: MetricId) -> bool {
+    fn repeats(self, previous: PanelPage) -> bool {
         match (self, previous) {
             (Self::Resume(_), _) => true,
             #[cfg(any(windows, test))]
@@ -77,6 +95,15 @@ impl EntryRequest {
 
 fn toggle_entry(app: &tauri::AppHandle, source: &str, request: EntryRequest) -> tauri::Result<()> {
     let state = app.state::<Arc<ResidentState>>();
+    // Resolve shortcuts before repeat detection so an unavailable Power entry
+    // still toggles the CPU page it actually opened on a batteryless desktop.
+    let battery_present = state
+        .reading
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .resources
+        .battery_present;
+    let request = request.available_for_battery(battery_present);
     let _action = state
         .panel_action
         .lock()
@@ -89,7 +116,7 @@ fn toggle_entry(app: &tauri::AppHandle, source: &str, request: EntryRequest) -> 
         == source;
     let was_open = state.panel_open.load(Ordering::Relaxed);
     let previous = *state
-        .panel_metric
+        .panel_page
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     if was_open && same && request.repeats(previous) {
@@ -101,21 +128,21 @@ fn toggle_entry(app: &tauri::AppHandle, source: &str, request: EntryRequest) -> 
         .panel_source
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = source.into();
-    let selected = request.selection(previous, was_open);
+    let selected = request.selection(previous.available_for_battery(battery_present), was_open);
     let notify = match request {
-        EntryRequest::Resume(metric) => was_open && metric.is_some(),
-        // Explicit shortcuts must also leave the frontend-only overview tab.
+        EntryRequest::Resume(page) => was_open && page.is_some(),
+        // Explicit shortcuts must also leave the remembered overview tab.
         #[cfg(any(windows, test))]
         EntryRequest::Select(_) => true,
     };
     if selected != previous || notify {
-        select_metric(app, selected);
+        select_page(app, selected);
     }
     log::info!("resident_panel_entry source={source} switching={was_open} metric={selected:?}");
     open(app)
 }
 
-fn entry_selection(previous: MetricId, requested: Option<MetricId>, is_open: bool) -> MetricId {
+fn entry_selection(previous: PanelPage, requested: Option<PanelPage>, is_open: bool) -> PanelPage {
     // Reopening resumes the user's tab. Explicit metric shortcuts can still
     // navigate an already open panel, without resetting the next visit to CPU.
     if is_open {
@@ -143,7 +170,7 @@ pub fn open(app: &tauri::AppHandle) -> tauri::Result<()> {
         state.panel_ready.load(Ordering::Relaxed)
     );
     state.panel_open.store(true, Ordering::Relaxed);
-    if *state.panel_metric.lock().unwrap_or_else(|e| e.into_inner()) == MetricId::Cpu {
+    if *state.panel_page.lock().unwrap_or_else(|e| e.into_inner()) == PanelPage::Cpu {
         state.refresh_cpu_processes();
     }
     // Showing never waits for Vue, preference I/O, samples, or icon resolution.
@@ -819,51 +846,79 @@ mod tests {
 
     #[test]
     fn reopening_remembers_the_tab_while_open_metric_shortcuts_still_navigate() {
-        for previous in [MetricId::Cpu, MetricId::Memory] {
+        for previous in [
+            PanelPage::Cpu,
+            PanelPage::Memory,
+            PanelPage::Power,
+            PanelPage::Overview,
+        ] {
             for requested in [
                 None,
-                Some(MetricId::Cpu),
-                Some(MetricId::Memory),
-                Some(MetricId::Network),
+                Some(PanelPage::Cpu),
+                Some(PanelPage::Memory),
+                Some(PanelPage::Network),
             ] {
                 assert_eq!(entry_selection(previous, requested, false), previous);
             }
         }
         assert_eq!(
-            entry_selection(MetricId::Memory, None, true),
-            MetricId::Memory
+            entry_selection(PanelPage::Memory, None, true),
+            PanelPage::Memory
         );
         assert_eq!(
-            entry_selection(MetricId::Memory, Some(MetricId::Cpu), true),
-            MetricId::Cpu
+            entry_selection(PanelPage::Memory, Some(PanelPage::Cpu), true),
+            PanelPage::Cpu
         );
         assert_eq!(
-            entry_selection(MetricId::Cpu, Some(MetricId::Memory), true),
-            MetricId::Memory
+            entry_selection(PanelPage::Cpu, Some(PanelPage::Memory), true),
+            PanelPage::Memory
         );
     }
 
     #[test]
     fn explicit_resource_entries_toggle_the_current_metric_and_select_it_on_reopening() {
         for metric in [
-            MetricId::Cpu,
-            MetricId::Gpu,
-            MetricId::Memory,
-            MetricId::Disk,
-            MetricId::Network,
+            PanelPage::Cpu,
+            PanelPage::Gpu,
+            PanelPage::Memory,
+            PanelPage::Disk,
+            PanelPage::Network,
         ] {
             let request = EntryRequest::Select(metric);
-            for previous in [MetricId::Cpu, MetricId::Memory] {
+            for previous in [PanelPage::Cpu, PanelPage::Memory, PanelPage::Power] {
                 assert_eq!(request.selection(previous, false), metric);
                 assert_eq!(request.selection(previous, true), metric);
                 assert_eq!(request.repeats(previous), metric == previous);
             }
         }
         // Tray entries retain their existing source-based toggle and remembered tab.
-        let tray = EntryRequest::Resume(Some(MetricId::Cpu));
-        assert!(tray.repeats(MetricId::Memory));
-        assert_eq!(tray.selection(MetricId::Memory, false), MetricId::Memory);
-        assert_eq!(tray.selection(MetricId::Memory, true), MetricId::Cpu);
+        let tray = EntryRequest::Resume(Some(PanelPage::Cpu));
+        assert!(tray.repeats(PanelPage::Memory));
+        assert_eq!(tray.selection(PanelPage::Memory, false), PanelPage::Memory);
+        assert_eq!(tray.selection(PanelPage::Memory, true), PanelPage::Cpu);
+    }
+
+    #[test]
+    fn batteryless_power_shortcuts_repeat_the_resolved_cpu_page() {
+        let request = EntryRequest::Select(PanelPage::Power).available_for_battery(Some(false));
+        assert_eq!(request.selection(PanelPage::Memory, false), PanelPage::Cpu);
+        assert!(request.repeats(PanelPage::Cpu));
+        assert!(!request.repeats(PanelPage::Memory));
+        let tray = EntryRequest::Resume(Some(PanelPage::Power)).available_for_battery(Some(false));
+        assert_eq!(tray.selection(PanelPage::Memory, true), PanelPage::Cpu);
+        assert_eq!(
+            EntryRequest::Resume(None)
+                .selection(PanelPage::Power.available_for_battery(Some(false)), false),
+            PanelPage::Cpu
+        );
+        for present in [None, Some(true)] {
+            assert_eq!(
+                EntryRequest::Select(PanelPage::Power)
+                    .available_for_battery(present)
+                    .selection(PanelPage::Cpu, false),
+                PanelPage::Power
+            );
+        }
     }
 
     #[test]

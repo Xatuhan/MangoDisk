@@ -4101,6 +4101,45 @@
       "staleHint": "記憶體壓力：未更新\n等待資料更新，右側百分比表示記憶體使用率"
     }
   },
+  "power": {
+    "title": "電源",
+    "minutes": "{minutes} 分鐘",
+    "hoursMinutes": "{hours} 小時 {minutes} 分鐘",
+    "untilFull": "預計 {duration} 充滿",
+    "remaining": "預計可用 {duration}",
+    "intoBattery": "充入電池",
+    "fromBattery": "電池供電",
+    "batteryPower": "電池功率",
+    "batteryPowerHint": "淨流入或流出電池的功率，與整機功率不同",
+    "temperature": "電池溫度",
+    "health": "容量健康度",
+    "healthHint": "滿充容量與設計容量的比值，可能與系統設定顯示的健康度不同",
+    "cycles": "循環次數",
+    "inputPower": "目前輸入",
+    "reportedPower": "回報功率",
+    "adapterHint": "變壓器回報的供電能力，並非目前消耗的功率",
+    "current": "目前容量",
+    "fullCharge": "滿充容量",
+    "design": "設計容量",
+    "batteryVoltage": "電池電壓",
+    "batteryCurrent": "電池電流",
+    "adapterVoltage": "變壓器電壓",
+    "systemPowerHint": "硬體感測器回報的整機功率，並非插座端測得的耗電",
+    "systemPower": "整機功率",
+    "lastMinute": "最近一分鐘",
+    "trendLabel": "最近一分鐘的整機功率，單位瓦",
+    "adapter": "電源變壓器",
+    "details": "電池詳細資訊",
+    "noMeasurements": "此裝置沒有可用的電源測量資料",
+    "states": {
+      "charging": "正在充電",
+      "discharging": "使用電池",
+      "full": "已充滿",
+      "paused": "已暫停充電",
+      "connected": "已連接 · 未充電",
+      "unknown": "狀態未知"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "設定分類",
     "settingsTabs": {

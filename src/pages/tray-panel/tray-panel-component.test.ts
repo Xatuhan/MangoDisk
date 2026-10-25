@@ -23,6 +23,9 @@ import koKR from '@/locales/ko-KR.json';
 import ptBR from '@/locales/pt-BR.json';
 import trTR from '@/locales/tr-TR.json';
 import ruRU from '@/locales/ru-RU.json';
+import deDE from '@/locales/de-DE.json';
+import frFR from '@/locales/fr-FR.json';
+import esES from '@/locales/es-ES.json';
 
 import TrayPanelPage from './index.vue';
 import MemoryOverview from './components/md-memory-overview.vue';
@@ -44,9 +47,9 @@ vi.mock('@/lib/services/resident/resident-service', () => ({
     preferences: vi.fn(),
     onReading: vi.fn(),
     onPanelVisibility: vi.fn(),
-    onPanelMetric: vi.fn(),
-    panelMetric: vi.fn(),
-    selectMetric: vi.fn(),
+    onPanelPage: vi.fn(),
+    panelPage: vi.fn(),
+    selectPanelPage: vi.fn(),
     panelReady: vi.fn(),
     hidePanel: vi.fn(),
     openMain: vi.fn(),
@@ -147,9 +150,9 @@ describe('monitoring panel interactions', () => {
       handler(true);
       return vi.fn<() => void>();
     });
-    vi.mocked(ResidentService.onPanelMetric).mockResolvedValue(vi.fn());
-    vi.mocked(ResidentService.panelMetric).mockResolvedValue('memory');
-    vi.mocked(ResidentService.selectMetric).mockResolvedValue();
+    vi.mocked(ResidentService.onPanelPage).mockResolvedValue(vi.fn());
+    vi.mocked(ResidentService.panelPage).mockResolvedValue('memory');
+    vi.mocked(ResidentService.selectPanelPage).mockResolvedValue();
     vi.mocked(ResidentService.reading).mockResolvedValue(snapshot);
   });
   afterEach(() => {
@@ -172,7 +175,7 @@ describe('monitoring panel interactions', () => {
   it('opens display configuration directly from the disabled temperature hint', async () => {
     vi.mocked(OperatingSystemService.isWindows).mockReturnValue(true);
     vi.mocked(ResidentService.preferences).mockResolvedValue(preferencesFixture());
-    vi.mocked(ResidentService.panelMetric).mockResolvedValue('cpu');
+    vi.mocked(ResidentService.panelPage).mockResolvedValue('cpu');
     const { wrapper, pinia } = render();
     await flushPromises();
     useWindowsMonitoringStore(pinia).observation = { state: 'ready', driverAvailable: true, serviceInstalled: true };
@@ -215,7 +218,7 @@ describe('monitoring panel interactions', () => {
   it.each([enUS, zhCN, zhTW, jaJP, koKR, trTR, ptBR])(
     'shows live CPU rows with compact headers and stable expanded identity',
     async messages => {
-      vi.mocked(ResidentService.panelMetric).mockResolvedValue('cpu');
+      vi.mocked(ResidentService.panelPage).mockResolvedValue('cpu');
       const { wrapper, store } = render(TrayPanelPage, {}, false, messages);
       await flushPromises();
       expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe('metric-tab-cpu');
@@ -275,7 +278,7 @@ describe('monitoring panel interactions', () => {
   it.each([enUS, zhCN, zhTW, jaJP, koKR, trTR, ptBR])(
     'renders multicore CPU values and distinct processes',
     async messages => {
-      vi.mocked(ResidentService.panelMetric).mockResolvedValue('cpu');
+      vi.mocked(ResidentService.panelPage).mockResolvedValue('cpu');
       const { wrapper, store } = render(TrayPanelPage, {}, false, messages);
       await flushPromises();
       const app = snapshot.memory.value!.processes!.applications[0]!;
@@ -309,7 +312,7 @@ describe('monitoring panel interactions', () => {
   );
 
   it('shows a cached CPU ranking immediately when returning from memory or reopening', async () => {
-    vi.mocked(ResidentService.panelMetric).mockResolvedValue('cpu');
+    vi.mocked(ResidentService.panelPage).mockResolvedValue('cpu');
     const cached = {
       ...snapshot,
       cpuProcesses: {
@@ -344,7 +347,7 @@ describe('monitoring panel interactions', () => {
   it.each([enUS, zhCN, zhTW, jaJP, koKR, trTR, ptBR])(
     'keeps CPU history visible during recovery and tab changes',
     async messages => {
-      vi.mocked(ResidentService.panelMetric).mockResolvedValue('cpu');
+      vi.mocked(ResidentService.panelPage).mockResolvedValue('cpu');
       const { wrapper, store } = render(TrayPanelPage, {}, false, messages);
       await flushPromises();
       for (const status of ['loading', 'stale', 'failed'] as const) {
@@ -385,7 +388,7 @@ describe('monitoring panel interactions', () => {
 
   it('stops overview animation on native hide even when the document stays visible', async () => {
     vi.mocked(ResidentService.onPanelVisibility).mockResolvedValueOnce(vi.fn());
-    vi.mocked(ResidentService.panelMetric).mockResolvedValue('network');
+    vi.mocked(ResidentService.panelPage).mockResolvedValue('network');
     const { wrapper } = render();
     await flushPromises();
     await wrapper.get('#metric-tab-overview').trigger('click');
@@ -403,7 +406,7 @@ describe('monitoring panel interactions', () => {
   it.each(['network', 'memory'] as const)(
     'closes pressure hints on native hide and reopens them only on a new hover in %s',
     async metric => {
-      vi.mocked(ResidentService.panelMetric).mockResolvedValue(metric);
+      vi.mocked(ResidentService.panelPage).mockResolvedValue(metric);
       vi.mocked(ResidentService.reading).mockResolvedValue({
         ...snapshot,
         memory: {
@@ -447,22 +450,26 @@ describe('monitoring panel interactions', () => {
     expect(wrapper.find('.application-row').exists()).toBe(true);
   });
 
-  it('moves keyboard focus through disk and network before returning to overview', async () => {
+  it('moves keyboard focus through disk, network, and power before returning to overview', async () => {
     const { wrapper, store } = render();
     await flushPromises();
     expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe('metric-tab-memory');
     await wrapper.get('#metric-tab-memory').trigger('keydown', { key: 'ArrowRight' });
-    expect(wrapper.findAll('[role=tab]')).toHaveLength(6);
-    expect(store.selectedMetric).toBe('disk');
+    expect(wrapper.findAll('[role=tab]')).toHaveLength(7);
+    expect(store.selectedPage).toBe('disk');
     expect(document.activeElement?.id).toBe('metric-tab-disk');
     expect(wrapper.find('.disk-health').exists()).toBe(true);
     await wrapper.get('#metric-tab-disk').trigger('keydown', { key: 'ArrowRight' });
-    expect(store.selectedMetric).toBe('network');
+    expect(store.selectedPage).toBe('network');
     expect(wrapper.find('.network-details').exists()).toBe(true);
     await wrapper.get('#metric-tab-network').trigger('keydown', { key: 'ArrowRight' });
+    expect(store.selectedPage).toBe('power');
+    expect(document.activeElement?.id).toBe('metric-tab-power');
+    expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe('metric-tab-power');
+    await wrapper.get('#metric-tab-power').trigger('keydown', { key: 'ArrowRight' });
     expect(document.activeElement?.id).toBe('metric-tab-overview');
     expect(wrapper.findAll('.resource-overview')).toHaveLength(5);
-    expect(ResidentService.selectMetric).toHaveBeenCalledWith('network');
+    expect(ResidentService.selectPanelPage).toHaveBeenCalledWith('overview');
     expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe('metric-tab-overview');
     const visibility = vi.mocked(ResidentService.onPanelVisibility).mock.calls[0]![0];
     visibility(false);
@@ -471,31 +478,117 @@ describe('monitoring panel interactions', () => {
     expect(wrapper.get('#metric-tab-overview').attributes('aria-selected')).toBe('true');
   });
 
+  it('restores power selection without scrolling the navigation', async () => {
+    vi.mocked(ResidentService.panelPage).mockResolvedValue('power');
+    const { wrapper } = render();
+    const scrollIntoView = vi.fn();
+    wrapper.get('#metric-tab-power').element.scrollIntoView = scrollIntoView;
+    await flushPromises();
+    expect(wrapper.get('#metric-tab-power').attributes('aria-selected')).toBe('true');
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['en-US', enUS],
+    ['zh-CN', zhCN],
+    ['zh-TW', zhTW],
+    ['ja-JP', jaJP],
+    ['ko-KR', koKR],
+    ['tr-TR', trTR],
+    ['pt-BR', ptBR],
+    ['ru-RU', ruRU],
+    ['de-DE', deDE],
+    ['fr-FR', frFR],
+    ['es-ES', esES],
+  ] as const)('keeps compact navigation and full accessible names in %s', async (_locale, messages) => {
+    const { wrapper } = render(TrayPanelPage, {}, false, messages);
+    await flushPromises();
+    const fullNames = { ...messages.systemStatus, power: messages.power.title };
+    for (const page of ['overview', 'cpu', 'gpu', 'memory', 'disk', 'network', 'power'] as const) {
+      const tab = wrapper.get(`#metric-tab-${page}`);
+      expect(tab.text()).toBe(page === 'cpu' ? messages.systemStatus.cpuShort : fullNames[page]);
+      expect(tab.attributes('aria-label')).toBe(fullNames[page]);
+      await tab.trigger('click');
+      expect(tab.attributes('aria-selected')).toBe('true');
+      expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe(`metric-tab-${page}`);
+    }
+  });
+
+  it.each([false, true])('hides power on a confirmed batteryless device (Windows=%s)', async windows => {
+    vi.mocked(OperatingSystemService.isWindows).mockReturnValue(windows);
+    vi.mocked(ResidentService.preferences).mockResolvedValue(preferencesFixture());
+    vi.mocked(ResidentService.reading).mockResolvedValue({ ...snapshot, batteryPresent: false });
+    const { wrapper, store } = render();
+    await flushPromises();
+    expect(wrapper.find('#metric-tab-power').exists()).toBe(false);
+    expect(wrapper.find('.power-details').exists()).toBe(false);
+    expect(store.selectedPage).toBe('memory');
+    await wrapper.get('#metric-tab-network').trigger('click');
+    await wrapper.get('#metric-tab-network').trigger('keydown', { key: 'ArrowRight' });
+    expect(store.selectedPage).toBe('overview');
+    expect(document.activeElement?.id).toBe('metric-tab-overview');
+  });
+
+  it('leaves power and restores focus when battery absence is learned, without returning on recovery', async () => {
+    const { wrapper, store } = render();
+    await flushPromises();
+    expect(wrapper.find('#metric-tab-power').exists()).toBe(true);
+    await wrapper.get('#metric-tab-power').trigger('click');
+    (wrapper.get('#metric-tab-power').element as HTMLElement).focus();
+    store.accept({ ...snapshot, revision: 2, batteryPresent: false });
+    await flushPromises();
+    expect(wrapper.find('#metric-tab-power').exists()).toBe(false);
+    expect(wrapper.find('.power-details').exists()).toBe(false);
+    expect(store.selectedPage).toBe('cpu');
+    expect(ResidentService.selectPanelPage).toHaveBeenLastCalledWith('cpu');
+    expect(document.activeElement?.id).toBe('metric-tab-cpu');
+    store.accept({ ...snapshot, revision: 3, batteryPresent: true });
+    await flushPromises();
+    expect(wrapper.find('#metric-tab-power').exists()).toBe(true);
+    expect(store.selectedPage).toBe('cpu');
+  });
+
+  it('redirects late restored and native power selections when battery absence is already known', async () => {
+    let finish!: (page: 'power') => void;
+    vi.mocked(ResidentService.panelPage).mockReturnValue(new Promise(resolve => (finish = resolve)));
+    vi.mocked(ResidentService.reading).mockResolvedValue({ ...snapshot, batteryPresent: false });
+    const { wrapper, store } = render();
+    await flushPromises();
+    finish('power');
+    await flushPromises();
+    expect(store.selectedPage).toBe('cpu');
+    expect(ResidentService.selectPanelPage).toHaveBeenLastCalledWith('cpu');
+    expect(wrapper.find('.power-details').exists()).toBe(false);
+    vi.mocked(ResidentService.onPanelPage).mock.calls[0]![0]('power');
+    await flushPromises();
+    expect(store.selectedPage).toBe('cpu');
+    expect(wrapper.get('#metric-tab-cpu').attributes('aria-selected')).toBe('true');
+  });
+
   it('retains the selected memory tab when the prewarmed panel is opened again', async () => {
     const { wrapper, store } = render();
     await flushPromises();
     await wrapper.get('#metric-tab-memory').trigger('click');
-    expect(store.selectedMetric).toBe('memory');
+    expect(store.selectedPage).toBe('memory');
     const visibility = vi.mocked(ResidentService.onPanelVisibility).mock.calls[0]![0];
     visibility(true);
     await flushPromises();
     expect(wrapper.get('#metric-tab-memory').attributes('aria-selected')).toBe('true');
-    expect(store.selectedMetric).toBe('memory');
+    expect(store.selectedPage).toBe('memory');
   });
 
   it('keeps a newer native selection when the initial query arrives late', async () => {
     let finish!: (metric: 'memory') => void;
-    vi.mocked(ResidentService.panelMetric).mockReturnValue(
+    vi.mocked(ResidentService.panelPage).mockReturnValue(
       new Promise(resolve => {
         finish = resolve;
       })
     );
     const { store } = render();
     await flushPromises();
-    vi.mocked(ResidentService.onPanelMetric).mock.calls[0]![0]('disk');
+    vi.mocked(ResidentService.onPanelPage).mock.calls[0]![0]('disk');
     finish('memory');
     await flushPromises();
-    expect(store.selectedMetric).toBe('disk');
+    expect(store.selectedPage).toBe('disk');
   });
 
   it('shows release feedback for three seconds after loading ends, then restores the action', async () => {
@@ -529,7 +622,7 @@ describe('monitoring panel interactions', () => {
 
   it('hides the unsampled Linux CPU temperature instead of showing a permanent loading card', async () => {
     vi.mocked(OperatingSystemService.isLinux).mockReturnValue(true);
-    vi.mocked(ResidentService.panelMetric).mockResolvedValue('cpu');
+    vi.mocked(ResidentService.panelPage).mockResolvedValue('cpu');
     const { wrapper } = render();
     await flushPromises();
 

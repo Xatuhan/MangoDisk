@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detailMetric, floatingValue } from './floating-metric';
+import { detailPage, floatingValue } from './floating-metric';
 import type { FloatingEntry } from '@/lib/models/resident/floating-monitor';
 
 function entry(patch: Partial<FloatingEntry>): FloatingEntry {
@@ -7,12 +7,15 @@ function entry(patch: Partial<FloatingEntry>): FloatingEntry {
 }
 describe('floating metric contracts', () => {
   it('routes auxiliary readings to the matching resource details', () => {
-    expect(detailMetric('cpuTemperature')).toBe('cpu');
-    expect(detailMetric('gpuTemperature')).toBe('gpu');
-    expect(detailMetric('fanSpeed')).toBe('gpu');
-    expect(detailMetric('diskTemperature')).toBe('disk');
-    expect(detailMetric('upload')).toBe('network');
-    expect(detailMetric('download')).toBe('network');
+    expect(detailPage('cpuTemperature')).toBe('cpu');
+    expect(detailPage('gpuTemperature')).toBe('gpu');
+    for (const id of ['batteryTemperature', 'chargingPower', 'batteryPower', 'systemPower'] as const) {
+      expect(detailPage(id)).toBe('power');
+    }
+    expect(detailPage('fanSpeed')).toBe('gpu');
+    expect(detailPage('diskTemperature')).toBe('disk');
+    expect(detailPage('upload')).toBe('network');
+    expect(detailPage('download')).toBe('network');
   });
   it('keeps missing readings distinct from zero and carries native units', () => {
     expect(floatingValue(entry({ id: 'fanSpeed', digits: '1602', marker: 'F' }))).toBe('1602');
@@ -34,7 +37,7 @@ it.each(['cpuFrequency', 'cpuEfficiencyFrequency', 'cpuPerformanceFrequency', 'c
     const entry: FloatingEntry = { id, digits: '3.2', marker: 'CPUP', text: 'CPUP 3.2G', tooltip: '', tone: 'normal' };
     expect(floatingValue(entry)).toBe('3.2GHz');
     expect(floatingValue({ ...entry, digits: '—' })).toBe('—');
-    expect(detailMetric(id)).toBe('cpu');
+    expect(detailPage(id)).toBe('cpu');
   }
 );
 

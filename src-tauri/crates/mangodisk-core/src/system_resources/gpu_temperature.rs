@@ -40,6 +40,7 @@ impl DeviceTemperature {
                     sampled_at_ms: now,
                     primary: value.celsius,
                     secondary: None,
+                    gap_before: false,
                 });
                 self.reading = MetricReading::ready(value, now);
             }

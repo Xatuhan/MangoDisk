@@ -4101,6 +4101,45 @@
       "staleHint": "メモリプレッシャー：未更新\n更新を待っています。右側は使用率です"
     }
   },
+  "power": {
+    "title": "電源",
+    "minutes": "{minutes} 分",
+    "hoursMinutes": "{hours} 時間 {minutes} 分",
+    "untilFull": "充電完了まで約 {duration}",
+    "remaining": "残り約 {duration}",
+    "intoBattery": "電池への入力",
+    "fromBattery": "電池からの出力",
+    "batteryPower": "電池の電力",
+    "batteryPowerHint": "電池に出入りする正味の電力です。システム全体の電力とは異なります",
+    "temperature": "電池温度",
+    "health": "容量の健全度",
+    "healthHint": "満充電容量と設計容量の比率です。システム設定の表示と異なる場合があります",
+    "cycles": "充放電回数",
+    "inputPower": "現在の入力",
+    "reportedPower": "報告された電力",
+    "adapterHint": "アダプタが報告する給電能力であり、現在の消費電力ではありません",
+    "current": "現在の容量",
+    "fullCharge": "満充電容量",
+    "design": "設計容量",
+    "batteryVoltage": "電池電圧",
+    "batteryCurrent": "電池電流",
+    "adapterVoltage": "アダプタ電圧",
+    "systemPowerHint": "ハードウェアセンサーが報告するシステム電力です。コンセントでの測定値ではありません",
+    "systemPower": "システム電力",
+    "lastMinute": "直近1分間",
+    "trendLabel": "直近1分間のシステム電力（ワット）",
+    "adapter": "電源アダプタ",
+    "details": "電池の詳細",
+    "noMeasurements": "このデバイスでは電源の測定値を取得できません",
+    "states": {
+      "charging": "充電中",
+      "discharging": "バッテリー使用中",
+      "full": "充電完了",
+      "paused": "充電を一時停止",
+      "connected": "接続済み・充電していません",
+      "unknown": "状態不明"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "設定カテゴリ",
     "settingsTabs": {

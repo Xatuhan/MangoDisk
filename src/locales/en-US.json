@@ -4101,6 +4101,45 @@
       "staleHint": "Memory pressure: out of date\nWaiting for an update; the percentage shows usage"
     }
   },
+  "power": {
+    "title": "Power",
+    "minutes": "{minutes} min",
+    "hoursMinutes": "{hours} h {minutes} min",
+    "untilFull": "Full in {duration}",
+    "remaining": "About {duration} remaining",
+    "intoBattery": "Into battery",
+    "fromBattery": "From battery",
+    "batteryPower": "Battery power",
+    "batteryPowerHint": "Net power entering or leaving the battery; this is separate from system power",
+    "temperature": "Battery temperature",
+    "health": "Capacity health",
+    "healthHint": "Full-charge capacity divided by design capacity. This may differ from the health reported in system settings",
+    "cycles": "Cycles",
+    "inputPower": "Current input",
+    "reportedPower": "Reported power",
+    "adapterHint": "Power capability reported by the adapter, not its current consumption",
+    "current": "Current capacity",
+    "fullCharge": "Full-charge capacity",
+    "design": "Design capacity",
+    "batteryVoltage": "Battery voltage",
+    "batteryCurrent": "Battery current",
+    "adapterVoltage": "Adapter voltage",
+    "systemPowerHint": "System power reported by the hardware sensor, not a wall-outlet measurement",
+    "systemPower": "System power",
+    "lastMinute": "Last minute",
+    "trendLabel": "System power over the last minute, in watts",
+    "adapter": "Power adapter",
+    "details": "Battery details",
+    "noMeasurements": "No power measurements are available on this device",
+    "states": {
+      "charging": "Charging",
+      "discharging": "On battery",
+      "full": "Fully charged",
+      "paused": "Charging paused",
+      "connected": "Connected · Not charging",
+      "unknown": "Status unavailable"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "Settings categories",
     "settingsTabs": {

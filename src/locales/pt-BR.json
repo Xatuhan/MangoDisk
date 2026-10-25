@@ -4101,6 +4101,45 @@
       "staleHint": "Pressão de memória: desatualizada\nAguardando atualização; a porcentagem indica o uso"
     }
   },
+  "power": {
+    "title": "Energia",
+    "minutes": "{minutes} min",
+    "hoursMinutes": "{hours} h {minutes} min",
+    "untilFull": "Carga completa em cerca de {duration}",
+    "remaining": "Cerca de {duration} restantes",
+    "intoBattery": "Para a bateria",
+    "fromBattery": "Da bateria",
+    "batteryPower": "Potência da bateria",
+    "batteryPowerHint": "Potência líquida que entra ou sai da bateria, diferente da potência do sistema",
+    "temperature": "Temperatura da bateria",
+    "health": "Saúde da capacidade",
+    "healthHint": "Relação entre a capacidade de carga completa e a de projeto. Pode diferir dos ajustes do sistema",
+    "cycles": "Ciclos",
+    "inputPower": "Entrada atual",
+    "reportedPower": "Potência informada",
+    "adapterHint": "Capacidade de alimentação informada pelo adaptador, não o consumo atual",
+    "current": "Capacidade atual",
+    "fullCharge": "Capacidade de carga completa",
+    "design": "Capacidade de projeto",
+    "batteryVoltage": "Tensão da bateria",
+    "batteryCurrent": "Corrente da bateria",
+    "adapterVoltage": "Tensão do adaptador",
+    "systemPowerHint": "Potência do sistema informada pelo sensor de hardware, não medida na tomada",
+    "systemPower": "Potência do sistema",
+    "lastMinute": "Último minuto",
+    "trendLabel": "Potência do sistema no último minuto, em watts",
+    "adapter": "Adaptador de energia",
+    "details": "Detalhes da bateria",
+    "noMeasurements": "Não há medições de energia disponíveis neste dispositivo",
+    "states": {
+      "charging": "Carregando",
+      "discharging": "Usando bateria",
+      "full": "Carga completa",
+      "paused": "Carga pausada",
+      "connected": "Conectado · Sem carregar",
+      "unknown": "Estado indisponível"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "Categorias de configurações",
     "settingsTabs": {

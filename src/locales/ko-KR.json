@@ -4101,6 +4101,45 @@
       "staleHint": "메모리 압력: 미갱신\n업데이트 대기 중; 오른쪽은 사용률입니다"
     }
   },
+  "power": {
+    "title": "전원",
+    "minutes": "{minutes}분",
+    "hoursMinutes": "{hours}시간 {minutes}분",
+    "untilFull": "약 {duration} 후 완충",
+    "remaining": "약 {duration} 남음",
+    "intoBattery": "배터리 유입",
+    "fromBattery": "배터리 공급",
+    "batteryPower": "배터리 전력",
+    "batteryPowerHint": "배터리로 들어가거나 나오는 순전력이며 시스템 전력과는 다릅니다",
+    "temperature": "배터리 온도",
+    "health": "용량 상태",
+    "healthHint": "완충 용량과 설계 용량의 비율입니다. 시스템 설정에 표시되는 상태와 다를 수 있습니다",
+    "cycles": "사이클 수",
+    "inputPower": "현재 입력",
+    "reportedPower": "보고된 전력",
+    "adapterHint": "어댑터가 보고한 전원 공급 능력이며 현재 소비 전력이 아닙니다",
+    "current": "현재 용량",
+    "fullCharge": "완충 용량",
+    "design": "설계 용량",
+    "batteryVoltage": "배터리 전압",
+    "batteryCurrent": "배터리 전류",
+    "adapterVoltage": "어댑터 전압",
+    "systemPowerHint": "하드웨어 센서가 보고하는 시스템 전력이며 콘센트 측정값이 아닙니다",
+    "systemPower": "시스템 전력",
+    "lastMinute": "최근 1분",
+    "trendLabel": "최근 1분간 시스템 전력(와트)",
+    "adapter": "전원 어댑터",
+    "details": "배터리 상세 정보",
+    "noMeasurements": "이 기기에서는 전원 측정값을 사용할 수 없습니다",
+    "states": {
+      "charging": "충전 중",
+      "discharging": "배터리 사용 중",
+      "full": "완충됨",
+      "paused": "충전 일시 중지",
+      "connected": "연결됨 · 충전 안 함",
+      "unknown": "상태 알 수 없음"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "설정 분류",
     "settingsTabs": {

@@ -71,6 +71,16 @@ impl DisplayId {
             Self::FanSpeed => "resident-fan-speed",
         }
     }
+    pub fn page(self) -> Option<crate::resident::panel_page::PanelPage> {
+        use crate::resident::panel_page::PanelPage;
+        match self {
+            Self::BatteryTemperature
+            | Self::ChargingPower
+            | Self::BatteryPower
+            | Self::SystemPower => Some(PanelPage::Power),
+            _ => self.metric().map(PanelPage::from),
+        }
+    }
     pub fn metric(self) -> Option<MetricId> {
         match self {
             Self::App

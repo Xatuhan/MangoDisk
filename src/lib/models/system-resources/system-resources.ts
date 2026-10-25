@@ -1,3 +1,4 @@
+import type { BatteryDetails } from './power';
 import type { GpuDetails } from '@/lib/models/system-resources/gpu-details';
 
 export const METRIC_IDS = ['cpu', 'gpu', 'memory', 'network', 'disk'] as const;
@@ -174,6 +175,7 @@ export interface TrendPoint {
   sampledAtMs: number;
   primary: number;
   secondary: number | null;
+  gapBefore?: boolean;
 }
 export interface DiskIoRate {
   readBytesPerSecond: number;
@@ -305,7 +307,7 @@ export interface GpuDeviceReading {
 }
 
 export interface ResourceReadings {
-  schemaVersion: 33;
+  schemaVersion: 35;
   observedAtMs: number;
   cpu: MetricReading<CpuUsage>;
   cpuIdentity: CpuIdentity | null;
@@ -315,6 +317,8 @@ export interface ResourceReadings {
   gpuTemperature: MetricReading<GpuTemperature>;
   gpuTemperatureHistory: TrendPoint[];
   batteryPresent: boolean | null;
+  batteryDetails: MetricReading<BatteryDetails>;
+  systemPowerHistory: TrendPoint[];
   batteryTemperature: MetricReading<BatteryTemperature>;
   chargingPower: MetricReading<ChargingPower>;
   batteryPower: MetricReading<BatteryPower>;

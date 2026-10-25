@@ -17,3 +17,17 @@ export function hasFreshValue<T>(
     now - sampled <= freshnessMs
   );
 }
+
+/** Display the last observation while refreshing, without promoting it to a live reading. */
+export function cachedMetricValue<T>(reading: MetricReading<T>, now: number): T | null {
+  const sampled = reading.sampledAtMs;
+  return (reading.status === 'ready' || reading.status === 'stale' || reading.status === 'failed') &&
+    reading.value !== null &&
+    sampled !== null &&
+    Number.isFinite(sampled) &&
+    sampled >= 0 &&
+    Number.isFinite(now) &&
+    now >= sampled
+    ? reading.value
+    : null;
+}

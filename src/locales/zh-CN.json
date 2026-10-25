@@ -4101,6 +4101,45 @@
       "staleHint": "内存压力：未更新\n等待数据更新，右侧百分比表示内存使用率"
     }
   },
+  "power": {
+    "title": "电源",
+    "minutes": "{minutes} 分钟",
+    "hoursMinutes": "{hours} 小时 {minutes} 分钟",
+    "untilFull": "预计 {duration} 充满",
+    "remaining": "预计可用 {duration}",
+    "intoBattery": "充入电池",
+    "fromBattery": "电池供电",
+    "batteryPower": "电池功率",
+    "batteryPowerHint": "净流入或流出电池的功率，与整机功率不同",
+    "temperature": "电池温度",
+    "health": "容量健康度",
+    "healthHint": "满充容量与设计容量的比值，可能与系统设置显示的健康度不同",
+    "cycles": "循环次数",
+    "inputPower": "当前输入",
+    "reportedPower": "报告功率",
+    "adapterHint": "适配器报告的供电能力，不是当前消耗的功率",
+    "current": "当前容量",
+    "fullCharge": "满充容量",
+    "design": "设计容量",
+    "batteryVoltage": "电池电压",
+    "batteryCurrent": "电池电流",
+    "adapterVoltage": "适配器电压",
+    "systemPowerHint": "硬件传感器报告的整机功率，不是插座端测得的耗电",
+    "systemPower": "整机功率",
+    "lastMinute": "最近一分钟",
+    "trendLabel": "最近一分钟的整机功率，单位瓦",
+    "adapter": "电源适配器",
+    "details": "电池详情",
+    "noMeasurements": "此设备没有可用的电源测量数据",
+    "states": {
+      "charging": "正在充电",
+      "discharging": "使用电池",
+      "full": "已充满",
+      "paused": "已暂停充电",
+      "connected": "已连接 · 未充电",
+      "unknown": "状态未知"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "设置分类",
     "settingsTabs": {

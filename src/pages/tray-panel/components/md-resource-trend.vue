@@ -7,7 +7,7 @@ import { ResourceTrendScale } from './resource-trend-scale';
 
 const props = withDefaults(
   defineProps<{
-    metric: 'cpu' | 'gpu' | 'memory' | 'network' | 'disk' | 'temperature';
+    metric: 'cpu' | 'gpu' | 'memory' | 'network' | 'disk' | 'temperature' | 'power';
     history: TrendPoint[];
     observedAtMs: number;
     label: string;
@@ -22,10 +22,13 @@ const ceiling = ref(1);
 const scale = new ResourceTrendScale();
 const amplitude = ref(1);
 const bidirectional = computed(() => props.metric === 'network' || props.metric === 'disk');
+const dynamicScale = computed(() => bidirectional.value || props.metric === 'power');
 const interval = computed(() =>
   props.metric === 'temperature' ? 4000 : props.metric === 'memory' ? 3000 : props.metric === 'network' ? 1000 : 2000
 );
 const series = computed(() => {
+  // One missed two-second power sample must leave a gap; allow normal sampling jitter.
+  const gapLimit = interval.value * (props.metric === 'power' ? 1.5 : 2);
   const channels = !bidirectional.value
     ? [{ secondary: false, color: 'var(--primary)' }]
     : [
@@ -43,7 +46,8 @@ const series = computed(() => {
       }
       // Leave missing samples blank instead of drawing a misleading bridge over
       // disconnected periods. The retained edge sample scrolls out with its line.
-      if (!segments.length || previous === null || point.sampledAtMs - previous > interval.value * 2) segments.push([]);
+      if (!segments.length || previous === null || point.gapBefore || point.sampledAtMs - previous > gapLimit)
+        segments.push([]);
       segments.at(-1)!.push({
         x: timeline.position(point.sampledAtMs),
         y: bidirectional.value
@@ -82,7 +86,7 @@ function paint(clock = performance.now()) {
   // Move vector geometry instead of translating a cached bitmap. Fractional CSS
   // layer offsets can blur thin strokes in WebView2 at Windows display scaling.
   offset.value = timeline.offset(clock);
-  amplitude.value = bidirectional.value ? scale.amplitude(clock) : 1;
+  amplitude.value = dynamicScale.value ? scale.amplitude(clock) : 1;
 }
 function animate() {
   frame = 0;
@@ -135,7 +139,7 @@ function sync() {
   const clock = performance.now();
   timeline.accept(props.history, props.observedAtMs || props.history.at(-1)?.sampledAtMs || 0, clock, interval.value);
   points.value = timeline.points;
-  if (!bidirectional.value) {
+  if (!dynamicScale.value) {
     const peak = Math.max(100, ...points.value.map(point => point.primary).filter(Number.isFinite));
     ceiling.value = props.metric === 'temperature' ? Math.ceil(peak / 20) * 20 : 100;
   } else {
@@ -149,7 +153,7 @@ function sync() {
   }
   // The new geometry and its compensating scale must update in the same Vue
   // render. Subsequent frames adjust one SVG group, retaining non-scaling strokes.
-  amplitude.value = bidirectional.value ? scale.amplitude(clock) : 1;
+  amplitude.value = dynamicScale.value ? scale.amplitude(clock) : 1;
   if (!points.value.length) stop();
   // Positions and a rebased strip transform must reach the same paint together.
   void nextTick(() => {
@@ -187,7 +191,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="resource-trend" :class="[metric, { bidirectional }]" role="img" :aria-label="label">
     <div class="trend-strip">
-      <MdIconTrend :series="series" :amplitude="amplitude" :offset="offset" />
+      <MdIconTrend :series="series" :amplitude="amplitude" :offset="offset" :origin="metric === 'power' ? 100 : 50" />
     </div>
   </div>
 </template>

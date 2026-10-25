@@ -1,9 +1,7 @@
 //! Independent cached results and interval calculations; no clocks, threads, or desktop APIs.
+mod power;
 use mangodisk_platform::system_resources::{
-    battery::{
-        BatteryPower, BatteryPowerState, BatterySample, BatteryTemperature, ChargingPower,
-        BATTERY_FRESHNESS_MS,
-    },
+    battery::{BatteryPower, BatteryTemperature, ChargingPower, BATTERY_FRESHNESS_MS},
     cpu::{
         details::{CpuDetails, CpuFrequency, CpuIdentity},
         temperature::{CpuTemperature, TEMPERATURE_FRESHNESS_MS},
@@ -50,6 +48,9 @@ pub struct ResourceReadings {
     pub gpu_temperature:
         MetricReading<mangodisk_platform::system_resources::gpu::temperature::GpuTemperature>,
     pub gpu_temperature_history: TrendHistory,
+    pub battery_details:
+        MetricReading<mangodisk_platform::system_resources::battery::details::BatteryDetails>,
+    pub system_power_history: TrendHistory,
     pub battery_temperature: MetricReading<BatteryTemperature>,
     pub battery_present: Option<bool>,
     pub charging_power: MetricReading<ChargingPower>,
@@ -87,7 +88,7 @@ pub struct ResourceReadings {
 impl Default for ResourceReadings {
     fn default() -> Self {
         Self {
-            schema_version: 33,
+            schema_version: 35,
             observed_at_ms: 0,
             cpu: MetricReading::default(),
             cpu_identity: None,
@@ -96,6 +97,8 @@ impl Default for ResourceReadings {
             cpu_temperature_history: Default::default(),
             gpu_temperature: MetricReading::default(),
             gpu_temperature_history: Default::default(),
+            battery_details: MetricReading::default(),
+            system_power_history: Default::default(),
             battery_temperature: MetricReading::default(),
             battery_present: None,
             charging_power: MetricReading::default(),
@@ -136,6 +139,8 @@ pub struct ResourceCache {
     cpu_delta: CpuDelta,
     network_delta: NetworkDelta,
     disk_io_delta: DiskIoDelta,
+    system_power_history: Trend,
+    system_power_interrupted: bool,
     cpu_history: Trend,
     cpu_temperature_history: Trend,
     gpu_temperature: super::gpu_temperature::GpuTemperatureCache,
@@ -167,6 +172,7 @@ impl ResourceCache {
                     sampled_at_ms: timestamp_ms,
                     primary: value.used_percent,
                     secondary: None,
+                    gap_before: false,
                 });
                 self.readings.cpu = MetricReading::ready(value, timestamp_ms);
                 None
@@ -228,6 +234,7 @@ impl ResourceCache {
                         sampled_at_ms,
                         primary: value.celsius,
                         secondary: None,
+                        gap_before: false,
                     });
                 }
                 self.readings.cpu_temperature = MetricReading::ready(value, sampled_at_ms);
@@ -297,135 +304,6 @@ impl ResourceCache {
                 value: None,
             },
         };
-    }
-
-    pub fn system_power(
-        &mut self,
-        sample: mangodisk_platform::PlatformResult<
-            mangodisk_platform::system_resources::power::SystemPower,
-        >,
-        timestamp_ms: u64,
-    ) {
-        use mangodisk_platform::system_resources::power::SYSTEM_POWER_MAX_WATTS;
-        self.readings.system_power = match sample {
-            Ok(value)
-                if value.watts.is_finite()
-                    && (0.0..=SYSTEM_POWER_MAX_WATTS).contains(&value.watts) =>
-            {
-                MetricReading::ready(value, timestamp_ms)
-            }
-            result => MetricReading {
-                status: match result {
-                    Err(error)
-                        if error.code() == mangodisk_platform::PlatformErrorCode::Unsupported =>
-                    {
-                        MetricStatus::Unsupported
-                    }
-                    _ => MetricStatus::Failed,
-                },
-                sampled_at_ms: None,
-                value: None,
-            },
-        };
-    }
-
-    pub fn battery_presence(&mut self, present: Option<bool>, timestamp_ms: u64) {
-        if let Some(present) = present {
-            self.readings.battery_present = Some(present);
-            if !present {
-                self.battery(
-                    Err(mangodisk_platform::PlatformError::new(
-                        mangodisk_platform::PlatformErrorCode::Unsupported,
-                        "physical battery absent",
-                    )),
-                    timestamp_ms,
-                );
-            }
-        }
-    }
-
-    pub fn battery(
-        &mut self,
-        sample: mangodisk_platform::PlatformResult<BatterySample>,
-        timestamp_ms: u64,
-    ) {
-        let unavailable = |status| MetricReading {
-            status,
-            sampled_at_ms: None,
-            value: None,
-        };
-        match sample {
-            Ok(sample) => {
-                self.readings.battery_power = match sample.battery_power {
-                    Some(value)
-                        if value.watts.is_finite()
-                            && (0.0..=300.0).contains(&value.watts)
-                            && (value.state != BatteryPowerState::Idle || value.watts == 0.0) =>
-                    {
-                        MetricReading::ready(value, timestamp_ms)
-                    }
-                    Some(_) => MetricReading {
-                        status: MetricStatus::Failed,
-                        sampled_at_ms: None,
-                        value: None,
-                    },
-                    None => MetricReading {
-                        status: MetricStatus::Unsupported,
-                        sampled_at_ms: None,
-                        value: None,
-                    },
-                };
-                self.readings.battery_temperature = match sample.temperature {
-                    Some(value)
-                        if value.celsius.is_finite()
-                            && value.celsius > 0.0
-                            && value.celsius <= 100.0 =>
-                    {
-                        MetricReading::ready(value, timestamp_ms)
-                    }
-                    Some(_) => unavailable(MetricStatus::Failed),
-                    None => unavailable(MetricStatus::Unsupported),
-                };
-                self.readings.charging_power = match sample.charging_power {
-                    Some(value)
-                        if value.watts.is_finite()
-                            && (0.0..=300.0).contains(&value.watts)
-                            && ((value.charging && value.external_connected)
-                                || value.watts == 0.0) =>
-                    {
-                        MetricReading::ready(value, timestamp_ms)
-                    }
-                    Some(_) => MetricReading {
-                        status: MetricStatus::Failed,
-                        sampled_at_ms: None,
-                        value: None,
-                    },
-                    None => MetricReading {
-                        status: MetricStatus::Unsupported,
-                        sampled_at_ms: None,
-                        value: None,
-                    },
-                };
-            }
-            Err(error) => {
-                let status = if error.code() == mangodisk_platform::PlatformErrorCode::Unsupported {
-                    MetricStatus::Unsupported
-                } else {
-                    MetricStatus::Failed
-                };
-                self.readings.battery_temperature = unavailable(status);
-                self.readings.charging_power = MetricReading {
-                    status,
-                    sampled_at_ms: None,
-                    value: None,
-                };
-                self.readings.battery_power = MetricReading {
-                    status,
-                    sampled_at_ms: None,
-                    value: None,
-                };
-            }
-        }
     }
 
     pub fn gpu_temperatures(
@@ -506,6 +384,7 @@ impl ResourceCache {
                         sampled_at_ms: timestamp_ms,
                         primary: value.used_percent,
                         secondary: None,
+                        gap_before: false,
                     });
                     self.readings.gpu = MetricReading::ready(value, timestamp_ms);
                 } else {
@@ -554,6 +433,7 @@ impl ResourceCache {
             sampled_at_ms,
             primary: f64::from(snapshot.memory.used_percent),
             secondary: None,
+            gap_before: false,
         });
         self.readings.memory = MetricReading::ready(snapshot, sampled_at_ms);
     }
@@ -569,6 +449,7 @@ impl ResourceCache {
                 sampled_at_ms: timestamp_ms,
                 primary: value.read_bytes_per_second,
                 secondary: Some(value.written_bytes_per_second),
+                gap_before: false,
             });
             self.readings.disk_io = MetricReading::ready(value, timestamp_ms);
         } else {
@@ -618,6 +499,7 @@ impl ResourceCache {
                 sampled_at_ms: timestamp_ms,
                 primary: value.received_bytes_per_second,
                 secondary: Some(value.transmitted_bytes_per_second),
+                gap_before: false,
             });
             self.readings.network = MetricReading::ready(value, timestamp_ms);
         } else {
@@ -893,6 +775,9 @@ impl ResourceCache {
             now_ms,
             mangodisk_platform::system_resources::fans::FAN_FRESHNESS_MS,
         );
+        self.readings
+            .battery_details
+            .expire(now_ms, BATTERY_FRESHNESS_MS);
         self.readings.system_power.expire(
             now_ms,
             mangodisk_platform::system_resources::power::SYSTEM_POWER_FRESHNESS_MS,
@@ -928,8 +813,9 @@ impl ResourceCache {
         gpu_changed || before != self.statuses()
     }
 
-    fn statuses(&self) -> [MetricStatus; 20] {
+    fn statuses(&self) -> [MetricStatus; 21] {
         [
+            self.readings.battery_details.status,
             self.readings.fan_speed.status,
             self.readings.system_power.status,
             self.readings.battery_temperature.status,
@@ -979,6 +865,7 @@ impl ResourceCache {
         self.readings.gpu_temperature_history = self.gpu_temperature.history(now_ms);
         self.readings.memory_history = self.memory_history.snapshot(now_ms);
         self.readings.disk_io_history = self.disk_io_history.snapshot(now_ms);
+        self.readings.system_power_history = self.system_power_history.snapshot(now_ms);
         self.readings.cpu_history = self.cpu_history.snapshot(now_ms);
         self.readings.cpu_temperature_history = self.cpu_temperature_history.snapshot(now_ms);
         self.readings.gpu_history = self.gpu_history.snapshot(now_ms);
@@ -1008,6 +895,7 @@ impl ResourceCache {
 
 #[cfg(test)]
 mod tests {
+    use mangodisk_platform::system_resources::battery::{BatteryPowerState, BatterySample};
     #[test]
     fn disk_temperature_has_independent_freshness_and_clears_failed_or_changed_sources() {
         use super::*;
@@ -1068,6 +956,7 @@ mod tests {
         cache.battery_presence(Some(true), 1000);
         cache.battery(
             Ok(BatterySample {
+                details: None,
                 temperature: Some(BatteryTemperature {
                     celsius: 30.0,
                     source: BatterySource::AppleSmc,
@@ -1150,6 +1039,7 @@ mod tests {
         let mut cache = ResourceCache::default();
         cache.battery(
             Ok(BatterySample {
+                details: None,
                 battery_power: Some(BatteryPower {
                     watts: 24.0,
                     state: BatteryPowerState::Discharging,
@@ -1182,6 +1072,7 @@ mod tests {
         );
         cache.battery(
             Ok(BatterySample {
+                details: None,
                 battery_power: None,
                 temperature: None,
                 charging_power: None,
@@ -1864,7 +1755,7 @@ mod tests {
             second.cpu_processes.value.as_ref().unwrap()
         ));
         let wire = serde_json::to_value(&second).unwrap();
-        assert_eq!(wire["schemaVersion"], 33);
+        assert_eq!(wire["schemaVersion"], 35);
         assert_eq!(wire["cpuProcesses"]["value"]["readableProcessCount"], 12);
         assert!(!cache.expire(2000));
         assert!(cache.expire(6001));
@@ -1986,7 +1877,7 @@ mod tests {
             },
             1000,
         ));
-        assert_eq!(cache.snapshot(1000).schema_version, 33);
+        assert_eq!(cache.snapshot(1000).schema_version, 35);
         assert_eq!(
             cache.snapshot(6001).cpu_processes.status,
             MetricStatus::Stale

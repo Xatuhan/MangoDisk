@@ -13,6 +13,7 @@ pub mod memory_release;
 pub mod memory_window;
 pub mod network_traffic;
 pub mod panel;
+pub mod panel_page;
 mod preference_file;
 mod preference_schema;
 pub mod preferences;

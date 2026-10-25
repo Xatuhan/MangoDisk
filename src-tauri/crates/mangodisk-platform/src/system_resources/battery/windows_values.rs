@@ -5,11 +5,17 @@ use super::{
 };
 use crate::{PlatformError, PlatformErrorCode, PlatformResult};
 
+#[derive(Default)]
 pub(super) struct BatteryData {
     pub temperature: Option<u32>,
     pub capabilities: u32,
     pub power_state: Option<u32>,
     pub rate: Option<i32>,
+    pub current_capacity: Option<u32>,
+    pub full_capacity: Option<u32>,
+    pub design_capacity: Option<u32>,
+    pub cycle_count: Option<u32>,
+    pub voltage_mv: Option<u32>,
 }
 
 pub(super) fn sample(batteries: &[BatteryData]) -> PlatformResult<BatterySample> {
@@ -76,10 +82,104 @@ pub(super) fn sample(batteries: &[BatteryData]) -> PlatformResult<BatterySample>
             source,
         });
     Ok(BatterySample {
+        details: Some(details(batteries)),
         temperature,
         battery_power,
         charging_power,
     })
+}
+
+#[cfg(any(windows, test))]
+pub(super) fn apply_system_status(
+    details: &mut super::details::BatteryDetails,
+    percent: u8,
+    lifetime_seconds: u32,
+) {
+    if percent <= 100 {
+        details.charge_percent = Some(f64::from(percent));
+        use super::details::ChargeState;
+        // The system percentage can differ from the driver's raw capacity ratio.
+        if matches!(
+            details.charge_state,
+            ChargeState::Full | ChargeState::Connected
+        ) {
+            details.charge_state = if percent == 100 {
+                ChargeState::Full
+            } else {
+                ChargeState::Connected
+            };
+        }
+    }
+    if details.charge_state == super::details::ChargeState::Discharging
+        && lifetime_seconds != u32::MAX
+        && lifetime_seconds > 0
+    {
+        details.seconds_to_empty = Some(u64::from(lifetime_seconds));
+    }
+}
+
+fn details(batteries: &[BatteryData]) -> super::details::BatteryDetails {
+    use super::details::{percentage, BatteryCapacity, BatteryDetails, CapacityUnit, ChargeState};
+    let absolute = batteries
+        .iter()
+        .all(|battery| battery.capabilities & 0x4000_0000 == 0);
+    let total = |read: fn(&BatteryData) -> Option<u32>, minimum: u32| -> Option<f64> {
+        if !absolute {
+            return None;
+        }
+        batteries.iter().try_fold(0.0, |sum, battery| {
+            let value = read(battery).filter(|value| *value >= minimum && *value != u32::MAX)?;
+            Some(sum + f64::from(value))
+        })
+    };
+    let current = total(|battery| battery.current_capacity, 0);
+    let full_charge = total(|battery| battery.full_capacity, 1);
+    let design = total(|battery| battery.design_capacity, 1);
+    let online = batteries.iter().try_fold(true, |online, battery| {
+        Some(online && battery.power_state? & 1 != 0)
+    });
+    let charging = batteries
+        .iter()
+        .any(|battery| battery.power_state.is_some_and(|value| value & 4 != 0));
+    let discharging = batteries
+        .iter()
+        .any(|battery| battery.power_state.is_some_and(|value| value & 2 != 0));
+    let charge_percent = percentage(current, full_charge);
+    let charge_state = match (online, charging, discharging) {
+        (Some(true), true, false) => ChargeState::Charging,
+        (_, false, true) => ChargeState::Discharging,
+        (Some(true), false, false) if charge_percent == Some(100.0) => ChargeState::Full,
+        (Some(true), false, false) => ChargeState::Connected,
+        _ => ChargeState::Unknown,
+    };
+    BatteryDetails {
+        charge_percent,
+        external_connected: online,
+        charge_state,
+        health_percent: percentage(full_charge, design),
+        cycle_count: (batteries.len() == 1)
+            .then(|| {
+                batteries[0]
+                    .cycle_count
+                    .filter(|value| *value != 0 && *value != u32::MAX)
+            })
+            .flatten(),
+        capacity: absolute.then_some(BatteryCapacity {
+            current,
+            full_charge,
+            design,
+            unit: CapacityUnit::MilliwattHours,
+        }),
+        voltage_volts: (batteries.len() == 1)
+            .then(|| {
+                batteries[0]
+                    .voltage_mv
+                    .filter(|value| (1..=100_000).contains(value))
+                    .map(|value| f64::from(value) / 1000.0)
+            })
+            .flatten(),
+        ..BatteryDetails::default()
+    }
 }
 
 #[cfg(test)]
@@ -91,8 +191,83 @@ mod tests {
             capabilities: 0x8000_0000,
             power_state: Some(state),
             rate: Some(rate),
+            ..BatteryData::default()
         }
     }
+    #[test]
+    fn system_percentage_and_full_state_remain_consistent() {
+        use super::super::details::ChargeState;
+        let mut pack = battery(0, 1);
+        pack.current_capacity = Some(40_000);
+        pack.full_capacity = Some(40_000);
+        let mut value = sample(&[pack]).unwrap().details.unwrap();
+        apply_system_status(&mut value, 99, u32::MAX);
+        assert_eq!(value.charge_percent, Some(99.0));
+        assert_eq!(value.charge_state, ChargeState::Connected);
+    }
+
+    #[test]
+    fn absolute_capacity_is_weighted_and_unknown_packs_never_become_zero() {
+        use super::super::details::{CapacityUnit, ChargeState};
+        let pack = |current, full, design| BatteryData {
+            current_capacity: current,
+            full_capacity: Some(full),
+            design_capacity: Some(design),
+            power_state: Some(2),
+            ..Default::default()
+        };
+        let value = sample(&[
+            pack(Some(10_000), 20_000, 25_000),
+            pack(Some(20_000), 80_000, 100_000),
+        ])
+        .unwrap()
+        .details
+        .unwrap();
+        assert_eq!(value.charge_percent, Some(30.0));
+        assert_eq!(value.health_percent, Some(80.0));
+        assert_eq!(value.capacity.unwrap().unit, CapacityUnit::MilliwattHours);
+        assert_eq!(value.charge_state, ChargeState::Discharging);
+        assert_eq!(value.cycle_count, None);
+        let unknown = sample(&[pack(Some(u32::MAX), 20_000, 25_000)])
+            .unwrap()
+            .details
+            .unwrap();
+        assert_eq!(unknown.charge_percent, None);
+        assert_eq!(unknown.capacity.unwrap().current, None);
+        let relative = BatteryData {
+            capabilities: 0x4000_0000,
+            current_capacity: Some(50),
+            full_capacity: Some(100),
+            design_capacity: Some(100),
+            ..Default::default()
+        };
+        assert!(sample(&[relative])
+            .unwrap()
+            .details
+            .unwrap()
+            .capacity
+            .is_none());
+    }
+
+    #[test]
+    fn system_estimates_exclude_unknown_sentinels_and_non_discharge_states() {
+        use super::super::details::{BatteryDetails, ChargeState};
+        let mut value = BatteryDetails {
+            charge_state: ChargeState::Discharging,
+            ..Default::default()
+        };
+        apply_system_status(&mut value, 255, u32::MAX);
+        assert_eq!(value.charge_percent, None);
+        assert_eq!(value.seconds_to_empty, None);
+        apply_system_status(&mut value, 0, 7200);
+        assert_eq!(value.charge_percent, Some(0.0));
+        assert_eq!(value.seconds_to_empty, Some(7200));
+        value.charge_state = ChargeState::Charging;
+        value.seconds_to_empty = None;
+        apply_system_status(&mut value, 50, 100);
+        assert_eq!(value.seconds_to_empty, None);
+    }
+
     #[test]
     fn native_units_and_charge_direction_are_preserved() {
         let value = sample(&[battery(-24_000, 2)]).unwrap();

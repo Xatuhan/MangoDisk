@@ -10,7 +10,7 @@ import type {
 import { FloatingMonitorService } from '@/lib/services/resident/floating-monitor-service';
 import { useAppStore } from '@/stores/app-store';
 import { LoggerService } from '@/lib/services/diagnostics/logger-service';
-import { FLOATING_LABEL_KEYS, detailMetric, floatingValue } from '@/lib/utils/resident/floating-metric';
+import { FLOATING_LABEL_KEYS, detailPage, floatingValue } from '@/lib/utils/resident/floating-metric';
 import '@/assets/themes/floating.css';
 import { FLOATING_FONT_SCALES } from '@/lib/models/resident/floating-appearance';
 import { FloatingLayoutService } from '@/lib/services/resident/floating-layout-service';
@@ -195,7 +195,7 @@ function metricLabel(entry: FloatingEntry) {
 }
 function toggleDetail(id: FloatingMetricId) {
   if (!snapshot.value?.interactive) return;
-  void perform(() => FloatingMonitorService.toggleMetric(detailMetric(id)));
+  void perform(() => FloatingMonitorService.togglePage(detailPage(id)));
 }
 let dragOrigin: { x: number; y: number; clientX: number; clientY: number } | null = null;
 let dragged = false;

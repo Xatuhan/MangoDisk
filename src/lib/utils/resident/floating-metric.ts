@@ -1,5 +1,5 @@
 import type { FloatingEntry, FloatingMetricId } from '@/lib/models/resident/floating-monitor';
-import type { MetricId } from '@/lib/models/system-resources/system-resources';
+import type { ResidentPanelPage } from '@/lib/models/resident/resident';
 
 export const FLOATING_LABEL_KEYS: Record<FloatingMetricId, string> = {
   cpu: 'floatingMonitor.labels.cpu',
@@ -22,7 +22,7 @@ export const FLOATING_LABEL_KEYS: Record<FloatingMetricId, string> = {
   download: 'floatingMonitor.labels.download',
 };
 
-export function detailMetric(id: FloatingMetricId): MetricId {
+export function detailPage(id: FloatingMetricId): ResidentPanelPage {
   switch (id) {
     case 'cpu':
     case 'cpuFrequency':
@@ -30,11 +30,12 @@ export function detailMetric(id: FloatingMetricId): MetricId {
     case 'cpuPerformanceFrequency':
     case 'cpuSuperFrequency':
     case 'cpuTemperature':
+      return 'cpu';
     case 'batteryTemperature':
     case 'chargingPower':
     case 'batteryPower':
     case 'systemPower':
-      return 'cpu';
+      return 'power';
     case 'gpu':
     case 'gpuTemperature':
     case 'fanSpeed':

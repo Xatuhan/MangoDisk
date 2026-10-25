@@ -1,4 +1,3 @@
-import type { MetricId } from '@/lib/models/system-resources/system-resources';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -10,6 +9,7 @@ import type {
   ResidentDisplayStatus,
   ResidentPreferences,
   ResidentReading,
+  ResidentPanelPage,
 } from '@/lib/models/resident/resident';
 
 export class ResidentService {
@@ -49,14 +49,14 @@ export class ResidentService {
   static catalogue(): Promise<ResidentReading> {
     return invoke('resident_get_catalogue');
   }
-  static panelMetric(): Promise<MetricId> {
-    return invoke('resident_get_panel_metric');
+  static panelPage(): Promise<ResidentPanelPage> {
+    return invoke('resident_get_panel_page');
   }
-  static selectMetric(metric: MetricId): Promise<void> {
-    return invoke('resident_select_metric', { metric });
+  static selectPanelPage(page: ResidentPanelPage): Promise<void> {
+    return invoke('resident_select_panel_page', { page });
   }
-  static onPanelMetric(handler: (metric: MetricId) => void): Promise<UnlistenFn> {
-    return listen<MetricId>('resident-panel-metric', event => handler(event.payload));
+  static onPanelPage(handler: (page: ResidentPanelPage) => void): Promise<UnlistenFn> {
+    return listen<ResidentPanelPage>('resident-panel-page', event => handler(event.payload));
   }
   static autostartEnabled(): Promise<boolean> {
     return invoke('resident_get_autostart');

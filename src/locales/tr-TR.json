@@ -4101,6 +4101,45 @@
       "staleHint": "Bellek baskısı: güncel değil\nGüncelleme bekleniyor; sağdaki yüzde kullanımdır"
     }
   },
+  "power": {
+    "title": "Güç",
+    "minutes": "{minutes} dk",
+    "hoursMinutes": "{hours} sa {minutes} dk",
+    "untilFull": "Yaklaşık {duration} içinde tam dolu",
+    "remaining": "Yaklaşık {duration} kaldı",
+    "intoBattery": "Pile aktarılan",
+    "fromBattery": "Pilden sağlanan",
+    "batteryPower": "Pil gücü",
+    "batteryPowerHint": "Pile giren veya pilden çıkan net güç; sistem gücünden farklıdır",
+    "temperature": "Pil sıcaklığı",
+    "health": "Kapasite sağlığı",
+    "healthHint": "Tam şarj kapasitesinin tasarım kapasitesine oranıdır. Sistem ayarlarından farklı olabilir",
+    "cycles": "Döngü sayısı",
+    "inputPower": "Anlık giriş",
+    "reportedPower": "Bildirilen güç",
+    "adapterHint": "Adaptörün bildirdiği besleme kapasitesidir; anlık tüketimi değildir",
+    "current": "Mevcut kapasite",
+    "fullCharge": "Tam şarj kapasitesi",
+    "design": "Tasarım kapasitesi",
+    "batteryVoltage": "Pil voltajı",
+    "batteryCurrent": "Pil akımı",
+    "adapterVoltage": "Adaptör voltajı",
+    "systemPowerHint": "Donanım sensörünün bildirdiği sistem gücüdür; prizden ölçülen tüketim değildir",
+    "systemPower": "Sistem gücü",
+    "lastMinute": "Son dakika",
+    "trendLabel": "Son dakikadaki sistem gücü, watt cinsinden",
+    "adapter": "Güç adaptörü",
+    "details": "Pil ayrıntıları",
+    "noMeasurements": "Bu cihazda kullanılabilir güç ölçümü yok",
+    "states": {
+      "charging": "Şarj oluyor",
+      "discharging": "Pil kullanılıyor",
+      "full": "Tam dolu",
+      "paused": "Şarj duraklatıldı",
+      "connected": "Bağlı · Şarj olmuyor",
+      "unknown": "Durum bilinmiyor"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "Ayar kategorileri",
     "settingsTabs": {

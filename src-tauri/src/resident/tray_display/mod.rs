@@ -270,7 +270,7 @@ fn ensure(app: &tauri::AppHandle, id: DisplayId, labels: &labels::Labels) -> tau
                 let app = tray.app_handle().clone();
                 // Never create WebView2 in the native event callback.
                 tauri::async_runtime::spawn(async move {
-                    if let Err(error) = panel::toggle_from(&app, id.tray_id(), id.metric()) {
+                    if let Err(error) = panel::toggle_from(&app, id.tray_id(), id.page()) {
                         super::diagnostics::Failure::record("panel_entry", &error);
                     }
                 });

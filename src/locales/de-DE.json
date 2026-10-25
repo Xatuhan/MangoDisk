@@ -4101,6 +4101,45 @@
       "staleHint": "Speicherdruck: veraltet\nWarten auf ein Update; Der Prozentsatz zeigt die Nutzung an"
     }
   },
+  "power": {
+    "title": "Energie",
+    "minutes": "{minutes} Min",
+    "hoursMinutes": "{hours} Std. {minutes} Min",
+    "untilFull": "Voll in etwa {duration}",
+    "remaining": "Noch etwa {duration}",
+    "intoBattery": "In den Akku",
+    "fromBattery": "Aus dem Akku",
+    "batteryPower": "Akkuleistung",
+    "batteryPowerHint": "Nettoleistung in den oder aus dem Akku; unabhängig von der Systemleistung",
+    "temperature": "Akkutemperatur",
+    "health": "Kapazitätszustand",
+    "healthHint": "Verhältnis von Vollladekapazität zu Designkapazität. Kann von den Systemeinstellungen abweichen",
+    "cycles": "Ladezyklen",
+    "inputPower": "Aktueller Eingang",
+    "reportedPower": "Gemeldete Leistung",
+    "adapterHint": "Vom Netzteil gemeldete Versorgungsleistung, nicht der aktuelle Verbrauch",
+    "current": "Aktuelle Kapazität",
+    "fullCharge": "Vollladekapazität",
+    "design": "Designkapazität",
+    "batteryVoltage": "Akkuspannung",
+    "batteryCurrent": "Akkustrom",
+    "adapterVoltage": "Netzteilspannung",
+    "systemPowerHint": "Vom Hardwaresensor gemeldete Systemleistung, keine Messung an der Steckdose",
+    "systemPower": "Systemleistung",
+    "lastMinute": "Letzte Minute",
+    "trendLabel": "Systemleistung der letzten Minute in Watt",
+    "adapter": "Netzteil",
+    "details": "Akkudetails",
+    "noMeasurements": "Für dieses Gerät sind keine Energiemesswerte verfügbar",
+    "states": {
+      "charging": "Wird geladen",
+      "discharging": "Akkubetrieb",
+      "full": "Vollständig geladen",
+      "paused": "Laden pausiert",
+      "connected": "Verbunden · Wird nicht geladen",
+      "unknown": "Status unbekannt"
+    }
+  },
   "systemStatus": {
     "settingsCategories": "Einstellungskategorien",
     "settingsTabs": {

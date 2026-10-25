@@ -1,6 +1,8 @@
 import type { MetricColorRule } from '@/lib/models/resident/resident-color-rules';
 import type { MetricId, ResourceReadings } from '@/lib/models/system-resources/system-resources';
 
+export type ResidentPanelPage = MetricId | 'overview' | 'power';
+
 export interface ResidentReading extends ResourceReadings {
   revision: number;
 }

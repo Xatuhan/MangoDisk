@@ -31,6 +31,7 @@ impl GpuDeviceHistory {
             sampled_at_ms: timestamp_ms,
             primary: adapter.used_percent,
             secondary: None,
+            gap_before: false,
         });
         self.reading = MetricReading::ready(
             GpuUsage {
@@ -58,6 +59,7 @@ impl GpuDeviceHistory {
                         sampled_at_ms: timestamp_ms,
                         primary,
                         secondary: None,
+                        gap_before: false,
                     });
                 }
             }

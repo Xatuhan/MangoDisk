@@ -132,7 +132,7 @@ pub(super) unsafe extern "system" fn procedure(
                 let id = column.id;
                 tauri::async_runtime::spawn(async move {
                     if let Err(error) =
-                        panel::toggle_from(&app, &format!("taskbar-{}", id.tray_id()), id.metric())
+                        panel::toggle_from(&app, &format!("taskbar-{}", id.tray_id()), id.page())
                     {
                         crate::resident::diagnostics::Failure::record(
                             "taskbar_panel_entry",

@@ -3,7 +3,7 @@ import type { ResourceReadings, MetricReading } from '@/lib/models/system-resour
 export function emptyReadings(): ResourceReadings {
   const empty = <T>(): MetricReading<T> => ({ status: 'loading', sampledAtMs: null, value: null });
   return {
-    schemaVersion: 33,
+    schemaVersion: 35,
     observedAtMs: 0,
     cpu: empty(),
     cpuIdentity: null,
@@ -13,6 +13,8 @@ export function emptyReadings(): ResourceReadings {
     gpuTemperature: empty(),
     gpuTemperatureHistory: [],
     batteryPresent: null,
+    batteryDetails: { status: 'loading', value: null, sampledAtMs: null },
+    systemPowerHistory: [],
     batteryTemperature: empty(),
     chargingPower: empty(),
     batteryPower: empty(),

@@ -6,18 +6,19 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n';
 
 import MdIcon from '@/components/icons/md-icon.vue';
+import MdTooltip from '@/components/custom/md-tooltip.vue';
 import MdMainShortcut from './components/md-main-shortcut.vue';
 import { OperatingSystemService } from '@/lib/services/settings/operating-system-service';
-import { type MetricId } from '@/lib/models/system-resources/system-resources';
 import MdResourceOverview from './components/md-resource-overview.vue';
 import MdCpuDetails from './components/md-cpu-details.vue';
+import MdPowerDetails from './components/md-power-details.vue';
 import MdDiskDetails from './components/md-disk-details.vue';
 import MdNetworkDetails from './components/md-network-details.vue';
 import MdGpuDetails from './components/md-gpu-details.vue';
 import MdMemoryOverview from './components/md-memory-overview.vue';
 import MdApplicationResourceList from './components/md-application-resource-list.vue';
 import { ICON_NAMES } from '@/lib/models/presentation/ui';
-import type { ResidentDestination } from '@/lib/models/resident/resident';
+import type { ResidentDestination, ResidentPanelPage } from '@/lib/models/resident/resident';
 import { ResidentService } from '@/lib/services/resident/resident-service';
 import { useTrayPanelStore } from '@/stores/tray-panel-store';
 import { useResidentSettingsStore } from '@/stores/resident-settings-store';
@@ -68,17 +69,36 @@ const panel = ref<HTMLElement | null>(null);
 // Native visibility controls rendering: Windows can reveal an unfocused popup,
 // and hiding it does not consistently update document.hidden in WebView2.
 const panelVisible = ref(false);
-// Overview is a panel page, not another sampled metric.
-const overviewSelected = ref(false);
 const selectedTab = computed(() =>
-  overviewSelected.value ||
-  (OperatingSystemService.isLinux() && store.selectedMetric !== 'cpu' && store.selectedMetric !== 'memory')
-    ? 'overview'
-    : store.selectedMetric
+  store.selectedPage === 'power' && store.reading.batteryPresent === false
+    ? 'cpu'
+    : OperatingSystemService.isLinux() && store.selectedPage !== 'cpu' && store.selectedPage !== 'memory'
+      ? 'overview'
+      : store.selectedPage
 );
-const tabs: readonly ('overview' | MetricId)[] = OperatingSystemService.isLinux()
-  ? ['overview', 'cpu', 'memory']
-  : ['overview', 'cpu', 'gpu', 'memory', 'disk', 'network'];
+const tabs = computed<readonly ResidentPanelPage[]>(() =>
+  OperatingSystemService.isLinux()
+    ? ['overview', 'cpu', 'memory']
+    : (['overview', 'cpu', 'gpu', 'memory', 'disk', 'network', 'power'] as const).filter(
+        page => page !== 'power' || store.reading.batteryPresent !== false
+      )
+);
+const TAB_DESCRIPTION_KEYS: Record<ResidentPanelPage, string> = {
+  overview: 'systemStatus.overview',
+  cpu: 'systemStatus.cpu',
+  gpu: 'systemStatus.gpu',
+  memory: 'systemStatus.memory',
+  disk: 'systemStatus.disk',
+  network: 'systemStatus.network',
+  power: 'power.title',
+};
+function tabLabel(tab: ResidentPanelPage): string {
+  return t(tab === 'cpu' ? 'systemStatus.cpuShort' : TAB_DESCRIPTION_KEYS[tab]);
+}
+function tabHint(tab: ResidentPanelPage): string | undefined {
+  const description = t(TAB_DESCRIPTION_KEYS[tab]);
+  return description === tabLabel(tab) ? undefined : description;
+}
 // Group activity trends before capacity readings without changing native display order.
 const overviewMetrics = OperatingSystemService.isLinux()
   ? (['cpu', 'memory', 'disk', 'network'] as const)
@@ -112,18 +132,27 @@ async function act(action: () => Promise<void>) {
   }
 }
 let metricRevision = 0;
-function selectMetric(metric: MetricId) {
+function selectPage(page: ResidentPanelPage) {
   metricRevision += 1;
-  overviewSelected.value = false;
-  store.selectedMetric = metric;
-  void act(() => ResidentService.selectMetric(metric));
+  store.selectedPage = page;
+  void act(() => ResidentService.selectPanelPage(page));
 }
-function selectTab(tab: (typeof tabs)[number]) {
-  selectMetric(tab === 'overview' ? 'network' : tab);
-  overviewSelected.value = tab === 'overview';
+// Synchronize native demand as well as rendering when presence arrives after navigation.
+watch(
+  [() => store.selectedPage, () => store.reading.batteryPresent],
+  ([page, present]) => {
+    if (page !== 'power' || present !== false) return;
+    const restoreFocus = document.activeElement?.closest('#metric-tab-power, [aria-labelledby="metric-tab-power"]');
+    selectPage('cpu');
+    if (restoreFocus) void nextTick(() => document.getElementById('metric-tab-cpu')?.focus());
+  },
+  { immediate: true }
+);
+function selectTab(tab: ResidentPanelPage) {
+  selectPage(tab);
 }
 function moveTab(direction: number) {
-  const next = tabs[(tabs.indexOf(selectedTab.value) + direction + tabs.length) % tabs.length]!;
+  const next = tabs.value[(tabs.value.indexOf(selectedTab.value) + direction + tabs.value.length) % tabs.value.length]!;
   selectTab(next);
   void nextTick(() => document.getElementById(`metric-tab-${next}`)?.focus());
 }
@@ -156,11 +185,10 @@ async function connect() {
         })
       );
       pending.push(
-        await ResidentService.onPanelMetric(metric => {
+        await ResidentService.onPanelPage(metric => {
           if (!disposed) {
             metricRevision += 1;
-            overviewSelected.value = false;
-            store.selectedMetric = metric;
+            store.selectedPage = metric;
           }
         })
       );
@@ -231,8 +259,8 @@ onMounted(() => {
       if (!disposed)
         return Promise.all([
           store.load(),
-          ResidentService.panelMetric().then(metric => {
-            if (!disposed && initialRevision === metricRevision) store.selectedMetric = metric;
+          ResidentService.panelPage().then(metric => {
+            if (!disposed && initialRevision === metricRevision) store.selectedPage = metric;
           }),
         ]);
     })
@@ -251,37 +279,33 @@ onBeforeUnmount(() => {
   <main ref="panel" class="monitor-panel" tabindex="-1" :aria-label="t('monitoring.title')">
     <div class="monitor-body">
       <div class="resource-header">
-        <div class="resource-tabs scrollbar-hidden" role="tablist" :aria-label="t('systemStatus.details')">
-          <button
-            v-for="tab in tabs"
-            :id="`metric-tab-${tab}`"
-            :key="tab"
-            role="tab"
-            :aria-selected="selectedTab === tab"
-            aria-controls="metric-details"
-            :tabindex="selectedTab === tab ? 0 : -1"
-            @click="selectTab(tab)"
-            @keydown.right.prevent="moveTab(1)"
-            @keydown.left.prevent="moveTab(-1)"
-          >
-            {{
-              t(
-                tab === 'overview'
-                  ? 'systemStatus.overview'
-                  : tab === 'cpu'
-                    ? 'systemStatus.cpu'
-                    : tab === 'gpu'
-                      ? 'systemStatus.gpu'
-                      : tab === 'memory'
-                        ? 'systemStatus.memory'
-                        : tab === 'disk'
-                          ? 'systemStatus.disk'
-                          : 'systemStatus.network'
-              )
-            }}
-          </button>
+        <div class="resource-tabs" role="tablist" :aria-label="t('systemStatus.details')">
+          <MdTooltip v-for="tab in tabs" :key="tab" :text="tabHint(tab)" :active="panelVisible">
+            <button
+              :id="`metric-tab-${tab}`"
+              role="tab"
+              :aria-label="t(TAB_DESCRIPTION_KEYS[tab])"
+              :aria-selected="selectedTab === tab"
+              aria-controls="metric-details"
+              :tabindex="selectedTab === tab ? 0 : -1"
+              @click="selectTab(tab)"
+              @keydown.right.prevent="moveTab(1)"
+              @keydown.left.prevent="moveTab(-1)"
+            >
+              {{ tabLabel(tab) }}
+            </button>
+          </MdTooltip>
         </div>
       </div>
+      <MdPowerDetails
+        v-if="selectedTab === 'power'"
+        id="metric-details"
+        role="tabpanel"
+        aria-labelledby="metric-tab-power"
+        :reading="store.reading"
+        :active="panelVisible"
+        :system-power-supported="OperatingSystemService.isMacOs()"
+      />
       <section
         v-if="selectedTab === 'overview'"
         id="metric-details"
@@ -356,7 +380,7 @@ onBeforeUnmount(() => {
         />
       </section>
       <section
-        v-if="store.selectedMetric === 'memory'"
+        v-if="store.selectedPage === 'memory'"
         id="metric-details"
         class="resource-details"
         role="tabpanel"
@@ -459,15 +483,16 @@ onBeforeUnmount(() => {
 .resource-tabs {
   display: flex;
   justify-content: flex-start;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
-  height: 28px;
+  min-height: 28px;
 }
 .resource-tabs button {
   @apply text-muted-foreground;
   position: relative;
+  min-height: 28px;
   padding: 0 0 4px;
   flex: none;
   white-space: nowrap;

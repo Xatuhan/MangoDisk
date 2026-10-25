@@ -100,20 +100,24 @@ const maximumLocaleGzipBytes = 60 * 1024;
 // raw bytes are 317632/319561/328019/341379/412291; gzip is
 // 65964/63826/65388/64874/73191 (ko/pt/tr: 62321/62893/61593).
 // Extend only measured locale allowances; application chunk limits stay fixed.
+// Power-page labels add measured locale raw/gzip bytes:
+// de-de=320766/66628; es-es=322822/64402; fr-fr=331367/66022; ja-jp=344794/65481.
+// ko-kr=315083/62941; pt-br=316114/63450; ru-ru=416577/73979; tr-tr=310045/62193.
+// Extend only affected locale allowances; application budgets stay fixed.
 const localeChunkLimitOverrides = new Map([
   // SystemTemp and administrator restart add six strings per locale. Measured
   // de/es/fr/ja/ko/pt/ru raw sizes: 318229/320136/328638/342040/312385/313458/413113.
   // The shared elevation notice adds three strings. Largest measured raw/gzip
   // sizes are 413453/73385 (ru); allow only 64 gzip bytes and 128–256 raw bytes
   // above the previous locale budgets. Application budgets stay fixed.
-  ['fr-fr', { bytes: 328896, gzipBytes: 65568 }],
-  ['de-de', { bytes: 318464, gzipBytes: 66176 }],
-  ['es-es', { bytes: 320512, gzipBytes: 64000 }],
-  ['pt-br', { bytes: 313728, gzipBytes: 63072 }],
-  ['ko-kr', { bytes: 312640, gzipBytes: 62528 }],
-  ['ja-jp', { bytes: 342400, gzipBytes: 65056 }],
-  ['ru-ru', { bytes: 413504, gzipBytes: 73408 }],
-  ['tr-tr', { bytes: 311296, gzipBytes: 61760 }],
+  ['fr-fr', { bytes: 331392, gzipBytes: 66304 }],
+  ['de-de', { bytes: 320768, gzipBytes: 66944 }],
+  ['es-es', { bytes: 322944, gzipBytes: 64768 }],
+  ['pt-br', { bytes: 316160, gzipBytes: 63808 }],
+  ['ko-kr', { bytes: 315136, gzipBytes: 62976 }],
+  ['ja-jp', { bytes: 344832, gzipBytes: 65536 }],
+  ['ru-ru', { bytes: 416640, gzipBytes: 74560 }],
+  ['tr-tr', { bytes: 311296, gzipBytes: 62464 }],
 ]);
 
 function fail(message) {

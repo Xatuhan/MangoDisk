@@ -272,6 +272,11 @@ impl Reader {
                 capabilities: details.Capabilities,
                 power_state: status.map(|status| status.PowerState),
                 rate: status.map(|status| status.Rate),
+                current_capacity: status.map(|status| status.Capacity),
+                full_capacity: Some(details.FullChargedCapacity),
+                design_capacity: Some(details.DesignedCapacity),
+                cycle_count: Some(details.CycleCount),
+                voltage_mv: status.map(|status| status.Voltage),
             });
         }
         let capabilities = format!("batteries={} temperature_readings={} relative_units={} unknown_rates={} status_unavailable={}",
@@ -285,6 +290,46 @@ impl Reader {
             );
             self.capabilities = Some(capabilities);
         }
-        windows_values::sample(&values)
+        let mut sample = windows_values::sample(&values)?;
+        let mut status = SYSTEM_POWER_STATUS::default();
+        if unsafe { GetSystemPowerStatus(&mut status) } != 0 {
+            if let Some(details) = &mut sample.details {
+                windows_values::apply_system_status(
+                    details,
+                    status.BatteryLifePercent,
+                    status.BatteryLifeTime,
+                );
+            }
+        }
+        Ok(sample)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires a Windows battery driver; compares native power status"]
+    fn native_battery_details_match_the_system_percentage() {
+        let mut status = SYSTEM_POWER_STATUS::default();
+        assert_ne!(unsafe { GetSystemPowerStatus(&mut status) }, 0);
+        if status.BatteryFlag & 128 != 0 || status.BatteryFlag == 255 {
+            println!("battery_native_check outcome=no_known_battery");
+            return;
+        }
+        let mut reader = Reader::default();
+        let sample = reader
+            .read()
+            .expect("a known battery must expose basic power details");
+        let details = sample.details.expect("battery details must be present");
+        if status.BatteryLifePercent <= 100 {
+            let actual = details
+                .charge_percent
+                .expect("system percentage must be retained");
+            assert!((actual - f64::from(status.BatteryLifePercent)).abs() <= 1.0);
+        }
+        println!("battery_native_check charge_percent={:?} state={:?} capacity_available={} power_available={}",
+            details.charge_percent, details.charge_state, details.capacity.is_some(), sample.battery_power.is_some());
     }
 }

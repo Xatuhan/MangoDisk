@@ -88,9 +88,9 @@ pub fn panel_position(
     ))
 }
 
-pub fn toggle_metric(
+pub fn toggle_page(
     app: &tauri::AppHandle,
-    metric: mangodisk_core::system_resources::metrics::MetricId,
+    page: crate::resident::panel_page::PanelPage,
 ) -> tauri::Result<()> {
     if app
         .state::<Arc<ResidentState>>()
@@ -102,5 +102,5 @@ pub fn toggle_metric(
     {
         return Ok(());
     }
-    crate::resident::panel::toggle_metric_from(app, LABEL, metric)
+    crate::resident::panel::toggle_page_from(app, LABEL, page)
 }

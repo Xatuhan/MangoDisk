@@ -12,6 +12,9 @@ use core_foundation::{
     string::{CFString, CFStringRef},
 };
 
+mod details;
+mod power_source;
+
 #[link(name = "IOKit", kind = "framework")]
 unsafe extern "C" {
     fn IOServiceMatching(name: *const std::ffi::c_char) -> CFMutableDictionaryRef;
@@ -190,8 +193,15 @@ impl Reader {
                 )
             })
             .unwrap_or((None, None));
+        let adapter_watts = if battery.boolean("ExternalConnected") == Some(true) {
+            self.smc_value(*b"PDTR", &mut smc_failure)
+        } else {
+            None
+        };
+        let details = details::read(&battery, adapter_watts);
         self.observe_smc(smc_failure);
         Ok(BatterySample {
+            details: Some(details),
             temperature,
             charging_power,
             battery_power,
@@ -262,6 +272,98 @@ fn battery_power(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "requires a physical Mac battery and pmset"]
+    fn native_charge_and_time_match_the_system_power_source() {
+        let output = std::process::Command::new("/usr/bin/pmset")
+            .args(["-g", "batt"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let output = String::from_utf8(output.stdout).unwrap();
+        let percent = output
+            .split('%')
+            .next()
+            .unwrap()
+            .split_whitespace()
+            .last()
+            .unwrap()
+            .parse::<f64>()
+            .unwrap();
+        let details = Reader::default().read().unwrap().details.unwrap();
+        assert!(
+            (details.charge_percent.unwrap() - percent).abs() <= 1.0,
+            "system_percent={percent} sample_percent={:?}",
+            details.charge_percent
+        );
+        if output.contains("discharging") {
+            let remaining = output
+                .split(';')
+                .nth(2)
+                .unwrap()
+                .split_whitespace()
+                .next()
+                .unwrap();
+            if let Some((hours, minutes)) = remaining.split_once(':') {
+                let seconds =
+                    hours.parse::<u64>().unwrap() * 3600 + minutes.parse::<u64>().unwrap() * 60;
+                assert!(
+                    details
+                        .seconds_to_empty
+                        .is_some_and(|value| value.abs_diff(seconds) <= 60),
+                    "system_remaining_seconds={seconds} sample_remaining_seconds={:?}",
+                    details.seconds_to_empty
+                );
+            }
+        }
+        println!("system_battery_details={details:?}");
+    }
+    #[test]
+    #[ignore = "requires a physical Mac battery; measures native collection latency"]
+    fn native_power_details_match_registry_and_fit_the_sampling_interval() {
+        use std::time::Instant;
+        let output = std::process::Command::new("/usr/sbin/ioreg")
+            .args(["-r", "-c", "AppleSmartBattery", "-a"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let registry = plist::Value::from_reader(std::io::Cursor::new(output.stdout)).unwrap();
+        let properties = registry.as_array().unwrap()[0].as_dictionary().unwrap();
+        let mut reader = Reader::default();
+        let mut elapsed = Vec::new();
+        for _ in 0..100 {
+            let start = Instant::now();
+            let sample = reader.read().unwrap();
+            elapsed.push(start.elapsed().as_micros());
+            let details = sample.details.unwrap();
+            assert_eq!(
+                details.cycle_count.map(u64::from),
+                properties
+                    .get("CycleCount")
+                    .and_then(plist::Value::as_unsigned_integer)
+            );
+            assert_eq!(
+                details.capacity.unwrap().design.map(|value| value as u64),
+                properties
+                    .get("DesignCapacity")
+                    .and_then(plist::Value::as_unsigned_integer)
+            );
+            assert!(details
+                .charge_percent
+                .is_some_and(|value| (0.0..=100.0).contains(&value)));
+            assert!(details.seconds_to_full.is_none_or(|value| value <= 604800));
+        }
+        elapsed.sort_unstable();
+        println!(
+            "battery_native_samples=100 p50_us={} p95_us={} max_us={}",
+            elapsed[50], elapsed[95], elapsed[99]
+        );
+        assert!(
+            elapsed[95] < 200_000,
+            "collection must leave most of the two-second interval idle"
+        );
+    }
+
     #[test]
     #[ignore = "requires macOS IOKit and ioreg"]
     fn native_battery_presence_matches_an_independent_registry_query() {

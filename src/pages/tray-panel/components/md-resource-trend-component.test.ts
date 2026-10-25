@@ -12,6 +12,59 @@ afterEach(() => {
 });
 
 describe('resource trend rendering', () => {
+  it('does not bridge a failed power reading followed by a quick retry', () => {
+    const recovered = { ...point(59500), gapBefore: true };
+    const wrapper = mount(Trend, {
+      props: {
+        metric: 'power',
+        label: 'System power',
+        active: false,
+        observedAtMs: 60000,
+        history: [point(59000), recovered, point(60000)],
+      },
+    });
+    expect(wrapper.get('path[stroke]').attributes('d')!.match(/M/g)).toHaveLength(2);
+    wrapper.unmount();
+  });
+
+  it('keeps real power sampling outages blank after a failed sample or sleep', () => {
+    const wrapper = mount(Trend, {
+      props: {
+        metric: 'power',
+        label: 'System power',
+        active: false,
+        observedAtMs: 60000,
+        history: [point(38000), point(40000), point(44000), point(46000), point(60000)],
+      },
+    });
+    // The missing 42s sample and the later sleep gap must remain separate.
+    expect(wrapper.get('path[stroke]').attributes('d')!.match(/M/g)).toHaveLength(3);
+    wrapper.unmount();
+  });
+
+  it('uses a watt range above 100 without clipping or adding a negative channel', () => {
+    const wrapper = mount(Trend, {
+      props: {
+        metric: 'power',
+        label: 'System power',
+        active: false,
+        observedAtMs: 60000,
+        history: [{ sampledAtMs: 60000, primary: 500, secondary: null }],
+      },
+    });
+    expect(wrapper.classes()).not.toContain('bidirectional');
+    expect(wrapper.findAll('path[stroke]')).toHaveLength(1);
+    const ordinate = Number(
+      wrapper
+        .get('path[stroke]')
+        .attributes('d')!
+        .match(/^M[^,]+,([\d.]+)/)?.[1]
+    );
+    expect(ordinate).toBeCloseTo(98 - (500 / 512) * 96);
+    expect(wrapper.get('svg > g').attributes('transform')).toContain('translate(0 100)');
+    wrapper.unmount();
+  });
+
   it.each([
     [0, 100],
     [100, 100],
@@ -96,14 +149,14 @@ describe('resource trend rendering', () => {
     wrapper.unmount();
   });
 
-  it('cancels native-hidden animation and resumes from updated history', async () => {
+  it.each(['cpu', 'power'] as const)('cancels hidden %s animation and resumes continuous history', async metric => {
     const request = vi.fn(() => 1);
     const cancel = vi.fn();
     vi.stubGlobal('requestAnimationFrame', request);
     vi.stubGlobal('cancelAnimationFrame', cancel);
     vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
     const wrapper = mount(Trend, {
-      props: { metric: 'cpu', label: 'CPU', active: false, observedAtMs: 60000, history: [point(58000), point(60000)] },
+      props: { metric, label: metric, active: false, observedAtMs: 60000, history: [point(58000), point(60000)] },
     });
     await nextTick();
     expect(request).not.toHaveBeenCalled();
@@ -120,6 +173,7 @@ describe('resource trend rendering', () => {
     await nextTick();
     expect(request).toHaveBeenCalledOnce();
     expect(wrapper.get('path[stroke]').attributes('d')).not.toContain('NaN');
+    expect(wrapper.get('path[stroke]').attributes('d')!.match(/M/g)).toHaveLength(1);
     wrapper.unmount();
   });
 

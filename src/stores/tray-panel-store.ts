@@ -2,7 +2,7 @@ import { PreferenceStorageService } from '@/lib/services/settings/preference-sto
 import { defaultResourceSort, parseResourceSort } from '@/lib/utils/system-resources/application-resource-list';
 import type { ResourceMetric, ResourceSort } from '@/lib/models/system-resources/application-resource-list';
 import { emptyReadings, retainSampleValue } from '@/lib/utils/system-resources/system-resources';
-import type { MetricId } from '@/lib/models/system-resources/system-resources';
+import type { ResidentPanelPage } from '@/lib/models/resident/resident';
 import { defineStore } from 'pinia';
 
 import type { MemoryReleaseResult, ResidentReading } from '@/lib/models/resident/resident';
@@ -12,7 +12,7 @@ import { LoggerService } from '@/lib/services/diagnostics/logger-service';
 export const useTrayPanelStore = defineStore('tray-panel', {
   state: () => ({
     reading: { revision: 0, ...emptyReadings() } as ResidentReading,
-    selectedMetric: 'cpu' as MetricId,
+    selectedPage: 'cpu' as ResidentPanelPage,
     sortPreferences: defaultResourceSort(),
     sortRevision: { cpu: 0, memory: 0 },
     sortLoading: null as Promise<void> | null,
@@ -74,7 +74,7 @@ export const useTrayPanelStore = defineStore('tray-panel', {
     accept(reading: ResidentReading) {
       // A cached IPC response can arrive after a newer native event. Never move
       // backwards or show an incompatible protocol as a plausible measurement.
-      if (reading.schemaVersion !== 33 || (reading.memory.value && reading.memory.value.schemaVersion !== 4)) {
+      if (reading.schemaVersion !== 35 || (reading.memory.value && reading.memory.value.schemaVersion !== 4)) {
         this.error = true;
         return;
       }

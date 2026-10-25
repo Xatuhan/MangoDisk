@@ -1,5 +1,6 @@
 //! Desktop demand policy derived from committed preferences and panel visibility.
 use super::ResidentState;
+use crate::resident::panel_page::PanelPage;
 use crate::resident::{preference_schema::DisplayMetricId, sampling_schedule::Demand};
 use mangodisk_core::system_resources::metrics::MetricId;
 use std::sync::atomic::Ordering;
@@ -17,7 +18,7 @@ impl ResidentState {
 
     pub(super) fn cpu_processes_visible(&self) -> bool {
         self.panel_open.load(Ordering::Relaxed)
-            && *self.panel_metric.lock().unwrap_or_else(|e| e.into_inner()) == MetricId::Cpu
+            && *self.panel_page.lock().unwrap_or_else(|e| e.into_inner()) == PanelPage::Cpu
     }
 
     pub(super) fn demands(&self, warm_icons: bool) -> [Demand; 5] {
@@ -26,10 +27,12 @@ impl ResidentState {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         let panel_open = self.panel_open.load(Ordering::Relaxed);
-        let selected = *self
-            .panel_metric
+        let page = *self
+            .panel_page
             .lock()
             .unwrap_or_else(|error| error.into_inner());
+        let selected = page.metric();
+        let power_page = panel_open && page == PanelPage::Power;
         let catalogue = self.catalogue.load(Ordering::Relaxed);
         // Keep usage and temperature histories continuous while resident monitoring
         // is enabled. Display choices and panel visibility only affect presentation.
@@ -44,26 +47,28 @@ impl ResidentState {
         MetricId::ALL.map(|metric| Demand {
             frequency: metric == MetricId::Cpu
                 && preferences.enabled
-                && (preferences.shows_cpu_frequency() || (panel_open && selected == MetricId::Cpu)),
+                && (preferences.shows_cpu_frequency()
+                    || (panel_open && selected == Some(MetricId::Cpu))),
             fan_speed: ((cfg!(target_os = "macos") && metric == MetricId::Cpu)
                 || (cfg!(windows) && metric == MetricId::Gpu))
                 && preferences.enabled
                 && preferences.shows_fan_speed(),
+            // Keep the minute of power history independent of popup lifetime.
+            // The existing auxiliary worker retains its two-second cadence.
             system_power: DisplayMetricId::SystemPower.supported_on_platform()
                 && metric == MetricId::Cpu
-                && preferences.enabled
-                && preferences.shows_system_power(),
+                && preferences.enabled,
             battery: DisplayMetricId::BatteryPower.supported_on_platform()
                 && metric == MetricId::Cpu
                 && preferences.enabled
-                && preferences.shows_battery(),
+                && (preferences.shows_battery() || power_page),
             temperature: (preferences.enabled
                 && metric == MetricId::Disk
                 && DisplayMetricId::DiskTemperature.supported_on_platform()
                 && (preferences.shows_disk_temperature()
                     || (cfg!(any(target_os = "macos", windows))
                         && panel_open
-                        && selected == MetricId::Disk)))
+                        && selected == Some(MetricId::Disk))))
                 || (temperature_sampling && metric == MetricId::Cpu)
                 || (gpu_sampling
                     && cfg!(any(target_os = "macos", windows))
@@ -76,10 +81,10 @@ impl ResidentState {
                 || (metric == MetricId::Gpu && catalogue & 4 != 0),
             detailed: preferences.enabled
                 && ((metric == MetricId::Memory
-                    && ((panel_open && selected == metric) || warm_icons))
+                    && ((panel_open && selected == Some(metric)) || warm_icons))
                     || (matches!(metric, MetricId::Cpu | MetricId::Gpu | MetricId::Disk)
                         && panel_open
-                        && selected == metric)),
+                        && selected == Some(metric))),
             catalogue_only: metric == MetricId::Gpu && !gpu_sampling,
             temperature_device: (metric == MetricId::Disk)
                 .then(|| preferences.disk_temperature_device.clone())

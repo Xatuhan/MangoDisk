@@ -2,6 +2,8 @@
 use crate::PlatformResult;
 use serde::Serialize;
 
+pub mod details;
+
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(windows)]
@@ -106,6 +108,7 @@ pub struct BatteryPower {
     pub source: BatterySource,
 }
 pub struct BatterySample {
+    pub details: Option<details::BatteryDetails>,
     pub temperature: Option<BatteryTemperature>,
     pub charging_power: Option<ChargingPower>,
     pub battery_power: Option<BatteryPower>,

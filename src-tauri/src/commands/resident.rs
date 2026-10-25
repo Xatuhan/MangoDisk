@@ -1,10 +1,10 @@
-use mangodisk_core::system_resources::metrics::MetricId;
 use std::sync::Arc;
 use tauri::Manager;
 
 use super::error::{into_command_result, CommandResult};
 use crate::resident::{
     self,
+    panel_page::PanelPage,
     preferences::ResidentPreferences,
     runtime::{ResidentReading, ResidentState},
 };
@@ -44,22 +44,22 @@ pub fn resident_get_catalogue(
 }
 
 #[tauri::command]
-pub fn resident_get_panel_metric(
+pub fn resident_get_panel_page(
     state: tauri::State<'_, Arc<ResidentState>>,
-) -> CommandResult<MetricId> {
+) -> CommandResult<resident::panel_page::PanelPage> {
     into_command_result(
-        "resident_get_panel_metric",
+        "resident_get_panel_page",
         state
-            .panel_metric
+            .panel_page
             .lock()
             .map(|value| *value)
-            .map_err(|_| "panel metric unavailable"),
+            .map_err(|_| "panel page unavailable"),
     )
 }
 
 #[tauri::command]
-pub fn resident_select_metric(app: tauri::AppHandle, metric: MetricId) {
-    resident::panel::set_metric(&app, metric);
+pub fn resident_select_panel_page(app: tauri::AppHandle, page: resident::panel_page::PanelPage) {
+    resident::panel::set_page(&app, page);
 }
 
 #[tauri::command]
@@ -284,15 +284,15 @@ pub async fn resident_floating_drag(window: tauri::WebviewWindow) -> CommandResu
 }
 
 #[tauri::command]
-pub async fn resident_floating_metric(
+pub async fn resident_floating_page(
     window: tauri::WebviewWindow,
-    metric: MetricId,
+    page: PanelPage,
 ) -> CommandResult<()> {
     if window.label() != resident::floating_monitor::LABEL {
         return Ok(());
     }
     into_command_result(
-        "resident_floating_metric",
-        resident::floating_monitor::toggle_metric(window.app_handle(), metric),
+        "resident_floating_page",
+        resident::floating_monitor::toggle_page(window.app_handle(), page),
     )
 }

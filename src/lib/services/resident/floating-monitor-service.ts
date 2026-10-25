@@ -7,7 +7,7 @@ import type {
   FloatingSnapshot,
 } from '@/lib/models/resident/floating-monitor';
 import type { FloatingTypography } from '@/lib/models/resident/floating-appearance';
-import type { MetricId } from '@/lib/models/system-resources/system-resources';
+import type { ResidentPanelPage } from '@/lib/models/resident/resident';
 
 export class FloatingMonitorService {
   static onAppearanceChanged(callback: () => void): Promise<() => void> {
@@ -31,7 +31,7 @@ export class FloatingMonitorService {
   static drag(): Promise<void> {
     return invoke('resident_floating_drag');
   }
-  static toggleMetric(metric: MetricId): Promise<void> {
-    return invoke('resident_floating_metric', { metric });
+  static togglePage(page: ResidentPanelPage): Promise<void> {
+    return invoke('resident_floating_page', { page });
   }
 }

@@ -33,13 +33,13 @@ describe('floating monitor transport', () => {
     await FloatingMonitorService.ready();
     await FloatingMonitorService.layout(null, { fontSize: 'standard', bold: false });
     await FloatingMonitorService.menu();
-    await FloatingMonitorService.toggleMetric('memory');
+    await FloatingMonitorService.togglePage('memory');
     await FloatingMonitorService.drag();
     expect(native.invoke.mock.calls).toEqual([
       ['resident_floating_ready'],
       ['resident_floating_layout', { measurement: { items: null, fontSize: 'standard', bold: false } }],
       ['resident_floating_menu'],
-      ['resident_floating_metric', { metric: 'memory' }],
+      ['resident_floating_page', { page: 'memory' }],
       ['resident_floating_drag'],
     ]);
   });

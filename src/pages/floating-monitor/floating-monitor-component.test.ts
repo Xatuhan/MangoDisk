@@ -14,7 +14,7 @@ const native = vi.hoisted(() => ({
   onAppearanceChanged: vi.fn(),
   menu: vi.fn(),
   drag: vi.fn(),
-  toggleMetric: vi.fn(),
+  togglePage: vi.fn(),
 }));
 vi.mock('@/lib/services/resident/floating-monitor-service', () => ({ FloatingMonitorService: native }));
 vi.mock('@/lib/services/resident/floating-layout-service', () => ({
@@ -97,7 +97,7 @@ beforeEach(() => {
   native.onAppearanceChanged.mockResolvedValue(vi.fn());
   native.drag.mockResolvedValue(undefined);
   native.menu.mockResolvedValue(undefined);
-  native.toggleMetric.mockResolvedValue(undefined);
+  native.togglePage.mockResolvedValue(undefined);
 });
 afterEach(() => {
   wrappers.splice(0).forEach(wrapper => wrapper.unmount());
@@ -157,7 +157,7 @@ describe('floating monitor interaction and lifecycle', () => {
     await wrapper.get('[data-metric="cpu"]').trigger('click');
     await wrapper.get('main').trigger('contextmenu');
     await wrapper.get('main').trigger('keydown', { key: 'F10', shiftKey: true });
-    expect(native.toggleMetric).not.toHaveBeenCalled();
+    expect(native.togglePage).not.toHaveBeenCalled();
     expect(native.menu).toHaveBeenCalledTimes(2);
     for (const digits of ['0', '9', '100', '—']) {
       accept({ ...value, entries: value.entries.map(entry => (entry.id === 'cpu' ? { ...entry, digits } : entry)) });
@@ -184,7 +184,7 @@ describe('floating monitor interaction and lifecycle', () => {
     await metric.trigger('click', { detail: 1 });
     expect(native.drag).toHaveBeenCalledOnce();
     expect(native.menu).toHaveBeenCalledOnce();
-    expect(native.toggleMetric).not.toHaveBeenCalled();
+    expect(native.togglePage).not.toHaveBeenCalled();
     accept({ ...snapshot(), interactive: false, contextMenu: false });
     await flushPromises();
     await surface.trigger('contextmenu');
@@ -211,7 +211,7 @@ describe('floating monitor interaction and lifecycle', () => {
     await flushPromises();
     await surface.trigger('pointerdown', { button: 2 });
     expect(surface.attributes('data-keyboard-focus')).toBe('false');
-    expect(native.toggleMetric).not.toHaveBeenCalled();
+    expect(native.togglePage).not.toHaveBeenCalled();
   });
   it('opens only the context menu when macOS has no selected metrics', async () => {
     native.ready.mockResolvedValue({ ...snapshot(), interactive: false, entries: [] });
@@ -221,7 +221,7 @@ describe('floating monitor interaction and lifecycle', () => {
     expect(native.menu).not.toHaveBeenCalled();
     await wrapper.get('.empty-state').trigger('contextmenu');
     expect(native.menu).toHaveBeenCalledOnce();
-    expect(native.toggleMetric).not.toHaveBeenCalled();
+    expect(native.togglePage).not.toHaveBeenCalled();
   });
   it('completes the last horizontal grid row without adding metric buttons or measurements', async () => {
     const wrapper = render();
@@ -383,7 +383,7 @@ describe('floating monitor interaction and lifecycle', () => {
     await metric.trigger('pointermove', { buttons: 1, screenX: 12, screenY: 10 });
     await metric.trigger('pointerup');
     await metric.trigger('click', { detail: 1 });
-    expect(native.toggleMetric).toHaveBeenCalledWith('gpu');
+    expect(native.togglePage).toHaveBeenCalledWith('gpu');
     expect(native.drag).not.toHaveBeenCalled();
     await metric.trigger('pointerdown', { button: 0, pointerId: 1, screenX: 10, screenY: 10 });
     await metric.trigger('pointermove', { buttons: 1, screenX: 16, screenY: 10 });
@@ -391,7 +391,7 @@ describe('floating monitor interaction and lifecycle', () => {
     await metric.trigger('pointerup');
     await metric.trigger('click', { detail: 1 });
     expect(native.drag).toHaveBeenCalledOnce();
-    expect(native.toggleMetric).toHaveBeenCalledOnce();
+    expect(native.togglePage).toHaveBeenCalledOnce();
     await surface.trigger('pointerdown', { button: 0, pointerId: 1, screenX: 20, screenY: 20 });
     await surface.trigger('pointermove', { buttons: 0, screenX: 30, screenY: 20 });
     expect(native.drag).toHaveBeenCalledOnce();
@@ -403,7 +403,7 @@ describe('floating monitor interaction and lifecycle', () => {
     await surface.trigger('pointermove', { buttons: 1, screenX: 20, screenY: 10 });
     expect(native.drag).toHaveBeenCalledOnce();
     await wrapper.get('[data-metric="download"]').trigger('click');
-    expect(native.toggleMetric).toHaveBeenLastCalledWith('network');
+    expect(native.togglePage).toHaveBeenLastCalledWith('network');
     await surface.trigger('contextmenu');
     await surface.trigger('keydown', { key: 'F10', shiftKey: true });
     expect(native.menu).toHaveBeenCalledTimes(2);
@@ -419,7 +419,7 @@ describe('floating monitor interaction and lifecycle', () => {
     expect(wrapper.get('main').attributes('style')).toContain('--floating-background-opacity: 60%');
     expect(wrapper.get('[data-metric="cpu"]').element).toBe(metric);
     await wrapper.get('[data-metric="cpu"]').trigger('click');
-    expect(native.toggleMetric).toHaveBeenCalledWith('cpu');
+    expect(native.togglePage).toHaveBeenCalledWith('cpu');
   });
   it('keeps device labels distinct in a compact multi-GPU group', async () => {
     const value = snapshot();

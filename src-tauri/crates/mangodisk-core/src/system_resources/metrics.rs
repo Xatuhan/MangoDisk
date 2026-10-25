@@ -78,6 +78,15 @@ impl<T> MetricReading<T> {
         }
     }
 
+    /// Retain the last observation after failure or expiry, never after source invalidation.
+    pub(crate) fn mark_unavailable(&mut self, status: MetricStatus) {
+        self.status = status;
+        if !matches!(status, MetricStatus::Failed | MetricStatus::Stale) {
+            self.value = None;
+            self.sampled_at_ms = None;
+        }
+    }
+
     pub fn expire(&mut self, now_ms: u64, lifetime_ms: u64) {
         if self.status == MetricStatus::Ready
             && self.sampled_at_ms.is_some_and(|sampled| {
@@ -101,6 +110,9 @@ pub struct TrendPoint {
     pub sampled_at_ms: u64,
     pub primary: f64,
     pub secondary: Option<f64>,
+    /// A real interruption precedes this sample, independently of retry cadence.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub gap_before: bool,
 }
 
 // The UI plays a buffered minute and needs its offscreen endpoints again after
@@ -173,6 +185,7 @@ mod tests {
             sampled_at_ms: 1000,
             primary: 42.0,
             secondary: None,
+            gap_before: false,
         });
         let first = trend.snapshot(1000);
         assert!(Arc::ptr_eq(&first, &trend.snapshot(2000)));
@@ -180,6 +193,7 @@ mod tests {
             sampled_at_ms: 3000,
             primary: 84.0,
             secondary: None,
+            gap_before: false,
         });
         let second = trend.snapshot(3000);
         assert!(!Arc::ptr_eq(&first, &second));
@@ -202,6 +216,7 @@ mod tests {
                 sampled_at_ms,
                 primary: 1.0,
                 secondary: None,
+                gap_before: false,
             });
         }
         let original = trend.snapshot(2000);
@@ -222,6 +237,7 @@ mod tests {
                 sampled_at_ms,
                 primary: 10.0,
                 secondary: None,
+                gap_before: false,
             });
         }
         let history = trend.snapshot(120_500);
@@ -258,6 +274,7 @@ mod tests {
                 sampled_at_ms,
                 primary: 1.0,
                 secondary: None,
+                gap_before: false,
             });
         }
         assert_eq!(trend.snapshot(500).len(), HISTORY_POINT_LIMIT);
@@ -266,6 +283,7 @@ mod tests {
             sampled_at_ms: 1,
             primary: 2.0,
             secondary: None,
+            gap_before: false,
         });
         assert_eq!(trend.snapshot(1).len(), 1);
     }

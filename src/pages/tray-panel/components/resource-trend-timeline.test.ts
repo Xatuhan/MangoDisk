@@ -3,6 +3,27 @@ import { ResourceTrendTimeline } from './resource-trend-timeline';
 const point = (sampledAtMs: number, primary = 50) => ({ sampledAtMs, primary, secondary: null });
 
 describe('continuous resource timeline', () => {
+  it('preserves explicit interruption metadata across deduplication and reopening', () => {
+    const timeline = new ResourceTrendTimeline();
+    const history = [point(59000), point(59500), point(60000)];
+    timeline.accept(history, 60000, 0, 2000);
+    const first = timeline.points;
+    timeline.accept(
+      history.map(point => ({ ...point, gapBefore: false })),
+      60000,
+      0,
+      2000
+    );
+    expect(timeline.points).toBe(first);
+    const recovered = history.map(point => ({ ...point, gapBefore: point.sampledAtMs === 59500 }));
+    timeline.accept(recovered, 60000, 0, 2000);
+    expect(timeline.points).not.toBe(first);
+    expect(timeline.points[1]!.gapBefore).toBe(true);
+    timeline.reset();
+    timeline.accept(recovered, 60000, 0, 2000);
+    expect(timeline.points[1]!.gapBefore).toBe(true);
+  });
+
   it('keeps sample coordinates stable across deliveries while the shared strip moves', () => {
     const timeline = new ResourceTrendTimeline();
     timeline.accept([point(58_000), point(60_000)], 60_000, 0, 2000);

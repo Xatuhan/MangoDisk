@@ -94,7 +94,8 @@ export class ResourceTrendTimeline {
         return (
           point.sampledAtMs !== previous.sampledAtMs ||
           point.primary !== previous.primary ||
-          point.secondary !== previous.secondary
+          point.secondary !== previous.secondary ||
+          Boolean(point.gapBefore) !== Boolean(previous.gapBefore)
         );
       })
     ) {
