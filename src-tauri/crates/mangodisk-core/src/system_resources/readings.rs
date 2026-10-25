@@ -543,6 +543,7 @@ impl ResourceCache {
                 .is_some_and(|health| health.volume_id != value.volume.id)
             {
                 self.readings.disk_health = MetricReading::default();
+                self.readings.disk_detail_temperature = MetricReading::default();
             }
             self.readings.disk = MetricReading::ready(value, timestamp_ms);
         } else {
@@ -557,7 +558,7 @@ impl ResourceCache {
         >,
         timestamp_ms: u64,
     ) {
-        self.readings.disk_health = match result {
+        match result {
             Ok(value)
                 if !value.volume_id.is_empty()
                     && self
@@ -567,10 +568,11 @@ impl ResourceCache {
                         .as_ref()
                         .is_some_and(|disk| disk.volume.id == value.volume_id) =>
             {
-                MetricReading::ready(value, timestamp_ms)
+                self.readings.disk_health = MetricReading::ready(value, timestamp_ms)
             }
-            result => MetricReading {
-                status: match result {
+            result => {
+                // An unrelated completion cannot be reused as this disk's observation.
+                let status = match result {
                     Err(error)
                         if error.code() == mangodisk_platform::PlatformErrorCode::Unsupported =>
                     {
@@ -581,12 +583,12 @@ impl ResourceCache {
                     {
                         MetricStatus::Disconnected
                     }
-                    _ => MetricStatus::Failed,
-                },
-                sampled_at_ms: None,
-                value: None,
-            },
-        };
+                    Err(_) => MetricStatus::Failed,
+                    Ok(_) => MetricStatus::Disconnected,
+                };
+                self.readings.disk_health.mark_unavailable(status);
+            }
+        }
     }
 
     pub fn clear_disk_temperature(&mut self) {
@@ -669,21 +671,11 @@ impl ResourceCache {
             }
             MetricId::Disk => {
                 self.readings.disk.status = status;
-                self.readings.disk_health = MetricReading {
-                    status,
-                    value: None,
-                    sampled_at_ms: None,
-                };
-                self.readings.disk_temperature = MetricReading {
-                    status,
-                    sampled_at_ms: None,
-                    value: None,
-                };
-                self.readings.disk_detail_temperature = MetricReading {
-                    status,
-                    sampled_at_ms: None,
-                    value: None,
-                };
+                self.readings.disk_health.mark_unavailable(status);
+                self.readings.disk_temperature.mark_unavailable(status);
+                self.readings
+                    .disk_detail_temperature
+                    .mark_unavailable(status);
             }
         }
     }

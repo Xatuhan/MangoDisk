@@ -4053,8 +4053,6 @@
     "topProcesses": "使用率の高いプロセス",
     "processId": "プロセスID：{pid}",
     "loadingApplications": "アプリを読み込み中…",
-    "updatingApplications": "アプリを更新中…",
-    "previousSample": "前回の結果を表示しています",
     "noApplications": "読み取れるアプリ情報がありません",
     "processCount": "{count} プロセス",
     "refresh": "更新",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "指定したGPU",
     "allocatableMemoryHint": "専用容量はシステムが割り当て可能な量で、ハードウェア予約分を除く場合があります\nGPU の合計容量にも影響します",
-    "cachedLabel": "キャッシュ",
-    "cached": "前回のデータを表示中。更新待ち",
     "activities": "エンジン稼働状況",
     "customActivities": "ドライバー独自エンジン",
     "customHint": "GPU 全体の使用率には含めません",
@@ -4369,8 +4365,7 @@
     "average": "平均周波数",
     "efficiency": "高効率コア",
     "performance": "高性能コア",
-    "super": "スーパーコア",
-    "cached": "キャッシュ"
+    "super": "スーパーコア"
   },
   "gpuTemperature": {
     "followUsage": "GPU 使用率の選択に従う",
@@ -4478,8 +4473,7 @@
     "none": "なし",
     "mediaErrors": "メディアエラー",
     "temperature": "温度",
-    "healthPercent": "健全度",
-    "cachedHint": "前回の健康データを表示中\nバックグラウンドで更新しています"
+    "healthPercent": "健全度"
   },
   "networkDetails": {
     "title": "通信量",

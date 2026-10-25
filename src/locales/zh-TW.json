@@ -4053,8 +4053,6 @@
     "topProcesses": "用量最高的程序",
     "processId": "程序 ID：{pid}",
     "loadingApplications": "正在讀取應用程式…",
-    "updatingApplications": "正在更新應用程式…",
-    "previousSample": "顯示上次結果",
     "noApplications": "暫無可讀取的應用程式資料",
     "processCount": "{count} 個程序",
     "refresh": "重新整理",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "指定顯示卡",
     "allocatableMemoryHint": "專用容量為系統可配置量，可能不含硬體保留\nGPU 總容量也受此影響",
-    "cachedLabel": "快取",
-    "cached": "正在顯示上次資料，等待更新",
     "activities": "引擎活動",
     "customActivities": "驅動程式自訂引擎",
     "customHint": "分別顯示，不計入上方 GPU 總使用率",
@@ -4369,8 +4365,7 @@
     "average": "平均頻率",
     "efficiency": "節能核心",
     "performance": "效能核心",
-    "super": "超級核心",
-    "cached": "快取"
+    "super": "超級核心"
   },
   "gpuTemperature": {
     "followUsage": "跟隨 GPU 使用率",
@@ -4478,8 +4473,7 @@
     "none": "無",
     "mediaErrors": "媒體錯誤",
     "temperature": "溫度",
-    "healthPercent": "健康度",
-    "cachedHint": "顯示上次讀取的健康資料\n正在背景更新"
+    "healthPercent": "健康度"
   },
   "networkDetails": {
     "title": "流量",

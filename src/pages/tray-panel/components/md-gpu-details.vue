@@ -89,11 +89,6 @@ const details = computed(() => {
     ? sample.value.details
     : null;
 });
-const cached = computed(
-  () =>
-    value.value &&
-    (summaryReading.value.status !== 'ready' || (details.value && props.reading.gpuDetails.status !== 'ready'))
-);
 const history = computed(() =>
   value.value?.adapterId === props.reading.gpuDetailAdapterId ? props.reading.gpuDetailHistory : []
 );
@@ -105,7 +100,7 @@ const deviceTooltip = computed(() => {
     : selectedId.value
       ? selectedLabel.value
       : `${selectedLabel.value} · ${value.value.adapterName}`;
-  return cached.value ? `${device} · ${t('gpuDetails.cached')} · ${t(METRIC_STATUS_KEYS[cacheStatus.value])}` : device;
+  return readingFailed.value ? `${device} · ${t(METRIC_STATUS_KEYS.failed)}` : device;
 });
 const facts = computed(() => {
   const telemetry = details.value?.telemetry;
@@ -139,9 +134,14 @@ function engineHistory(kind: GpuActivity['kind']) {
 }
 const standard = computed(() => summarizeGpuActivities(details.value?.activities ?? []));
 const custom = computed(() => customGpuActivities(details.value?.activities ?? []));
-const cacheStatus = computed(() =>
-  summaryReading.value.status !== 'ready' ? summaryReading.value.status : props.reading.gpuDetails.status
-);
+const readingFailed = computed(() => {
+  const detail = props.reading.gpuDetails;
+  const detailAdapterId = detail.value?.adapterId ?? props.reading.gpuDetailAdapterId;
+  return (
+    summaryReading.value.status === 'failed' ||
+    (detail.status === 'failed' && detailAdapterId === value.value?.adapterId)
+  );
+});
 const memory = computed(() => (details.value?.memoryStatus === 'ready' ? details.value.memory : null));
 const memoryRows = computed(() => gpuMemoryRows(memory.value));
 const allocatableCapacity = computed(
@@ -208,13 +208,9 @@ onMounted(() => {
           <MdTooltip :active="active" :text="deviceTooltip">
             <span class="device-name">{{ value.adapterName }}</span>
           </MdTooltip>
-          <span
-            v-if="cached"
-            class="cache-notice"
-            role="status"
-            :aria-label="`${t('gpuDetails.cached')} · ${t(METRIC_STATUS_KEYS[cacheStatus])}`"
-            >{{ t('gpuDetails.cachedLabel') }}</span
-          >
+          <span v-if="readingFailed" class="reading-error" role="status" :aria-label="t(METRIC_STATUS_KEYS.failed)">{{
+            t(METRIC_STATUS_KEYS.failed)
+          }}</span>
         </p>
         <p v-else class="detail-note" role="status">
           {{ t(METRIC_STATUS_KEYS[reading.gpuDetails.status === 'ready' ? 'loading' : reading.gpuDetails.status]) }}
@@ -465,7 +461,7 @@ b {
   align-items: center;
   gap: 6px;
 }
-.cache-notice {
+.reading-error {
   @apply rounded bg-muted text-muted-foreground;
   flex: none;
   padding: 0 4px;

@@ -4053,8 +4053,6 @@
     "topProcesses": "Top-Prozesse",
     "processId": "Prozess-ID: {pid}",
     "loadingApplications": "Apps werden eingelesen…",
-    "updatingApplications": "Anwendungen werden aktualisiert…",
-    "previousSample": "Zeigt frühere Ergebnisse an",
     "noApplications": "Keine lesbaren Anwendungsdaten",
     "processCount": "{count} Prozess | {count} Prozesse",
     "refresh": "Aktualisieren",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "Ausgewählte GPUs",
     "allocatableMemoryHint": "Die dedizierte Kapazität ist vom System zuweisbar und kann Hardwarereservierungen ausschließen\nDies wirkt sich auch auf die gesamte GPU-Kapazität aus",
-    "cachedLabel": "Zwischengespeichert",
-    "cached": "Zeigt die letzten verfügbaren Daten an; warte auf ein Update",
     "activities": "Motoraktivität",
     "customActivities": "Treiberdefinierte Engines",
     "customHint": "Separat dargestellt; von der oben genannten GPU-Nutzung ausgeschlossen",
@@ -4369,8 +4365,7 @@
     "average": "Durchschnittliche Häufigkeit",
     "efficiency": "Effizienzkerne",
     "performance": "Leistungskerne",
-    "super": "Super-Kerne",
-    "cached": "Zwischengespeichert"
+    "super": "Super-Kerne"
   },
   "gpuTemperature": {
     "followUsage": "GPU-Auslastung folgen",
@@ -4478,8 +4473,7 @@
     "none": "Keine",
     "mediaErrors": "Medienfehler",
     "temperature": "Temperatur",
-    "healthPercent": "Gesundheit",
-    "cachedHint": "Zeigt den letzten Gesundheitswert an\nErfrischend im Hintergrund"
+    "healthPercent": "Gesundheit"
   },
   "networkDetails": {
     "title": "Verkehr",

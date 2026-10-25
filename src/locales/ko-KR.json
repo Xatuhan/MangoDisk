@@ -4053,8 +4053,6 @@
     "topProcesses": "사용량이 높은 프로세스",
     "processId": "프로세스 ID: {pid}",
     "loadingApplications": "앱 정보를 읽는 중…",
-    "updatingApplications": "앱 업데이트 중…",
-    "previousSample": "이전 결과 표시 중",
     "noApplications": "읽을 수 있는 앱 정보가 없습니다",
     "processCount": "프로세스 {count}개",
     "refresh": "새로 고침",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "선택한 GPU",
     "allocatableMemoryHint": "전용 용량은 시스템이 할당할 수 있는 양이며 하드웨어 예약분이 제외될 수 있습니다\n전체 GPU 용량에도 영향을 줍니다",
-    "cachedLabel": "캐시",
-    "cached": "마지막 데이터를 표시하고 있습니다. 업데이트를 기다리는 중입니다",
     "activities": "엔진 활동",
     "customActivities": "드라이버 정의 엔진",
     "customHint": "별도로 표시되며 위의 GPU 전체 사용률에 포함되지 않습니다",
@@ -4369,8 +4365,7 @@
     "average": "평균 주파수",
     "efficiency": "효율 코어",
     "performance": "성능 코어",
-    "super": "슈퍼 코어",
-    "cached": "캐시"
+    "super": "슈퍼 코어"
   },
   "gpuTemperature": {
     "followUsage": "GPU 사용률 선택 따르기",
@@ -4478,8 +4473,7 @@
     "none": "없음",
     "mediaErrors": "미디어 오류",
     "temperature": "온도",
-    "healthPercent": "건강도",
-    "cachedHint": "이전 건강 데이터를 표시 중입니다\n백그라운드에서 갱신합니다"
+    "healthPercent": "건강도"
   },
   "networkDetails": {
     "title": "트래픽",

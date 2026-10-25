@@ -136,10 +136,11 @@ describe('CPU detail observations', () => {
     const reading = windowsReading();
     reading.cpuFrequency.status = 'stale';
     const wrapper = render(reading);
-    expect(wrapper.findAll('.cached')).toHaveLength(1);
-    expect(wrapper.findAll('.resource-fact')[0].text()).toContain('Cached');
+    expect(wrapper.findAll('.cached')).toHaveLength(0);
+    expect(wrapper.findAll('.resource-fact')[0].text()).toContain('4.9GHz');
     await wrapper.setProps({ reading: { ...reading, cpu: { ...reading.cpu, status: 'stale' } } });
-    expect(wrapper.findAll('.cached')).toHaveLength(3);
+    expect(wrapper.findAll('.cached')).toHaveLength(0);
+    expect(wrapper.findAll('.resource-fact')[1].text()).toContain('45%');
     await wrapper.setProps({ reading: { ...reading, observedAtMs: 140_000 } });
     expect(wrapper.findAll('.resource-fact')).toHaveLength(1);
     expect(wrapper.find('.compact').exists()).toBe(true);

@@ -86,7 +86,7 @@ describe('CPU temperature presentation', () => {
     expect(wrapper.find('.temperature-value').attributes('aria-label')).toBe('CPU temperature 49°C');
     wrapper.unmount();
   });
-  it('explains sensor meaning on hover and hides stale numerical values', async () => {
+  it('keeps sensor meaning and numerical values stable while refreshing', async () => {
     const wrapper = render();
     try {
       expect(wrapper.text()).toContain('49°C');
@@ -97,10 +97,9 @@ describe('CPU temperature presentation', () => {
         expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('16 readable CPU core sensors')
       );
       await wrapper.setProps({ observedAtMs: 11_001 });
-      expect(wrapper.text()).not.toContain('49');
-      expect(wrapper.get('.temperature-heading').text()).toContain('—');
-      expect(wrapper.get('[role="status"]').text()).toBe(enUS.systemStatus.stale);
-      await vi.waitFor(() => expect(document.querySelector('[role="tooltip"]')).toBeNull());
+      expect(wrapper.get('.temperature-heading').text()).toContain('49°C');
+      expect(wrapper.get('.temperature-heading').text()).toBe('CPU temperature49°C');
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('16 readable CPU core sensors');
     } finally {
       wrapper.unmount();
     }
@@ -115,11 +114,12 @@ describe('CPU temperature presentation', () => {
     expect(wrapper.text()).not.toContain('0°C');
     wrapper.unmount();
   });
-  it('does not show an earlier cached value after a failed query', async () => {
+  it('labels an earlier observation after a failed query', async () => {
     const wrapper = render(true);
     await wrapper.setProps({ reading: { ...reading(), status: 'failed' } });
-    expect(wrapper.text()).not.toContain('49');
-    expect(wrapper.text()).toContain('—');
+    expect(wrapper.text()).toContain('49°C');
+    expect(wrapper.getComponent(MdTooltip).props('text')).toContain(enUS.systemStatus.failed);
+
     wrapper.unmount();
   });
 });

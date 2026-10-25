@@ -3,6 +3,7 @@ import { cpuIdentityLabel } from '@/lib/utils/system-resources/cpu-identity-labe
 import MdTooltip from '@/components/custom/md-tooltip.vue';
 import MdIcon from '@/components/icons/md-icon.vue';
 import { ICON_NAMES } from '@/lib/models/presentation/ui';
+import { cachedMetricValue } from '@/lib/utils/system-resources/metric-reading';
 import { computed } from 'vue';
 import MdResourceTrend from './md-resource-trend.vue';
 import MdResourceCard from './md-resource-card.vue';
@@ -42,7 +43,7 @@ const { t } = useI18n({ useScope: 'global' });
 const isMacOs = OperatingSystemService.isMacOs();
 const cpuLabel = computed(() => cpuIdentityLabel(props.reading.cpuIdentity));
 const current = computed(() => props.reading[props.metric]);
-const ready = computed(() => current.value.status === 'ready' && current.value.value !== null);
+const ready = computed(() => cachedMetricValue<unknown>(current.value, props.reading.observedAtMs) !== null);
 const memory = computed(() => props.reading.memory.value?.memory);
 const percentage = computed(() => {
   if (!ready.value) return null;
@@ -60,7 +61,7 @@ const percentage = computed(() => {
   }
 });
 const activityReady = computed(() =>
-  props.metric === 'disk' ? props.reading.diskIo.status === 'ready' && props.reading.diskIo.value !== null : ready.value
+  props.metric === 'disk' ? cachedMetricValue(props.reading.diskIo, props.reading.observedAtMs) !== null : ready.value
 );
 const history = computed(() =>
   props.metric === 'cpu'
@@ -250,12 +251,29 @@ const rates = computed(() =>
         <span v-if="!ready" role="status">{{ t(METRIC_STATUS_KEYS[current.status]) }}</span>
         <span v-else>{{ t('systemStatus.lastMinute') }}</span>
       </template>
+      <MdTooltip
+        v-if="ready && current.status === 'failed'"
+        :active="active"
+        :text="t(METRIC_STATUS_KEYS[current.status])"
+      >
+        <span class="reading-error" role="status" tabindex="0" :aria-label="t(METRIC_STATUS_KEYS[current.status])">{{
+          t(METRIC_STATUS_KEYS[current.status])
+        }}</span>
+      </MdTooltip>
     </div>
   </MdResourceCard>
 </template>
 
 <style scoped>
 @reference "@assets/main.css";
+.resource-meta > .reading-error {
+  @apply text-muted-foreground;
+  font-size: 10px;
+  min-width: 24px;
+  max-width: 45%;
+  position: relative;
+  z-index: 2;
+}
 .resource-overview {
   height: var(--resource-summary-height, 104px);
   display: flex;

@@ -4053,8 +4053,6 @@
     "topProcesses": "占用最高的进程",
     "processId": "进程 ID：{pid}",
     "loadingApplications": "正在读取应用…",
-    "updatingApplications": "正在更新应用…",
-    "previousSample": "显示上次结果",
     "noApplications": "暂无可读取的应用数据",
     "processCount": "{count} 个进程",
     "refresh": "刷新",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "指定显卡",
     "allocatableMemoryHint": "专用容量为系统可分配量，可能不含硬件预留\nGPU 总容量也受此影响",
-    "cachedLabel": "缓存",
-    "cached": "正在显示上次数据，等待更新",
     "activities": "引擎活动",
     "customActivities": "驱动自定义引擎",
     "customHint": "单独显示，不计入上方 GPU 总利用率",
@@ -4369,8 +4365,7 @@
     "average": "平均频率",
     "efficiency": "能效核心",
     "performance": "性能核心",
-    "super": "超级核心",
-    "cached": "缓存"
+    "super": "超级核心"
   },
   "gpuTemperature": {
     "followUsage": "跟随 GPU 利用率",
@@ -4478,8 +4473,7 @@
     "none": "无",
     "mediaErrors": "介质错误",
     "temperature": "温度",
-    "healthPercent": "健康度",
-    "cachedHint": "显示上次读取的健康数据\n正在后台更新"
+    "healthPercent": "健康度"
   },
   "networkDetails": {
     "title": "流量",

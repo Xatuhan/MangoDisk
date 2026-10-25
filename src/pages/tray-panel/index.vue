@@ -387,9 +387,12 @@ onBeforeUnmount(() => {
         aria-labelledby="metric-tab-memory"
       >
         <template v-if="store.reading.memory.value">
-          <span v-if="store.reading.memory.status !== 'ready'" class="metric-stale" role="status">{{
-            t(METRIC_STATUS_KEYS[store.reading.memory.status])
-          }}</span>
+          <span
+            v-if="['failed', 'disconnected', 'unsupported'].includes(store.reading.memory.status)"
+            class="metric-stale"
+            role="status"
+            >{{ t(METRIC_STATUS_KEYS[store.reading.memory.status]) }}</span
+          >
           <MdMemoryOverview
             class="detail-summary"
             :memory="store.reading.memory.value.memory"

@@ -19,7 +19,7 @@ const PRESSURE_KEYS: Record<Exclude<MemoryPressure, 'unsupported'> | 'stale', { 
 };
 const pressureState = computed(() => {
   if (props.pressure === 'unsupported') return null;
-  return props.status === 'ready' ? props.pressure : 'stale';
+  return ['ready', 'stale', 'loading'].includes(props.status) ? props.pressure : 'stale';
 });
 const pressureHint = computed(() => (pressureState.value ? t(PRESSURE_KEYS[pressureState.value].hint) : undefined));
 </script>

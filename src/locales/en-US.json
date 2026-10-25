@@ -4053,8 +4053,6 @@
     "topProcesses": "Top processes",
     "processId": "Process ID: {pid}",
     "loadingApplications": "Reading applications…",
-    "updatingApplications": "Updating applications…",
-    "previousSample": "Showing previous results",
     "noApplications": "No readable application data",
     "processCount": "{count} processes",
     "refresh": "Refresh",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "Selected GPUs",
     "allocatableMemoryHint": "Dedicated capacity is system-allocatable and may exclude hardware reservations\nThis also affects total GPU capacity",
-    "cachedLabel": "Cached",
-    "cached": "Showing the last available data; waiting for an update",
     "activities": "Engine activity",
     "customActivities": "Driver-defined engines",
     "customHint": "Shown separately; excluded from the GPU utilization above",
@@ -4369,8 +4365,7 @@
     "average": "Average frequency",
     "efficiency": "Efficiency cores",
     "performance": "Performance cores",
-    "super": "Super cores",
-    "cached": "Cached"
+    "super": "Super cores"
   },
   "gpuTemperature": {
     "followUsage": "Follow GPU utilization",
@@ -4478,8 +4473,7 @@
     "none": "None",
     "mediaErrors": "Media errors",
     "temperature": "Temperature",
-    "healthPercent": "Health",
-    "cachedHint": "Showing the last health reading\nRefreshing in the background"
+    "healthPercent": "Health"
   },
   "networkDetails": {
     "title": "Traffic",

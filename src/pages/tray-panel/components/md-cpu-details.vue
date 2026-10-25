@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n';
 import { summarizeUtilizationHistory } from '@/lib/utils/system-resources/utilization-history-summary';
 import type { ResourceReadings } from '@/lib/models/system-resources/system-resources';
 import { METRIC_STATUS_KEYS } from '@/lib/models/system-resources/system-resources';
-import { currentCpuTemperature } from '@/lib/utils/system-resources/cpu-temperature';
+import { observedCpuTemperature } from '@/lib/utils/system-resources/cpu-temperature';
 const props = withDefaults(
   defineProps<{
     reading: ResourceReadings;
@@ -22,7 +22,8 @@ defineEmits<{ configureTemperature: [] }>();
 const { t } = useI18n({ useScope: 'global' });
 const temperatureAvailable = computed(
   () =>
-    props.temperatureEnabled && currentCpuTemperature(props.reading.cpuTemperature, props.reading.observedAtMs) !== null
+    props.temperatureEnabled &&
+    observedCpuTemperature(props.reading.cpuTemperature, props.reading.observedAtMs) !== null
 );
 const facts = computed(() => {
   const frequencyReading = props.reading.cpuFrequency;
@@ -39,7 +40,6 @@ const facts = computed(() => {
       label: fact.label,
       value: (fact.mhz! / 1000).toFixed(1),
       unit: 'GHz',
-      cached: frequencyReading.status !== 'ready',
     }));
   const hasFrequencyClasses = frequencyFacts.filter(fact => fact.label !== 'cpuDetails.average').length >= 2;
   const selectedFrequencyFacts = hasFrequencyClasses
@@ -56,7 +56,6 @@ const facts = computed(() => {
           label: fact.label,
           value: Math.round(fact.value).toString(),
           unit: '%',
-          cached: props.reading.cpu.status !== 'ready',
           hint: t('cpuDetails.coverage', { seconds: (history.coveredMs / 1000).toFixed(1) }),
           liveHint: true,
         }))

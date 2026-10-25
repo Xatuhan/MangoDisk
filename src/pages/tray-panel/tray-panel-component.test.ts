@@ -370,9 +370,9 @@ describe('monitoring panel interactions', () => {
         await wrapper.get('#metric-tab-cpu').trigger('click');
         expect(wrapper.get('.application-row strong').text()).toBe('12.3%');
         expect(wrapper.find('.list-empty').exists()).toBe(false);
-        expect(wrapper.get('.sort-columns .cache-notice').attributes('aria-label')).toContain(
-          messages.monitoring.previousSample
-        );
+        if (status === 'failed')
+          expect(wrapper.get('.sort-columns .reading-error').text()).toContain(messages.systemStatus.failed);
+        else expect(wrapper.find('.sort-columns .reading-error').exists()).toBe(false);
         expect(wrapper.find('.coverage-note').exists()).toBe(false);
       }
       store.accept({
@@ -839,12 +839,14 @@ describe('memory presentation', () => {
     expect(wrapper.get('.memory-pressure').attributes('data-pressure')).toBe('unavailable');
   });
 
-  it('hides unsupported pressure and stops presenting old pressure as current', async () => {
+  it('keeps the last known pressure while refreshing and marks actual failures', async () => {
     const { wrapper } = render(MemoryOverview, { memory }, false, enUS);
     expect(wrapper.find('.memory-pressure').exists()).toBe(false);
     await wrapper.setProps({ memory: { ...memory, pressure: 'normal' }, status: 'stale' });
+    expect(wrapper.get('.memory-pressure').attributes('data-pressure')).toBe('normal');
+    expect(wrapper.get('.memory-pressure').text()).toContain(enUS.monitoring.pressure.normal);
+    await wrapper.setProps({ status: 'failed' });
     expect(wrapper.get('.memory-pressure').attributes('data-pressure')).toBe('stale');
-    expect(wrapper.get('.memory-pressure').text()).toContain(enUS.monitoring.pressure.stale);
     await wrapper.setProps({ status: 'ready' });
     expect(wrapper.get('.memory-pressure').attributes('data-pressure')).toBe('normal');
   });
@@ -855,7 +857,7 @@ describe('memory presentation', () => {
         MemoryOverview,
         {
           memory: { ...memory, pressure: pressure === 'stale' ? 'normal' : pressure },
-          status: pressure === 'stale' ? 'stale' : 'ready',
+          status: pressure === 'stale' ? 'failed' : 'ready',
         },
         false,
         messages

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
 import MdTooltip from '@/components/custom/md-tooltip.vue';
 import MdCopyButton from '@/components/custom/md-copy-button.vue';
 withDefaults(
@@ -11,7 +10,6 @@ withDefaults(
       label: string;
       value: string;
       unit: string;
-      cached?: boolean;
       copy?: boolean;
       hint?: string;
       liveHint?: boolean;
@@ -19,7 +17,6 @@ withDefaults(
   }>(),
   { active: true, layout: 'tiles' }
 );
-const { t } = useI18n({ useScope: 'global' });
 </script>
 <template>
   <dl v-if="facts.length" class="resource-facts" :class="{ compact: facts.length === 1, rows: layout === 'rows' }">
@@ -29,7 +26,6 @@ const { t } = useI18n({ useScope: 'global' });
           ><span tabindex="0">{{ fact.label }}</span></MdTooltip
         >
         <span v-else>{{ fact.label }}</span>
-        <span v-if="fact.cached" class="cached">{{ t('cpuDetails.cached') }}</span>
       </dt>
       <dd>
         <MdCopyButton
@@ -83,10 +79,6 @@ small {
   margin-left: 3px;
   font-size: 10px;
   font-weight: normal;
-}
-.cached {
-  flex: none;
-  font-size: 8px;
 }
 .compact .resource-fact {
   display: flex;

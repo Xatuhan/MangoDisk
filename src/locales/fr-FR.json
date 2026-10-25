@@ -4053,8 +4053,6 @@
     "topProcesses": "Principaux processus",
     "processId": "ID de processus : {pid}",
     "loadingApplications": "Lecture des applications…",
-    "updatingApplications": "Mise à jour des applications…",
-    "previousSample": "Affichage des résultats précédents",
     "noApplications": "Aucune donnée d'application lisible",
     "processCount": "{count} processus | {count} processus",
     "refresh": "Actualiser",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "GPU sélectionnés",
     "allocatableMemoryHint": "La capacité dédiée est allouable par le système et peut exclure les réservations de matériel\nCela affecte également la capacité totale du GPU",
-    "cachedLabel": "En cache",
-    "cached": "Affichage des dernières données disponibles ; en attente d'une mise à jour",
     "activities": "Activité du moteur",
     "customActivities": "Moteurs définis par le pilote",
     "customHint": "Montré séparément ; exclu de l'utilisation du GPU ci-dessus",
@@ -4369,8 +4365,7 @@
     "average": "Fréquence moyenne",
     "efficiency": "Noyaux d'efficacité",
     "performance": "Noyaux de performances",
-    "super": "Cœurs super",
-    "cached": "En cache"
+    "super": "Cœurs super"
   },
   "gpuTemperature": {
     "followUsage": "Suivre l’utilisation du GPU",
@@ -4478,8 +4473,7 @@
     "none": "Aucun",
     "mediaErrors": "Erreurs multimédias",
     "temperature": "Température",
-    "healthPercent": "Santé",
-    "cachedHint": "Affichage du dernier relevé de santé\nRafraîchissant en arrière-plan"
+    "healthPercent": "Santé"
   },
   "networkDetails": {
     "title": "Trafic",

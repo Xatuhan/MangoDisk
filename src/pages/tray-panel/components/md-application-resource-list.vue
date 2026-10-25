@@ -37,10 +37,7 @@ const focusedId = ref<string | null>(null);
 const viewport = ref<HTMLElement | null>(null);
 const rows = shallowRef<ResourceListRow[]>([]);
 const hasHistory = computed(() => props.summary !== null);
-const sampleStatus = computed(
-  () =>
-    `${t('monitoring.previousSample')} · ${t(props.status === 'loading' || props.status === 'stale' ? 'monitoring.updatingApplications' : `systemStatus.${props.status}`)}`
-);
+const sampleStatus = computed(() => t(`systemStatus.${props.status}`));
 const largestValue = computed(() =>
   Math.max(0, ...rows.value.filter(r => r.available).map(r => resourceValue(r.application)))
 );
@@ -171,10 +168,12 @@ function measure(element: Element | ComponentPublicInstance | null) {
             :size="12"
           />
         </button>
-        <MdTooltip v-if="column === 'name' && hasHistory && status !== 'ready'" :active="active" :text="sampleStatus">
-          <span class="cache-notice" tabindex="0" role="status" :aria-label="sampleStatus">{{
-            t('cpuDetails.cached')
-          }}</span>
+        <MdTooltip
+          v-if="column === 'name' && hasHistory && ['failed', 'disconnected', 'unsupported'].includes(status)"
+          :active="active"
+          :text="sampleStatus"
+        >
+          <span class="reading-error" tabindex="0" role="status" :aria-label="sampleStatus">{{ sampleStatus }}</span>
         </MdTooltip>
       </div>
     </div>
@@ -282,14 +281,14 @@ button:focus-visible,
   flex: 1;
   min-height: 0;
 }
-.cache-notice {
+.reading-error {
   @apply rounded bg-muted text-muted-foreground;
   font-size: 9px;
   padding: 0 4px;
   flex: none;
   cursor: help;
 }
-.cache-notice:focus-visible {
+.reading-error:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }

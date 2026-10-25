@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { cachedMetricValue } from '@/lib/utils/system-resources/metric-reading';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ResourceReadings } from '@/lib/models/system-resources/system-resources';
@@ -19,12 +20,13 @@ defineEmits<{ cleanup: [] }>();
 const { t, n } = useI18n({ useScope: 'global' });
 const health = computed(() => {
   const current = props.reading.diskHealth;
-  const usable =
-    current.status === 'ready' ||
-    (current.status === 'stale' && current.sampledAtMs !== null && current.sampledAtMs <= props.reading.observedAtMs);
-  return usable && current.value?.volumeId === props.reading.disk.value?.volume.id ? current.value : null;
+  const value = cachedMetricValue(current, props.reading.observedAtMs);
+  return props.reading.disk.status !== 'disconnected' &&
+    props.reading.disk.status !== 'unsupported' &&
+    value?.volumeId === props.reading.disk.value?.volume.id
+    ? value
+    : null;
 });
-const healthCached = computed(() => health.value !== null && props.reading.diskHealth.status === 'stale');
 const facts = computed(() => {
   const value = health.value;
   if (!value) return [];
@@ -67,10 +69,10 @@ const detailFacts = computed(() => {
     key: 'temperature',
     label: t('diskHealth.temperature'),
     value:
-      temperature.status === 'ready' && temperature.value?.volumeId === value.volumeId
-        ? n(temperature.value.celsius, { maximumFractionDigits: 0 })
+      cachedMetricValue(temperature, props.reading.observedAtMs)?.volumeId === value.volumeId
+        ? n(temperature.value!.celsius, { maximumFractionDigits: 0 })
         : '—',
-    unit: temperature.status === 'ready' && temperature.value?.volumeId === value.volumeId ? '°C' : '',
+    unit: cachedMetricValue(temperature, props.reading.observedAtMs)?.volumeId === value.volumeId ? '°C' : '',
   });
   if (value.powerCycles !== null)
     rows.push({ key: 'cycles', label: t('diskHealth.powerCycles'), value: n(value.powerCycles), unit: '' });
@@ -88,7 +90,7 @@ const detailFacts = computed(() => {
   return rows;
 });
 const activities = computed(() => {
-  const value = props.reading.diskIo.status === 'ready' ? props.reading.diskIo.value : null;
+  const value = cachedMetricValue(props.reading.diskIo, props.reading.observedAtMs);
   return [
     {
       key: 'read',
@@ -124,7 +126,10 @@ const activities = computed(() => {
       <MdTooltip :active="active" :text="t('diskDetails.systemHint')" multiline
         ><h2 tabindex="0">{{ t('diskDetails.activity') }}</h2></MdTooltip
       >
-      <span class="health-unavailable">{{ t('systemStatus.allDisks') }} · {{ t('systemStatus.lastMinute') }}</span>
+      <span class="health-unavailable"
+        >{{ t('systemStatus.allDisks') }} · {{ t('systemStatus.lastMinute')
+        }}<template v-if="reading.diskIo.status === 'failed'"> · {{ t('systemStatus.failed') }}</template></span
+      >
     </header>
     <div class="activity-columns">
       <dl v-for="activity in activities" :key="activity.key" class="activity-column">
@@ -155,11 +160,9 @@ const activities = computed(() => {
         :text="
           !health
             ? t('diskHealth.unavailableHint')
-            : healthCached
-              ? t('diskHealth.cachedHint')
-              : health.source === 'windowsStorage'
-                ? t('diskHealth.systemHint')
-                : t('diskHealth.smartHint')
+            : health.source === 'windowsStorage'
+              ? t('diskHealth.systemHint')
+              : t('diskHealth.smartHint')
         "
       >
         <!-- Keep one DOM anchor while asynchronous health readings change state. -->
@@ -169,11 +172,9 @@ const activities = computed(() => {
           :role="health ? undefined : 'status'"
           tabindex="0"
         >
-          <template v-if="health"
-            >{{ t(HEALTH_LABEL_KEYS[health.status])
-            }}<span v-if="healthCached"> · {{ t('cpuDetails.cached') }}</span></template
-          >
-          <template v-else>{{
+          <template v-if="health">{{ t(HEALTH_LABEL_KEYS[health.status]) }}</template>
+          <template v-if="health && reading.diskHealth.status === 'failed'"> · {{ t('systemStatus.failed') }}</template>
+          <template v-if="!health">{{
             t(reading.diskHealth.status === 'loading' ? 'systemStatus.loading' : 'diskHealth.unavailable')
           }}</template>
         </span>

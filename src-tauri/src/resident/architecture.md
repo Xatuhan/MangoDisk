@@ -301,8 +301,9 @@ it on native topology changes. No per-process I/O/network tracking is added. Res
 version 25 adds disk health and network session totals/link rates; version 26 adds optional Wi-Fi metadata; version 27 adds lossless ATA attributes and additional standardized NVMe counters; version 28 adds per-interface persisted network traffic totals. Disk health is
 read only on its visible detail page, cached for five minutes, and expires after
 ten minutes. Reopening the same disk preserves the last health fields while stale
-results refresh in the background; cached status remains explicit. Unavailable
-or disconnected readings never reuse old health fields. Temperature observations
+results refresh in the background without a temporary badge. Unsupported
+and disconnected readings never reuse old health fields. Transient failures retain
+the last successful health fields and their original timestamp with a failed status. Temperature observations
 retain their original timestamps across panel demand changes and query storage
 at most once per thirty seconds for the same volume and mount. Transient failures retry after thirty seconds; unsupported devices
 retry after five minutes. Native disk selection/generation checks reject stale
@@ -950,7 +951,7 @@ own observation overhead and excludes UI, icon I/O, and application aggregation.
 Keep raw machine output in the ignored `.local/` directory. Measure the packaged
 application separately with its windows hidden and each detail panel open.
 
-Memory process rankings have a separate `memoryProcesses` reading and timestamp in resource protocol version 8. Overview-only samples preserve these rows without extending their freshness. Real empty detail samples clear the list; failed/stale detail results retain previous rows with a notice. The source memory snapshot is version 3; resident publication moves its optional detail payload into the dedicated cache to avoid duplicate IPC data. Frontends reject earlier resource versions.
+Memory process rankings have a separate `memoryProcesses` reading and timestamp in resource protocol version 8. Overview-only samples preserve these rows without extending their freshness. Real empty detail samples clear the list; failed/stale detail results retain previous rows. Failures remain visible, while ordinary refresh is silent. The source memory snapshot is version 3; resident publication moves its optional detail payload into the dedicated cache to avoid duplicate IPC data. Frontends reject earlier resource versions.
 
 Windows image lookups retain typed available/denied/exited/unavailable outcomes. Only transient unavailable results retry, at 30-second intervals and at most three total attempts per PID/creation identity. Successful paths and denials do not poll again; exited identities are evicted. Path failures never remove readable CPU counters. The UI explains access restrictions without requesting elevation.
 
@@ -1597,3 +1598,12 @@ macOS and mWh for absolute Windows battery reports; relative Windows units are
 never labelled as mWh. Capacity health is full-charge/design, not an assertion of
 macOS's smoothed health estimate. Unknown native time sentinels remain unknown,
 and optimized charging is shown only for an explicit OS pause indication.
+
+Panel presentation shows the last valid observation while detail sampling resumes,
+including battery/adapter facts, disk health, temperatures and overview readings.
+Cached values retain their native timestamps and render without refresh badges.
+Actual failures remain visible. Cached values do not become fresh menu indicators
+or synthetic trend points. Battery presence and
+selected-device changes still invalidate observations. The cache lives in the
+resident process; restarting the application starts without previous observations.
+Background sampling intervals and on-demand detail collection are unchanged.

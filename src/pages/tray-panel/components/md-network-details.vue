@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { cachedMetricValue } from '@/lib/utils/system-resources/metric-reading';
 import { computed, ref, watch } from 'vue';
 import MdConfirmDialog from '@/components/custom/md-confirm-dialog.vue';
 import { ResidentService } from '@/lib/services/resident/resident-service';
@@ -13,7 +14,7 @@ import MdResourceFacts from './md-resource-facts.vue';
 
 const props = defineProps<{ reading: ResourceReadings; active: boolean }>();
 const { t, n, locale } = useI18n({ useScope: 'global' });
-const network = computed(() => (props.reading.network.status === 'ready' ? props.reading.network.value : null));
+const network = computed(() => cachedMetricValue(props.reading.network, props.reading.observedAtMs));
 function speed(bits: number | null | undefined): string {
   if (bits === null || bits === undefined || !Number.isFinite(bits) || bits <= 0) return '—';
   const scale = bits >= 1e9 ? 1e9 : bits >= 1e6 ? 1e6 : 1e3;

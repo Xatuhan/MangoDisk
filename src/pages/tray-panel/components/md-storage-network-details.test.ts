@@ -44,6 +44,7 @@ function render(component: typeof DiskDetails | typeof NetworkDetails, reading: 
 }
 function disk(): ResourceReadings {
   const reading = emptyReadings();
+  reading.observedAtMs = 10000;
   reading.disk = {
     status: 'ready',
     sampledAtMs: 1000,
@@ -185,6 +186,16 @@ describe('disk health and network detail presentation', () => {
     expect(wrapper.findAll('.health-metadata dt').map(row => row.text())).toEqual([en.diskHealth.temperature]);
     expect(wrapper.find('.health-metadata dd').text()).toBe('—');
   });
+  it('keeps failed health fields with the failure state until refresh succeeds', async () => {
+    const reading = disk();
+    reading.diskHealth.status = 'failed';
+    const wrapper = render(DiskDetails, reading);
+
+    expect(wrapper.get('.health-status').text()).toContain(en.systemStatus.failed);
+    expect(wrapper.text()).toContain('100%');
+    await wrapper.setProps({ reading: disk() });
+    expect(wrapper.get('.health-status').text()).toBe(en.diskHealth.healthy);
+  });
   it('keeps expired health fields visible while the same disk refreshes in the background', () => {
     const reading = disk();
     reading.observedAtMs = 601_001;
@@ -192,7 +203,7 @@ describe('disk health and network detail presentation', () => {
     const wrapper = render(DiskDetails, reading);
     expect(wrapper.text()).toContain(en.diskHealth.healthPercent);
     expect(wrapper.text()).toContain('100%');
-    expect(wrapper.text()).toContain(en.cpuDetails.cached);
+    expect(wrapper.get('.health-status').text()).toBe(en.diskHealth.healthy);
     expect(wrapper.text()).not.toContain(en.diskHealth.unavailable);
   });
   it('never restores expired health for a changed disk or a future observation', async () => {
@@ -207,7 +218,7 @@ describe('disk health and network detail presentation', () => {
     await wrapper.setProps({ reading: { ...reading } });
     expect(wrapper.find('.health-status').exists()).toBe(false);
   });
-  it.each(['failed', 'disconnected'] as const)('hides an old healthy observation after %s', status => {
+  it.each(['disconnected', 'unsupported'] as const)('hides an old healthy observation after %s', status => {
     const reading = disk();
     reading.diskHealth.status = status;
     const wrapper = render(DiskDetails, reading);
@@ -310,6 +321,7 @@ describe('disk health and network detail presentation', () => {
   });
   it('formats link rates as bits and keeps valid zero session traffic distinct from missing data', async () => {
     const reading = emptyReadings();
+    reading.observedAtMs = 10000;
     reading.network = {
       status: 'ready',
       sampledAtMs: 1000,
@@ -405,9 +417,10 @@ describe('disk health and network detail presentation', () => {
     expect(wrapper.text()).toContain('36 (5 GHz, 160 MHz)');
     expect(wrapper.text()).not.toContain('-41 / -91 dBm');
     await wrapper.setProps({ reading: { ...reading, network: { ...reading.network, status: 'stale' } } });
+    expect(wrapper.text()).toContain('↓ 1 Gbps · ↑ 100 Mbps');
+    expect(wrapper.text()).toContain('192.0.2.1');
+    expect(wrapper.text()).toContain('02:00:00:00:00:01');
+    await wrapper.setProps({ reading: { ...reading, network: { ...reading.network, status: 'disconnected' } } });
     expect(wrapper.findAll('dd').every(value => value.text() === '—')).toBe(true);
-    expect(wrapper.text()).not.toContain('Gbps');
-    expect(wrapper.text()).not.toContain('192.0.2.1');
-    expect(wrapper.text()).not.toContain('02:00:00:00:00:01');
   });
 });

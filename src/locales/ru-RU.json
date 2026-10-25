@@ -4053,8 +4053,6 @@
     "topProcesses": "Процессы с наибольшим потреблением",
     "processId": "ID процесса: {pid}",
     "loadingApplications": "Загрузка приложений…",
-    "updatingApplications": "Обновление приложений…",
-    "previousSample": "Показаны предыдущие результаты",
     "noApplications": "Нет данных о приложениях",
     "processCount": "{count} процессов",
     "refresh": "Обновить",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "Выбранные GPU",
     "allocatableMemoryHint": "Выделенная ёмкость доступна системе и может не включать резерв оборудования\nЭто влияет и на общую ёмкость GPU",
-    "cachedLabel": "Кэш",
-    "cached": "Показаны последние доступные данные; ожидается обновление",
     "activities": "Активность движков",
     "customActivities": "Движки драйвера",
     "customHint": "Показаны отдельно и не учитываются в общей загрузке GPU выше",
@@ -4369,8 +4365,7 @@
     "average": "Средняя частота",
     "efficiency": "Энергоэффективные ядра",
     "performance": "Производительные ядра",
-    "super": "Суперъядра",
-    "cached": "Кэш"
+    "super": "Суперъядра"
   },
   "gpuTemperature": {
     "followUsage": "Следовать выбору загрузки GPU",
@@ -4478,8 +4473,7 @@
     "none": "Нет",
     "mediaErrors": "Ошибки носителя",
     "temperature": "Температура",
-    "healthPercent": "Ресурс",
-    "cachedHint": "Показано предыдущее состояние диска\nИдёт фоновое обновление"
+    "healthPercent": "Ресурс"
   },
   "networkDetails": {
     "title": "Трафик",

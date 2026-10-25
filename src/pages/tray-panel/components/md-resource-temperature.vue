@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n';
 import MdTooltip from '@/components/custom/md-tooltip.vue';
 import MdIcon from '@/components/icons/md-icon.vue';
 import { ICON_NAMES } from '@/lib/models/presentation/ui';
-import { currentCpuTemperature } from '@/lib/utils/system-resources/cpu-temperature';
-import { currentGpuTemperature } from '@/lib/utils/system-resources/gpu-temperature';
+import { observedCpuTemperature } from '@/lib/utils/system-resources/cpu-temperature';
+import { observedGpuTemperature } from '@/lib/utils/system-resources/gpu-temperature';
 import {
   METRIC_STATUS_KEYS,
   type CpuTemperature,
@@ -37,8 +37,8 @@ const hintKeys: Record<CpuTemperature['kind'], string> = {
 };
 const value = computed(() =>
   props.metric === 'cpu'
-    ? currentCpuTemperature(props.reading as MetricReading<CpuTemperature>, props.observedAtMs)
-    : currentGpuTemperature(props.reading as MetricReading<GpuTemperature>, props.observedAtMs)
+    ? observedCpuTemperature(props.reading as MetricReading<CpuTemperature>, props.observedAtMs)
+    : observedGpuTemperature(props.reading as MetricReading<GpuTemperature>, props.observedAtMs)
 );
 const label = computed(() => t(props.metric === 'cpu' ? 'cpuTemperature.label' : 'gpuTemperature.label'));
 const statusText = computed(() =>
@@ -46,7 +46,8 @@ const statusText = computed(() =>
 );
 const hint = computed(() =>
   value.value
-    ? t(
+    ? (props.reading.status === 'failed' ? `${statusText.value} · ` : '') +
+      t(
         value.value.source === 'amdZenPawnIo'
           ? 'cpuTemperature.amdZenHint'
           : value.value.kind === 'sensorAverage'

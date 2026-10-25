@@ -111,3 +111,38 @@ fn display_temperature_and_detail_temperature_remain_independent_and_expire_sepa
         MetricStatus::Stale
     );
 }
+
+#[test]
+fn health_cache_survives_transient_failures_without_changing_observation_time() {
+    use mangodisk_platform::{PlatformError, PlatformErrorCode};
+    let mut cache = ResourceCache::default();
+    cache.disk(
+        volume("one"),
+        VolumeCapacity {
+            total_bytes: 100,
+            available_bytes: 50,
+        },
+        1000,
+    );
+    cache.disk_health(Ok(health("one")), 1000);
+    cache.fail(super::metrics::MetricId::Disk, MetricStatus::Stale);
+    let expired = cache.snapshot(1500);
+    assert_eq!(expired.disk_health.status, MetricStatus::Stale);
+    assert_eq!(expired.disk_health.sampled_at_ms, Some(1000));
+    assert!(expired.disk_health.value.is_some());
+    cache.disk_health(
+        Err(PlatformError::new(
+            PlatformErrorCode::Io,
+            "temporary failure",
+        )),
+        2000,
+    );
+    let snapshot = cache.snapshot(2000);
+    assert_eq!(snapshot.disk_health.status, MetricStatus::Failed);
+    assert_eq!(snapshot.disk_health.sampled_at_ms, Some(1000));
+    assert_eq!(snapshot.disk_health.value.unwrap().volume_id, "one");
+    cache.fail(super::metrics::MetricId::Disk, MetricStatus::Failed);
+    assert!(cache.snapshot(3000).disk_health.value.is_some());
+    cache.disk_health(Err(PlatformError::item_changed("removed")), 4000);
+    assert!(cache.snapshot(4000).disk_health.value.is_none());
+}

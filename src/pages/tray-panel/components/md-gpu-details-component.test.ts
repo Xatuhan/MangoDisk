@@ -359,8 +359,7 @@ describe('GPU detail capabilities and selection', () => {
     value.gpuDetails.status = 'stale';
     await wrapper.setProps({ reading: { ...value } });
     expect(wrapper.get('header strong').text()).toBe('3%');
-    expect(wrapper.get('.cache-notice').attributes('aria-label')).toContain('last available data');
-    expect(wrapper.get('.cache-notice').attributes('aria-label')).toContain(enUS.systemStatus.stale);
+    expect(wrapper.find('.reading-error').exists()).toBe(false);
     expect(wrapper.findAll('.activity-row').length).toBeGreaterThan(0);
   });
   it('renders a native cached sample before the initial preferences request completes', async () => {
@@ -399,10 +398,50 @@ describe('GPU detail capabilities and selection', () => {
     await flushPromises();
     expect(wrapper.get('header strong').text()).toBe('8%');
     expect(wrapper.findAll('.memory-row')).toHaveLength(3);
-    expect(wrapper.find('.cache-notice').exists()).toBe(true);
+    expect(wrapper.find('.reading-error').exists()).toBe(false);
     value.gpuDetails = { ...value.gpuDetails, status: 'ready' };
     await wrapper.setProps({ reading: { ...value } });
-    expect(wrapper.find('.cache-notice').exists()).toBe(false);
+    expect(wrapper.find('.reading-error').exists()).toBe(false);
+  });
+  it('keeps an independent detail failure visible while the summary ages and recovers', async () => {
+    const value = reading();
+    value.gpu = { ...value.gpuDetails, value: { ...value.gpuDetails.value!, details: null } };
+    value.gpuDetails.status = 'failed';
+    const { wrapper } = render(value);
+    await flushPromises();
+    expect(wrapper.get('.reading-error').text()).toBe(enUS.systemStatus.failed);
+    value.gpu.status = 'stale';
+    await wrapper.setProps({ reading: { ...value } });
+    expect(wrapper.get('header strong').text()).toBe('3%');
+    expect(wrapper.get('.reading-error').text()).toBe(enUS.systemStatus.failed);
+    expect(wrapper.findAll('.memory-row')).toHaveLength(3);
+    value.gpuDetails.status = 'ready';
+    await wrapper.setProps({ reading: { ...value } });
+    expect(wrapper.find('.reading-error').exists()).toBe(false);
+  });
+  it('does not report a previous adapter detail failure for a different summary device', async () => {
+    const value = reading();
+    value.gpu = {
+      ...value.gpuDetails,
+      value: { adapterId: 'b', adapterName: 'GPU B', usedPercent: 10, details: null },
+    };
+    value.gpuDetails.status = 'failed';
+    const { wrapper } = render(value);
+    await flushPromises();
+    expect(wrapper.get('header strong').text()).toBe('10%');
+    expect(wrapper.find('.reading-error').exists()).toBe(false);
+  });
+  it('shows a failed first detail query only for the identified current device', async () => {
+    const value = reading();
+    value.gpu = { ...value.gpuDetails, value: { ...value.gpuDetails.value!, details: null } };
+    value.gpu.status = 'stale';
+    value.gpuDetails = { status: 'failed', sampledAtMs: null, value: null };
+    const { wrapper } = render(value);
+    await flushPromises();
+    expect(wrapper.get('.reading-error').text()).toBe(enUS.systemStatus.failed);
+    value.gpuDetailAdapterId = 'b';
+    await wrapper.setProps({ reading: { ...value } });
+    expect(wrapper.find('.reading-error').exists()).toBe(false);
   });
   it('does not attach a previous automatic adapter to a new summary', async () => {
     const value = reading();
@@ -626,7 +665,8 @@ describe('shared GPU temperature history', () => {
     };
     value.gpuTemperatureHistory = [{ sampledAtMs: 2000, primary: 51, secondary: null }];
     await wrapper.setProps({ reading: { ...value } });
-    expect(wrapper.get('.temperature-details strong').text()).toBe('—');
+    expect(wrapper.get('.temperature-details strong').text()).toBe('51°C');
+    expect(wrapper.get('.temperature-heading').text()).not.toContain(enUS.systemStatus.stale);
     expect(wrapper.find('.temperature-chart').exists()).toBe(true);
     settings.draft!.gpuAdapter = 'b';
     await flushPromises();

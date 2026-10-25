@@ -4053,8 +4053,6 @@
     "topProcesses": "En çok kaynak kullanan işlemler",
     "processId": "İşlem kimliği: {pid}",
     "loadingApplications": "Uygulamalar okunuyor…",
-    "updatingApplications": "Uygulamalar güncelleniyor…",
-    "previousSample": "Önceki sonuçlar gösteriliyor",
     "noApplications": "Okunabilir uygulama verisi yok",
     "processCount": "{count} işlem",
     "refresh": "Yenile",
@@ -4335,8 +4333,6 @@
   "gpuDetails": {
     "selectedAdapters": "Seçili GPU’lar",
     "allocatableMemoryHint": "Ayrılmış kapasite sistemin ayırabildiği miktardır; donanım rezervleri hariç olabilir\nBu, toplam GPU kapasitesini de etkiler",
-    "cachedLabel": "Önbellek",
-    "cached": "Son kullanılabilir veriler gösteriliyor; güncelleme bekleniyor",
     "activities": "Motor etkinliği",
     "customActivities": "Sürücü tanımlı motorlar",
     "customHint": "Ayrı gösterilir; yukarıdaki toplam GPU kullanımına dahil edilmez",
@@ -4369,8 +4365,7 @@
     "average": "Ortalama frekans",
     "efficiency": "Verimlilik çekirdekleri",
     "performance": "Performans çekirdekleri",
-    "super": "Süper çekirdekler",
-    "cached": "Önbellek"
+    "super": "Süper çekirdekler"
   },
   "gpuTemperature": {
     "followUsage": "GPU kullanım seçimini izle",
@@ -4478,8 +4473,7 @@
     "none": "Yok",
     "mediaErrors": "Ortam hataları",
     "temperature": "Sıcaklık",
-    "healthPercent": "Sağlık",
-    "cachedHint": "Son sağlık okuması gösteriliyor\nArka planda yenileniyor"
+    "healthPercent": "Sağlık"
   },
   "networkDetails": {
     "title": "Trafik",
