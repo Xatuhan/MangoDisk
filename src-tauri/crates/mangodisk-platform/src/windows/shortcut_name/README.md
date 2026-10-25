@@ -10,12 +10,16 @@ Shell during an operation.
 The adapter accepts canonical `REG_SZ` values and a missing value. Custom text,
 including whitespace and an empty string, remains the exact recovery baseline
 within the ledger's 1 KiB UTF-8 limit. Larger values are unavailable before any
-mutation. Other registry types and malformed UTF-16 fail closed so recovery never silently
-changes the native type or encoding. Core's existing durable Text/Missing ledger
+mutation. Other registry types and malformed UTF-16 fail closed so recovery never
+silently changes the native type or encoding. Core's existing durable Text/Missing ledger
 and optimistic concurrency checks apply without a protocol migration. Removing
 the owned value leaves sibling naming templates and keys untouched. The Explorer
 `link` counter, shortcut type registration and icon overlays are outside this
 capability.
+
+When another tool changes the template after enablement, the old recovery entry
+no longer matches. Enabling again captures that external template as the new
+baseline. A still-matching baseline survives catalog policy updates.
 
 Run the ordinary Core and Windows platform checks, then explicitly opt into the
 native roundtrip on a Windows test account:
@@ -23,9 +27,13 @@ native roundtrip on a Windows test account:
 ```sh
 cargo test -p mangodisk-platform shortcut_name
 cargo test -p mangodisk-platform actual_shortcut_name_roundtrip -- --ignored --test-threads=1
+cargo test -p mangodisk-core --test windows_shortcut_name_validation -- --ignored --test-threads=1
 ```
 
-The native test restores the original raw value on scope exit. In Explorer,
-verify creating file and folder links before enablement, after sign-out/restart,
+The platform test restores the original raw value on scope exit. The Core test
+uses isolated recovery/history storage and restores the original template; it
+exercises re-enablement after external changes and rejects preflight conflicts.
+The Core test may leave an empty `NamingTemplates` key when none existed before.
+In Explorer, verify creating file and folder links before enablement, after sign-out/restart,
 and after restoration; checking the registry alone does not establish that the
 Shell has adopted the naming template.

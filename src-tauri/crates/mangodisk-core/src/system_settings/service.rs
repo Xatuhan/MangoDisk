@@ -6,7 +6,7 @@ use recovery::{
 };
 use recovery_policy::{
     desired_value_for_target, mark_restore_availability, reconciled_recovery_items,
-    recovery_intent, recovery_items_by_id,
+    recovery_intent, recovery_items_by_id, valid_recovery_baseline,
 };
 
 use std::{
@@ -369,6 +369,13 @@ fn build_change_plan(
             public,
             expected_value: item.current_value.clone(),
             desired_value,
+            recovery_value: recovery_items
+                .get(&setting_id)
+                .filter(|recovery| valid_recovery_baseline(recovery, item))
+                .map_or_else(
+                    || item.current_value.clone(),
+                    |recovery| recovery.original_value.clone(),
+                ),
         });
     }
 

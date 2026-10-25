@@ -211,6 +211,8 @@ pub(super) struct PendingChangeItem {
     pub public: SystemSettingChangePlanItem,
     pub expected_value: PlatformSystemSettingValue,
     pub desired_value: PlatformSystemSettingValue,
+    /// A matching durable baseline or the native value observed before this enablement.
+    pub recovery_value: PlatformSystemSettingValue,
 }
 
 #[derive(Clone)]

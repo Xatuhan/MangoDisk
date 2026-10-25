@@ -84,8 +84,8 @@ fn same_value_kind(left: &PlatformSystemSettingValue, right: &PlatformSystemSett
 }
 
 /// Builds the durable baseline ledger written before native changes begin.
-/// Existing baselines are never replaced, so applying a second profile cannot make settings from
-/// the first profile irreversible. Only the optimized target is refreshed when policy evolves.
+/// The plan retains matching baselines across policy updates, but captures the current native
+/// value after an external override. Unrelated settings remain reversible across batches.
 pub(super) fn recovery_intent(
     previous: Option<&RecoveryDocument>,
     pending_items: &[PendingChangeItem],
@@ -95,18 +95,14 @@ pub(super) fn recovery_intent(
         .iter()
         .filter(|item| item.public.target == SystemSettingTargetState::Optimized)
     {
-        if let Some(existing) = items.get_mut(&pending.public.setting_id) {
-            existing.optimized_value = pending.desired_value.clone();
-        } else {
-            items.insert(
-                pending.public.setting_id.clone(),
-                RecoveryItem {
-                    setting_id: pending.public.setting_id.clone(),
-                    original_value: pending.expected_value.clone(),
-                    optimized_value: pending.desired_value.clone(),
-                },
-            );
-        }
+        items.insert(
+            pending.public.setting_id.clone(),
+            RecoveryItem {
+                setting_id: pending.public.setting_id.clone(),
+                original_value: pending.recovery_value.clone(),
+                optimized_value: pending.desired_value.clone(),
+            },
+        );
     }
     items.into_values().collect()
 }

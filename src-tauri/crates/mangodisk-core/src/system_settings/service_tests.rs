@@ -1,9 +1,6 @@
-use super::{
-    recovery::{
-        quarantine_invalid_recovery, INVALID_RECOVERY_FILE_NAME, MAX_RECOVERY_ITEMS,
-        RECOVERY_FILE_NAME, RECOVERY_SCHEMA_VERSION,
-    },
-    recovery_policy::valid_recovery_baseline,
+use super::recovery::{
+    quarantine_invalid_recovery, INVALID_RECOVERY_FILE_NAME, MAX_RECOVERY_ITEMS,
+    RECOVERY_FILE_NAME, RECOVERY_SCHEMA_VERSION,
 };
 use mangodisk_platform::PlatformSystemSettingSnapshot;
 use std::fs;
@@ -26,6 +23,7 @@ fn pending_item(
         },
         expected_value: PlatformSystemSettingValue::Integer(expected),
         desired_value: PlatformSystemSettingValue::Integer(desired),
+        recovery_value: PlatformSystemSettingValue::Integer(expected),
     }
 }
 
@@ -170,6 +168,54 @@ fn shortcut_name_restore_preserves_missing_empty_and_custom_templates() {
         item.effective_value =
             PlatformSystemSettingValue::Text("%s - changed elsewhere.lnk".into());
         assert!(!valid_recovery_baseline(&persisted.items[0], item));
+    }
+}
+
+#[test]
+fn shortcut_name_reenable_preserves_the_latest_external_template() {
+    let id = "windows.explorer.remove-shortcut-suffix";
+    let optimized = PlatformSystemSettingValue::Text("%s.lnk".into());
+    let previous = recovery_document(vec![RecoveryItem {
+        setting_id: id.into(),
+        original_value: PlatformSystemSettingValue::Missing,
+        optimized_value: optimized.clone(),
+    }]);
+    for external in [
+        PlatformSystemSettingValue::Missing,
+        PlatformSystemSettingValue::Text(String::new()),
+        PlatformSystemSettingValue::Text(" %s - external \u{1f96d}.lnk ".into()),
+    ] {
+        let native = mangodisk_platform::PlatformSystemSettingState {
+            setting_id: id.into(),
+            value: external.clone(),
+            effective_value: external.clone(),
+            requires_elevation: false,
+            diagnostic: None,
+        };
+        let items = catalog_native_items(SystemSettingsPlatform::Windows, vec![native])
+            .expect("shortcut naming catalog should load");
+        let session = catalog_session_fixture(items);
+        let selection = SystemSettingsChangeSelection {
+            scan_id: session.public.scan_id.clone(),
+            items: vec![super::super::SystemSettingChangeSelectionItem {
+                setting_id: id.into(),
+                target: SystemSettingTargetState::Optimized,
+            }],
+        };
+        let pending = build_change_plan(selection, session, Some(&previous), 2);
+        assert_eq!(pending.items.len(), 1);
+        let ledger = recovery_intent(Some(&previous), &pending.items);
+        assert_eq!(ledger[0].original_value, external);
+
+        let mut restored = native_fixture(id, SystemSettingStatus::Optimized, true, None, true);
+        restored.current_value = optimized.clone();
+        restored.effective_value = optimized.clone();
+        restored.disabled_value = PlatformSystemSettingValue::Missing;
+        restored.recommended_value = optimized.clone();
+        assert_eq!(
+            desired_value_for_target(&restored, SystemSettingTargetState::Default, ledger.first()),
+            Some(external)
+        );
     }
 }
 
@@ -472,6 +518,7 @@ fn restart_notice_requires_a_changed_item_that_needs_restart() {
             },
             expected_value: PlatformSystemSettingValue::Integer(0),
             desired_value: PlatformSystemSettingValue::Integer(1),
+            recovery_value: PlatformSystemSettingValue::Integer(0),
         },
         PendingChangeItem {
             public: SystemSettingChangePlanItem {
@@ -483,6 +530,7 @@ fn restart_notice_requires_a_changed_item_that_needs_restart() {
             },
             expected_value: PlatformSystemSettingValue::Integer(0),
             desired_value: PlatformSystemSettingValue::Integer(1),
+            recovery_value: PlatformSystemSettingValue::Integer(0),
         },
     ];
     let failed_restart = vec![
@@ -537,6 +585,72 @@ fn recovery_intent_preserves_prior_baselines_across_batches() {
     assert_eq!(
         recovery_intent(Some(&previous), &pending),
         vec![recovery_item("existing", 0, 1), recovery_item("new", 4, 8)]
+    );
+}
+
+#[test]
+fn policy_updates_preserve_a_matching_native_snapshot_baseline() {
+    let id = "windows.test.snapshot";
+    let original = PlatformSystemSettingValue::Snapshot(PlatformSystemSettingSnapshot::IntegerMap(
+        BTreeMap::from([("native".into(), None)]),
+    ));
+    let previous = recovery_document(vec![RecoveryItem {
+        setting_id: id.into(),
+        original_value: original.clone(),
+        optimized_value: PlatformSystemSettingValue::Integer(1),
+    }]);
+    let mut item = native_fixture(id, SystemSettingStatus::Recommended, true, None, false);
+    item.current_value = PlatformSystemSettingValue::Snapshot(
+        PlatformSystemSettingSnapshot::IntegerMap(BTreeMap::from([("native".into(), Some(1))])),
+    );
+    item.effective_value = PlatformSystemSettingValue::Integer(1);
+    item.recommended_value = PlatformSystemSettingValue::Integer(2);
+    let session = catalog_session_fixture(vec![item]);
+    let selection = SystemSettingsChangeSelection {
+        scan_id: session.public.scan_id.clone(),
+        items: vec![super::super::SystemSettingChangeSelectionItem {
+            setting_id: id.into(),
+            target: SystemSettingTargetState::Optimized,
+        }],
+    };
+    let pending = build_change_plan(selection, session, Some(&previous), 2);
+    assert_eq!(pending.items.len(), 1);
+    assert_eq!(
+        recovery_intent(Some(&previous), &pending.items),
+        vec![RecoveryItem {
+            setting_id: id.into(),
+            original_value: original,
+            optimized_value: PlatformSystemSettingValue::Integer(2),
+        }]
+    );
+}
+
+#[test]
+fn rejected_reenable_keeps_the_previous_recovery_record() {
+    let previous = recovery_document(vec![recovery_item("existing", 0, 1)]);
+    let pending = vec![pending_item(
+        "existing",
+        SystemSettingTargetState::Optimized,
+        3,
+        1,
+    )];
+    let preflight = recovery_intent(Some(&previous), &pending);
+    assert_eq!(preflight, vec![recovery_item("existing", 3, 1)]);
+    let results = vec![change_result(
+        "existing".into(),
+        SystemSettingChangeOutcomeStatus::Failed,
+        false,
+        Some(SystemSettingChangeFailureReason::SettingChanged),
+    )];
+    assert_eq!(
+        reconciled_recovery_items(
+            Some(&previous),
+            preflight,
+            &pending,
+            &results,
+            &BTreeSet::new()
+        ),
+        previous.items
     );
 }
 
