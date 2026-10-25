@@ -8,8 +8,9 @@ use objc2::{
     define_class, msg_send, rc::Retained, DefinedClass, MainThreadMarker, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
-    NSBackingStoreType, NSPanel, NSView, NSWindow, NSWindowButton, NSWindowStyleMask,
+    NSBackingStoreType, NSPanel, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowStyleMask,
 };
+use objc2_foundation::{NSPoint, NSRect, NSSize};
 use tauri::{Emitter, Manager};
 
 struct PanelIvars {
@@ -125,19 +126,50 @@ fn panel() -> Option<Retained<ResidentPanel>> {
     HOST.with(|host| host.borrow().as_ref().map(|host| host.panel.clone()))
 }
 
-pub(super) fn show(app: &tauri::AppHandle) {
+#[derive(Clone, Copy)]
+pub(super) struct Placement {
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+}
+
+impl Placement {
+    pub(super) fn from_physical(position: (f64, f64), size: (f64, f64), scale: f64) -> Self {
+        Self {
+            left: position.0 / scale,
+            top: position.1 / scale,
+            width: size.0 / scale,
+            height: size.1 / scale,
+        }
+    }
+
+    fn frame(self, desktop_top: f64) -> NSRect {
+        NSRect::new(
+            NSPoint::new(self.left, desktop_top - self.top - self.height),
+            NSSize::new(self.width, self.height),
+        )
+    }
+}
+
+pub(super) fn show(app: &tauri::AppHandle, placement: Option<Placement>) {
     let state = app.state::<Arc<super::ResidentState>>();
     if !state.panel_open.load(Ordering::Relaxed) || !state.enabled() {
         return;
     }
-    let Some((panel, frame)) = HOST.with(|host| {
-        host.borrow()
-            .as_ref()
-            .map(|host| (host.panel.clone(), host.window.frame()))
-    }) else {
+    let Some(panel) = HOST.with(|host| host.borrow().as_ref().map(|host| host.panel.clone()))
+    else {
         return;
     };
-    panel.setFrame_display(frame, true);
+    if let Some(placement) = placement {
+        let mtm = MainThreadMarker::new().expect("panel placement runs on the main thread");
+        if let Some(primary) = NSScreen::screens(mtm).firstObject() {
+            let screen = primary.frame();
+            // Tauri's hidden host geometry is updated asynchronously by Tao.
+            // Apply this request directly so the first frame cannot use an old position.
+            panel.setFrame_display(placement.frame(screen.origin.y + screen.size.height), true);
+        }
+    }
     // NSPanel can receive keyboard input without activating MangoDisk or moving
     // the user's fullscreen application to a different Space.
     panel.makeKeyAndOrderFront(None);
@@ -146,10 +178,14 @@ pub(super) fn show(app: &tauri::AppHandle) {
         panel.makeFirstResponder(Some(&view));
     }
     log::info!(
-        "resident_panel_native_shown active_space={} key={} visible={}",
+        "resident_panel_native_shown active_space={} key={} visible={} frame_x={} frame_y={} frame_width={} frame_height={}",
         panel.isOnActiveSpace(),
         panel.isKeyWindow(),
-        panel.isVisible()
+        panel.isVisible(),
+        panel.frame().origin.x,
+        panel.frame().origin.y,
+        panel.frame().size.width,
+        panel.frame().size.height
     );
     let _ = app.emit_to(super::PANEL_LABEL, super::VISIBILITY_EVENT, true);
 }
@@ -196,4 +232,29 @@ pub(super) fn query(app: &tauri::AppHandle, read: fn() -> bool) -> tauri::Result
     receive
         .recv()
         .map_err(|_| std::io::Error::other("panel_main_thread_response_closed").into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Placement;
+
+    #[test]
+    fn first_placement_uses_requested_retina_geometry() {
+        let frame = Placement::from_physical((1308.0, 62.0), (780.0, 1220.0), 2.0).frame(1117.0);
+        assert_eq!(frame.origin.x, 654.0);
+        assert_eq!(frame.origin.y, 476.0);
+        assert_eq!(frame.size.width, 390.0);
+        assert_eq!(frame.size.height, 610.0);
+    }
+
+    #[test]
+    fn placement_preserves_negative_display_origins_and_scaled_sizes() {
+        let frame = Placement::from_physical((-2400.0, -600.0), (780.0, 900.0), 2.0).frame(1117.0);
+        assert_eq!(frame.origin.x, -1200.0);
+        assert_eq!(frame.origin.y, 967.0);
+        assert_eq!(frame.size.height, 450.0);
+        let frame = Placement::from_physical((100.0, 40.0), (390.0, 610.0), 1.0).frame(1080.0);
+        assert_eq!(frame.origin.y, 430.0);
+        assert_eq!(frame.size.width, 390.0);
+    }
 }

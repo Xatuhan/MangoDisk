@@ -433,6 +433,16 @@ uses a real nonactivating `NSPanel` to host its Tauri-owned WebView. It can
 become key without becoming the main window or activating the application, so
 opening it does not leave another app's fullscreen Space. The hidden Tauri host
 retains its original window and delegate; no Objective-C class is replaced.
+Each open resolves geometry on AppKit's main thread and applies the requested
+frame directly to the panel before showing it. Physical tray/work-area coordinates
+are converted to logical AppKit points, including the bottom-left screen origin.
+Monitor selection also retains the status-item window's backing scale: Tao's
+per-display scaled global origins can overlap when Retina and ordinary screens
+are adjacent, so rectangle containment alone does not identify the owning display.
+The hidden host is not the positioning authority: Tao queues its geometry setters,
+so copying its frame can expose the previous position on the first open. Native
+frame diagnostics use AppKit points; the placement log includes physical pixels
+and the target display scale.
 The main-thread adapter moves the WebView back before releasing the panel on
 exit. Visibility queries read the displayed native panel, not its hidden host,
 and focus loss still follows the existing entry-click dismissal policy. It

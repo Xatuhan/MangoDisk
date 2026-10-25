@@ -1,6 +1,8 @@
 use std::sync::{atomic::Ordering, Arc};
 
-use tauri::{Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+#[cfg(not(target_os = "macos"))]
+use tauri::PhysicalPosition;
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 use super::{panel_page::PanelPage, runtime::ResidentState, PANEL_LABEL};
 
@@ -577,12 +579,11 @@ pub fn ready(app: &tauri::AppHandle) {
 }
 
 fn show(app: &tauri::AppHandle) -> tauri::Result<()> {
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
         let target = app.clone();
-        // Linux monitor work-area queries access GDK directly. Dispatch the
-        // entire positioning sequence to GTK's main thread to avoid concurrent
-        // X11 requests from menu or command workers corrupting the connection.
+        // Monitor geometry and native placement belong to the UI thread. Keep
+        // their snapshot and presentation ordered, including cancelled opens.
         app.run_on_main_thread(move || {
             if let Err(error) = show_window(&target) {
                 hide(&target);
@@ -590,7 +591,7 @@ fn show(app: &tauri::AppHandle) -> tauri::Result<()> {
             }
         })
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     show_window(app)
 }
 
@@ -599,6 +600,11 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     if !state.panel_open.load(Ordering::Relaxed) || !state.enabled() {
         return Ok(());
     }
+    #[cfg(target_os = "macos")]
+    if app.get_webview_window(PANEL_LABEL).is_none() {
+        return Ok(());
+    }
+    #[cfg(not(target_os = "macos"))]
     let Some(window) = app.get_webview_window(PANEL_LABEL) else {
         return Ok(());
     };
@@ -608,7 +614,13 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .unwrap_or_else(|error| error.into_inner())
         .clone();
     #[cfg(target_os = "macos")]
-    let anchor = super::tray_display::macos_thread::rect(app, &source)?;
+    let geometry = super::tray_display::macos_thread::geometry(app, &source)?;
+    #[cfg(target_os = "macos")]
+    let anchor_scale = geometry.as_ref().map(|geometry| geometry.scale_factor);
+    #[cfg(target_os = "macos")]
+    let anchor = geometry.map(|geometry| geometry.bounds);
+    #[cfg(not(target_os = "macos"))]
+    let anchor_scale = None;
     #[cfg(not(target_os = "macos"))]
     let anchor = app
         .tray_by_id(&source)
@@ -644,11 +656,11 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     } else {
         "monitor_fallback"
     };
-    // Tray rectangles are physical pixels. On macOS monitor_from_point uses
-    // logical screen points, so match against physical monitor bounds ourselves.
+    // macOS scales global origins by each display's backing factor. Bounds can
+    // overlap across different scales, so retain the tray window's factor too.
     let monitor = match anchor {
         Some(point) => app.available_monitors()?.into_iter().find(|monitor| {
-            contains(
+            monitor_contains_anchor(
                 point,
                 (
                     monitor.position().x as f64,
@@ -656,6 +668,8 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
                     monitor.size().width as f64,
                     monitor.size().height as f64,
                 ),
+                monitor.scale_factor(),
+                anchor_scale,
             )
         }),
         None => None,
@@ -664,12 +678,14 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         Some(monitor) => Some(monitor),
         None => app.primary_monitor()?,
     };
+    #[cfg(target_os = "macos")]
+    let mut native_placement = None;
     if let Some(monitor) = monitor {
         let area = monitor.work_area();
         let scale = monitor.scale_factor();
         let width = (WIDTH * scale).min(area.size.width as f64);
         let height = (HEIGHT * scale).min(area.size.height as f64);
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, target_os = "macos")))]
         window.set_size(tauri::LogicalSize::new(width / scale, height / scale))?;
         let work = (
             area.position.x as f64,
@@ -689,7 +705,16 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
             .unwrap_or_else(|| position(anchor, work, (width, height), 6.0 * scale));
         #[cfg(not(windows))]
         let (x, y) = position(anchor, work, (width, height), 6.0 * scale);
+        #[cfg(not(target_os = "macos"))]
         window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32))?;
+        #[cfg(target_os = "macos")]
+        {
+            native_placement = Some(macos::Placement::from_physical(
+                (x, y),
+                (width, height),
+                scale,
+            ));
+        }
         // A hidden Windows panel can retain the previous display's DPI. Move
         // first, then apply the target monitor's physical size so logical-size
         // conversion cannot clip the WebView after a scale/display change.
@@ -712,8 +737,7 @@ fn show_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     let _ = app.emit_to(PANEL_LABEL, VISIBILITY_EVENT, true);
     #[cfg(target_os = "macos")]
     {
-        let app = app.clone();
-        window.run_on_main_thread(move || macos::show(&app))?;
+        macos::show(app, native_placement);
     }
     #[cfg(target_os = "linux")]
     {
@@ -762,6 +786,15 @@ fn contains(point: (f64, f64), bounds: (f64, f64, f64, f64)) -> bool {
         && point.0 < bounds.0 + bounds.2
         && point.1 >= bounds.1
         && point.1 < bounds.1 + bounds.3
+}
+
+fn monitor_contains_anchor(
+    point: (f64, f64),
+    bounds: (f64, f64, f64, f64),
+    monitor_scale: f64,
+    anchor_scale: Option<f64>,
+) -> bool {
+    anchor_scale.is_none_or(|scale| scale == monitor_scale) && contains(point, bounds)
 }
 
 /// Use physical coordinates consistently across Retina/non-Retina displays and taskbar edges.
@@ -940,6 +973,50 @@ mod tests {
         assert!(!contains((3840.0, 24.0), (0.0, 0.0, 3840.0, 2160.0)));
         assert!(contains((-100.0, 24.0), (-1920.0, 0.0, 1920.0, 1080.0)));
         assert!(!contains((0.0, -1.0), (0.0, 0.0, 3840.0, 2160.0)));
+    }
+
+    #[test]
+    fn mixed_scale_tray_anchor_selects_the_screen_that_owns_the_entry() {
+        // Tao and tray-icon scale global logical origins with each screen's
+        // backing factor. Adjacent screens can therefore overlap in these pixels.
+        let monitors = [
+            ((0.0, 0.0, 3840.0, 2160.0), 2.0),
+            ((1920.0, 0.0, 1920.0, 1080.0), 1.0),
+        ];
+        let selected = monitors.iter().position(|(bounds, scale)| {
+            monitor_contains_anchor((2100.0, 12.0), *bounds, *scale, Some(1.0))
+        });
+        assert_eq!(selected, Some(1));
+        assert!(monitor_contains_anchor(
+            (2100.0, 24.0),
+            monitors[0].0,
+            2.0,
+            Some(2.0)
+        ));
+    }
+
+    #[test]
+    fn tray_monitor_matching_preserves_negative_origins_and_unscaled_platforms() {
+        let bounds = (-3840.0, -200.0, 3840.0, 2160.0);
+        assert!(monitor_contains_anchor(
+            (-100.0, 24.0),
+            bounds,
+            2.0,
+            Some(2.0)
+        ));
+        assert!(!monitor_contains_anchor(
+            (-100.0, 24.0),
+            bounds,
+            2.0,
+            Some(1.0)
+        ));
+        assert!(!monitor_contains_anchor(
+            (0.0, 24.0),
+            bounds,
+            2.0,
+            Some(2.0)
+        ));
+        assert!(monitor_contains_anchor((-100.0, 24.0), bounds, 2.0, None));
     }
 
     #[test]

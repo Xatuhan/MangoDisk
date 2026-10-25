@@ -34,3 +34,32 @@ pub(in crate::resident) fn rect(
         None => Ok(None),
     })
 }
+
+pub(in crate::resident) struct TrayGeometry {
+    pub bounds: tauri::Rect,
+    pub scale_factor: f64,
+}
+
+pub(in crate::resident) fn geometry(
+    app: &tauri::AppHandle,
+    id: &str,
+) -> tauri::Result<Option<TrayGeometry>> {
+    let id = id.to_owned();
+    call(app, move |app, _mtm| {
+        let Some(tray) = app.tray_by_id(&id) else {
+            return Ok(None);
+        };
+        tray.with_inner_tray_icon(|tray| {
+            let mtm = MainThreadMarker::new().expect("tray geometry runs on the main thread");
+            let window = tray.ns_status_item()?.button(mtm)?.window()?;
+            let bounds = tray.rect()?;
+            Some(TrayGeometry {
+                bounds: tauri::Rect {
+                    position: bounds.position.into(),
+                    size: bounds.size.into(),
+                },
+                scale_factor: window.backingScaleFactor(),
+            })
+        })
+    })
+}
