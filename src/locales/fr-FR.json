@@ -1453,6 +1453,10 @@
         "name": "Avertir lorsque les mises à jour doivent être redémarrées",
         "description": "Afficher un rappel clair lorsqu'un redémarrage est nécessaire pour terminer la mise à jour"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "Ne pas ajouter « Raccourci » aux nouveaux noms",
+        "description": "Concerne les nouveaux raccourcis créés dans l’Explorateur pour l’utilisateur actuel. Les noms existants restent inchangés et le réglage initial peut être restauré. Reconnectez-vous ou redémarrez pour l’appliquer"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "Masquer les flèches de raccourci",
         "description": "Masquer les flèches de raccourci sur le bureau et dans l'Explorateur de fichiers, avec une option pour les restaurer. Nécessite l'approbation de l'administrateur, affecte tous les utilisateurs et prend effet après le redémarrage de Windows. Indisponible lorsqu'un autre outil a configuré les flèches"

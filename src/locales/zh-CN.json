@@ -1453,6 +1453,10 @@
         "name": "更新需要重启时通知",
         "description": "在完成更新前明确提醒需要重新启动"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "新建快捷方式不添加“快捷方式”后缀",
+        "description": "仅影响当前用户通过资源管理器新建的快捷方式，已有名称保持不变。支持还原原始设置，重新登录或重启后生效"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "隐藏快捷方式小箭头",
         "description": "隐藏桌面和文件资源管理器中的快捷方式箭头，可恢复默认显示。需要管理员权限，影响所有用户，重启电脑后生效；已有第三方箭头设置时不可用"

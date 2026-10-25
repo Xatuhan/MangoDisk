@@ -122,6 +122,58 @@ fn shortcut_overlay_restore_uses_the_durable_native_baseline() {
 }
 
 #[test]
+fn shortcut_name_restore_preserves_missing_empty_and_custom_templates() {
+    let id = "windows.explorer.remove-shortcut-suffix";
+    let optimized = PlatformSystemSettingValue::Text("%s.lnk".into());
+    for original in [
+        PlatformSystemSettingValue::Missing,
+        PlatformSystemSettingValue::Text(String::new()),
+        PlatformSystemSettingValue::Text(" %s - \u{81ea}\u{5b9a}\u{4e49} \u{1f96d}.lnk ".into()),
+    ] {
+        let native = mangodisk_platform::PlatformSystemSettingState {
+            setting_id: id.into(),
+            value: original.clone(),
+            effective_value: original.clone(),
+            requires_elevation: false,
+            diagnostic: None,
+        };
+        let mut items = catalog_native_items(SystemSettingsPlatform::Windows, vec![native])
+            .expect("shortcut naming catalog should load");
+        let item = items
+            .iter_mut()
+            .find(|item| item.public.setting_id == id)
+            .unwrap();
+        assert!(!item.public.selected_by_default);
+        assert_eq!(
+            item.public.selection_kind,
+            SystemSettingSelectionKind::Custom
+        );
+        item.current_value = optimized.clone();
+        item.effective_value = optimized.clone();
+        let document = recovery_document(vec![RecoveryItem {
+            setting_id: id.into(),
+            original_value: original.clone(),
+            optimized_value: optimized.clone(),
+        }]);
+        let persisted: RecoveryDocument = serde_json::from_slice(
+            &serde_json::to_vec(&document).expect("recovery should serialize"),
+        )
+        .expect("recovery should survive restarting the app");
+        assert_eq!(
+            desired_value_for_target(
+                item,
+                SystemSettingTargetState::Default,
+                persisted.items.first()
+            ),
+            Some(original)
+        );
+        item.effective_value =
+            PlatformSystemSettingValue::Text("%s - changed elsewhere.lnk".into());
+        assert!(!valid_recovery_baseline(&persisted.items[0], item));
+    }
+}
+
+#[test]
 fn platform_inventory_rejects_ambiguous_identifiers_and_marks_missing_states() {
     let platform = current_platform_kind();
     let Some(definition) = definitions(platform).first() else {

@@ -561,6 +561,13 @@ const MACOS_SETTINGS: &[SettingDefinition] = &[
 ];
 
 const WINDOWS_SETTINGS: &[SettingDefinition] = &[
+    custom(
+        "windows.explorer.remove-shortcut-suffix",
+        SystemSettingCategory::Appearance,
+        DefinitionValue::Missing,
+        DefinitionValue::Text("%s.lnk"),
+        true,
+    ),
     elevated_custom(
         "windows.explorer.hide-shortcut-arrows",
         SystemSettingCategory::Appearance,
@@ -1784,6 +1791,26 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+
+    #[test]
+    fn shortcut_name_preference_is_manual_current_user_and_restores_absence() {
+        let setting = definitions(SystemSettingsPlatform::Windows)
+            .iter()
+            .find(|item| item.id == "windows.explorer.remove-shortcut-suffix")
+            .expect("shortcut naming preference should be present");
+        assert_eq!(setting.category, SystemSettingCategory::Appearance);
+        assert_eq!(setting.selection_kind, SystemSettingSelectionKind::Custom);
+        assert_eq!(
+            setting.default_value.owned(),
+            PlatformSystemSettingValue::Missing
+        );
+        assert_eq!(
+            setting.recommended_value.owned(),
+            PlatformSystemSettingValue::Text("%s.lnk".into())
+        );
+        assert!(!setting.requires_elevation);
+        assert!(setting.requires_restart);
+    }
 
     #[test]
     fn shortcut_arrows_are_manual_and_require_elevation_and_restart() {

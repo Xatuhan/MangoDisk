@@ -1453,6 +1453,10 @@
         "name": "更新需要重新啟動時通知",
         "description": "在完成更新前明確提醒需要重新啟動"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "建立捷徑時不加上「捷徑」字樣",
+        "description": "僅影響目前使用者透過檔案總管建立的捷徑，既有名稱維持不變。可還原原始設定，重新登入或重新啟動後生效"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "隱藏捷徑小箭頭",
         "description": "隱藏桌面及檔案總管中的捷徑箭頭，可還原預設顯示。需要管理員權限，影響所有使用者，重新啟動電腦後生效；已有第三方箭頭設定時無法使用"

@@ -26,6 +26,7 @@ mod process_control;
 mod project_markers;
 mod registration_removal;
 pub use registration_removal::run_application_record_helper_mode;
+mod shortcut_name;
 mod shortcut_overlay;
 mod startup;
 mod system_maintenance;

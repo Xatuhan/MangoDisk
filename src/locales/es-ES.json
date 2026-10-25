@@ -1453,6 +1453,10 @@
         "name": "Notificar cuando las actualizaciones necesitan reiniciarse",
         "description": "Muestra un recordatorio claro cuando es necesario reiniciar para finalizar la actualización"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "No añadir «Acceso directo» a los nuevos nombres",
+        "description": "Afecta a los accesos directos nuevos creados en el Explorador para el usuario actual. Conserva los nombres existentes y permite restaurar el ajuste original. Se aplica al volver a iniciar sesión o reiniciar"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "Ocultar flechas de acceso directo",
         "description": "Ocultar flechas de acceso directo en el escritorio y en el Explorador de archivos, con una opción para restaurarlas. Requiere la aprobación del administrador, afecta a todos los usuarios y entra en vigor después de reiniciar Windows. No disponible cuando otra herramienta ha configurado las flechas"

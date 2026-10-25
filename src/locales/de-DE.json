@@ -1453,6 +1453,10 @@
         "name": "Benachrichtigen, wenn Updates einen Neustart erfordern",
         "description": "Zeigt eine deutliche Erinnerung an, wenn ein Neustart erforderlich ist, um die Aktualisierung abzuschließen"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "Neue Verknüpfungen ohne „Verknüpfung“ im Namen",
+        "description": "Gilt für neue Verknüpfungen im Datei-Explorer des aktuellen Benutzers. Vorhandene Namen bleiben erhalten. Die ursprüngliche Einstellung lässt sich wiederherstellen. Nach erneuter Anmeldung oder Neustart wirksam"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "Verknüpfungspfeile ausblenden",
         "description": "Verknüpfungspfeile auf dem Desktop und im Datei-Explorer ausblenden, mit der Option, sie wiederherzustellen. Erfordert die Genehmigung des Administrators, betrifft alle Benutzer und wird nach dem Neustart von Windows wirksam. Nicht verfügbar, wenn ein anderes Tool die Pfeile konfiguriert hat"

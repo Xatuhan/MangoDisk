@@ -1,4 +1,4 @@
-use super::shortcut_overlay;
+use super::{shortcut_name, shortcut_overlay};
 use std::{collections::BTreeMap, io};
 
 use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -51,6 +51,12 @@ struct SettingDefinition {
 }
 
 const SETTINGS: &[SettingDefinition] = &[
+    setting(
+        shortcut_name::SETTING_ID,
+        shortcut_name::REGISTRY_PATH,
+        shortcut_name::VALUE_NAME,
+        ValueKind::Text,
+    ),
     machine_setting(
         shortcut_overlay::SETTING_ID,
         r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Icons",
@@ -1563,6 +1569,9 @@ fn diagnostic_for_error(code: PlatformErrorCode) -> PlatformSystemSettingDiagnos
 }
 
 fn read_value(definition: SettingDefinition) -> PlatformResult<PlatformSystemSettingValue> {
+    if definition.id == shortcut_name::SETTING_ID {
+        return shortcut_name::read();
+    }
     if definition.id == shortcut_overlay::SETTING_ID {
         return shortcut_overlay::read();
     }
@@ -1603,6 +1612,9 @@ fn write_value(
     definition: SettingDefinition,
     value: &PlatformSystemSettingValue,
 ) -> PlatformResult<()> {
+    if definition.id == shortcut_name::SETTING_ID {
+        return shortcut_name::write(value);
+    }
     if definition.id == shortcut_overlay::SETTING_ID {
         return shortcut_overlay::write(value);
     }
@@ -2067,6 +2079,16 @@ fn validate_value(
     definition: SettingDefinition,
     value: &PlatformSystemSettingValue,
 ) -> PlatformResult<()> {
+    if definition.id == shortcut_name::SETTING_ID {
+        return if shortcut_name::valid_value(value) {
+            Ok(())
+        } else {
+            Err(PlatformError::new(
+                PlatformErrorCode::InvalidData,
+                "shortcut name template has an invalid type or encoding",
+            ))
+        };
+    }
     if definition.id == shortcut_overlay::SETTING_ID {
         return if shortcut_overlay::valid_value(value) {
             Ok(())

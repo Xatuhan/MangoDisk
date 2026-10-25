@@ -1453,6 +1453,10 @@
         "name": "Avisar quando as atualizações precisarem de reinício",
         "description": "Mostrar um lembrete claro quando for necessário reiniciar para concluir a atualização"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "Não adicionar “Atalho” aos novos nomes",
+        "description": "Aplica-se aos novos atalhos criados no Explorador de Arquivos pelo usuário atual. Mantém os nomes existentes e permite restaurar a configuração original. Entre novamente na conta ou reinicie para aplicar"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "Ocultar setas dos atalhos",
         "description": "Oculta as setas dos atalhos na área de trabalho e no Explorador de Arquivos, com opção de restaurá-las. Exige autorização do administrador, afeta todos os usuários e passa a valer após reiniciar o Windows. Indisponível quando outra ferramenta já configurou as setas"

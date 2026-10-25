@@ -1453,6 +1453,10 @@
         "name": "Notify when updates need a restart",
         "description": "Show a clear reminder when a restart is required to finish updating"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "Do not add “Shortcut” to new shortcut names",
+        "description": "Applies to new shortcuts created in File Explorer for the current user. Existing names stay unchanged. The original setting can be restored. Sign out and back in or restart to apply"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "Hide shortcut arrows",
         "description": "Hide shortcut arrows on the desktop and in File Explorer, with an option to restore them. Requires administrator approval, affects all users, and takes effect after restarting Windows. Unavailable when another tool has configured the arrows"

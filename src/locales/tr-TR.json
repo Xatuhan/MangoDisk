@@ -1453,6 +1453,10 @@
         "name": "Güncellemeler yeniden başlatma gerektirdiğinde bildir",
         "description": "Güncellemenin bitmesi için yeniden başlatma gerektiğinde açık bir hatırlatma gösterir"
       },
+      "windows_explorer_remove-shortcut-suffix": {
+        "name": "Yeni adlara “Kısayol” ekleme",
+        "description": "Geçerli kullanıcının Dosya Gezgini’nde oluşturduğu yeni kısayollara uygulanır. Mevcut adlar değişmez ve önceki ayar geri yüklenebilir. Uygulamak için yeniden oturum açın veya bilgisayarı yeniden başlatın"
+      },
       "windows_explorer_hide-shortcut-arrows": {
         "name": "Kısayol oklarını gizle",
         "description": "Masaüstünde ve Dosya Gezgini'nde kısayol oklarını gizler; istenirse geri yüklenebilir. Yönetici onayı gerekir, tüm kullanıcıları etkiler ve Windows yeniden başlatıldıktan sonra geçerli olur. Okları başka bir araç yapılandırmışsa kullanılamaz"
