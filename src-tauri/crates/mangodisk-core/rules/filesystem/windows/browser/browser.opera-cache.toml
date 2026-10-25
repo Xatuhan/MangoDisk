@@ -1,6 +1,6 @@
 id = "browser.opera-cache"
 schema_version = 3
-rule_version = 2
+rule_version = 3
 platform = "windows"
 category = "browser"
 risk = "safe"
@@ -68,6 +68,40 @@ template = "${roaming_app_data}/Opera Software/Opera GX Stable/GraphiteDawnCache
 [[roots]]
 template = "${roaming_app_data}/Opera Software/Opera GX Stable/Media Cache"
 
+[[roots]]
+template = "${roaming_app_data}/Opera Software/Opera Stable"
+kind = "childDirectories"
+child_names = ["Default", "Guest Profile", "System Profile"]
+child_prefixes = ["Profile "]
+suffixes = ["Cache", "Code Cache", "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache", "GrShaderCache", "GraphiteDawnCache", "Media Cache"]
+
+[[roots]]
+template = "${roaming_app_data}/Opera Software/Opera GX Stable"
+kind = "childDirectories"
+child_names = ["Default", "Guest Profile", "System Profile"]
+child_prefixes = ["Profile "]
+suffixes = ["Cache", "Code Cache", "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache", "GrShaderCache", "GraphiteDawnCache", "Media Cache"]
+
+[[roots]]
+template = "${local_app_data}/Opera Software"
+kind = "childDirectories"
+child_names = ["Opera Stable", "Opera GX Stable"]
+suffixes = ["Cache", "Code Cache", "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache", "GrShaderCache", "GraphiteDawnCache", "Media Cache"]
+
+[[roots]]
+template = "${local_app_data}/Opera Software/Opera Stable"
+kind = "childDirectories"
+child_names = ["Default", "Guest Profile", "System Profile"]
+child_prefixes = ["Profile "]
+suffixes = ["Cache", "Code Cache", "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache", "GrShaderCache", "GraphiteDawnCache", "Media Cache"]
+
+[[roots]]
+template = "${local_app_data}/Opera Software/Opera GX Stable"
+kind = "childDirectories"
+child_names = ["Default", "Guest Profile", "System Profile"]
+child_prefixes = ["Profile "]
+suffixes = ["Cache", "Code Cache", "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache", "GrShaderCache", "GraphiteDawnCache", "Media Cache"]
+
 [matcher]
 kind = "all"
 
@@ -77,7 +111,12 @@ requires_app_close = true
 
 [verification]
 lifecycle = "verified"
-evidence = "The rule selects only explicitly named Chromium renderer, shader, Dawn, and media cache directories under Opera and Opera GX profiles; cookies, history, passwords, bookmarks, extensions, and settings are excluded"
-verified_at = "2026-07-18"
+evidence = "Opera caches use fixed leaves in legacy and named Local/Roaming profiles. Official migration documentation and isolated scan, dry-run, and deletion tests cover these leaves; credentials, sessions, settings, and site storage are excluded"
+verified_at = "2026-10-25"
 verified_platform = "windows"
-references = ["https://help.opera.com/en/latest/web-preferences/#clearBrowsingData"]
+references = [
+  "https://help.opera.com/en/latest/web-preferences/#clearBrowsingData",
+  "https://help.opera.com/en/latest/crashes-and-issues/",
+  "https://blogs.opera.com/desktop/2023/08/resolving-profile-loss-issues-in-opera-version-102-0-4880-16/",
+  "https://chromium.googlesource.com/chromium/src/+/main/chrome/common/chrome_constants.h",
+]

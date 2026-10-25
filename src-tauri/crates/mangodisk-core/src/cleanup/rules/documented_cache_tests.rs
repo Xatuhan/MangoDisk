@@ -178,6 +178,183 @@ fn check_cleanup(
     );
 }
 
+#[cfg(windows)]
+#[test]
+fn opera_layout_cleanup_preserves_profiles_and_has_no_duplicate_roots() {
+    let _lock = crate::shared::operation::test_operation_lock();
+    let sandbox = tempfile::tempdir().unwrap();
+    let mut selected = Vec::new();
+    let mut preserved = Vec::new();
+    for base in ["home/AppData/Local", "home/AppData/Roaming"] {
+        for browser in ["Opera Stable", "Opera GX Stable"] {
+            let root = sandbox
+                .path()
+                .join(base)
+                .join("Opera Software")
+                .join(browser);
+            for profile in [
+                "",
+                "Default",
+                "Guest Profile",
+                "System Profile",
+                "Profile 2",
+            ] {
+                for leaf in [
+                    "Cache",
+                    "Code Cache",
+                    "GPUCache",
+                    "DawnCache",
+                    "DawnGraphiteCache",
+                    "DawnWebGPUCache",
+                    "GrShaderCache",
+                    "GraphiteDawnCache",
+                    "Media Cache",
+                ] {
+                    let path = root.join(profile).join(leaf).join("nested/entry");
+                    write_fixture(&path, CACHE);
+                    selected.push(path);
+                }
+                for state in [
+                    "Bookmarks",
+                    "Cookies",
+                    "Login Data",
+                    "History",
+                    "Preferences",
+                    "Local State",
+                    "Sessions/session",
+                    "Extensions/extension",
+                    "IndexedDB/store",
+                    "Local Storage/state",
+                    "Service Worker/CacheStorage/offline",
+                    "Cache-backup/entry",
+                ] {
+                    preserved.push(root.join(profile).join(state));
+                }
+            }
+            preserved.push(root.join("Default.old/Cache/entry"));
+            preserved.push(root.join("unrecognized-profile/Cache/entry"));
+            preserved.push(root.join("Profile/Cache/entry"));
+        }
+    }
+    for path in &preserved {
+        write_fixture(path, STATE);
+    }
+    let plan = isolated_plan("browser.opera-cache", sandbox.path());
+    let roots = &plan.rules[0].roots;
+    assert_eq!(roots.len(), selected.len());
+    assert_eq!(
+        roots
+            .iter()
+            .map(|root| root.as_path())
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        roots.len(),
+        "legacy and migrated layouts must not count any cache twice"
+    );
+    check_cleanup(&plan, &selected, &preserved);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn opera_legacy_roots_remain_discoverable_without_listing_the_vendor_directory() {
+    use std::os::unix::fs::PermissionsExt;
+
+    struct RestorePermissions(std::path::PathBuf, fs::Permissions);
+    impl Drop for RestorePermissions {
+        fn drop(&mut self) {
+            fs::set_permissions(&self.0, self.1.clone()).unwrap();
+        }
+    }
+
+    let sandbox = tempfile::tempdir().unwrap();
+    let vendor = sandbox.path().join("roaming/Opera Software");
+    let cache = vendor.join("Opera Stable/Cache");
+    write_fixture(&cache.join("entry"), CACHE);
+    let original = fs::metadata(&vendor).unwrap().permissions();
+    let _restore = RestorePermissions(vendor.clone(), original);
+    fs::set_permissions(&vendor, fs::Permissions::from_mode(0o111)).unwrap();
+    assert!(
+        fs::read_dir(&vendor).is_err(),
+        "the fixture must deny directory enumeration"
+    );
+    assert_eq!(fs::read(cache.join("entry")).unwrap(), CACHE);
+
+    // Exercise the embedded Windows rule's root resolver without changing the
+    // account's real AppData or relying on ACL-bypassing Windows SSH tokens.
+    let rule = super::parse_catalog(super::EMBEDDED_DECLARATIVE_RULE_SOURCES)
+        .unwrap()
+        .into_iter()
+        .find(|parsed| {
+            parsed.rule.id == "browser.opera-cache"
+                && parsed.rule.platform == super::SourcePlatform::Windows
+        })
+        .unwrap()
+        .rule;
+    let name = sandbox.path().file_name().unwrap().to_str().unwrap();
+    let mut discovered = Vec::new();
+    for mut root in rule.roots {
+        root.template = root
+            .template
+            .replace("${roaming_app_data}", &format!("${{temp}}/{name}/roaming"))
+            .replace("${local_app_data}", &format!("${{temp}}/{name}/local"));
+        if let Ok(roots) = super::resolve_root_source(&root, &mut Default::default()) {
+            discovered.extend(roots);
+        }
+    }
+    let expected = std::env::temp_dir()
+        .join(name)
+        .join("roaming/Opera Software/Opera Stable/Cache");
+    assert!(
+        discovered.iter().any(|root| root.resolved_path == expected),
+        "a readable legacy cache must not require listing its vendor parent"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn firefox_roaming_shader_cleanup_preserves_all_other_roaming_data() {
+    let _lock = crate::shared::operation::test_operation_lock();
+    let sandbox = tempfile::tempdir().unwrap();
+    let mut selected = Vec::new();
+    let mut preserved = Vec::new();
+    for profile in ["random.default-release", "second.profile"] {
+        for base in ["home/AppData/Local", "home/AppData/Roaming"] {
+            let root = sandbox
+                .path()
+                .join(base)
+                .join("Mozilla/Firefox/Profiles")
+                .join(profile);
+            for leaf in ["cache2", "startupCache", "shader-cache"] {
+                let path = root.join(leaf).join("nested/entry");
+                if base.ends_with("Local") || leaf == "shader-cache" {
+                    write_fixture(&path, CACHE);
+                    selected.push(path);
+                } else {
+                    preserved.push(path);
+                }
+            }
+            for state in [
+                "cookies.sqlite",
+                "places.sqlite",
+                "key4.db",
+                "logins.json",
+                "prefs.js",
+                "sessionstore-backups/session.jsonlz4",
+                "storage/default/site",
+                "shader-cache-backup/entry",
+            ] {
+                preserved.push(root.join(state));
+            }
+        }
+    }
+    for path in &preserved {
+        write_fixture(path, STATE);
+    }
+    let plan = isolated_plan("browser.firefox-cache", sandbox.path());
+    assert_eq!(plan.rules[0].roots.len(), selected.len());
+    check_cleanup(&plan, &selected, &preserved);
+}
+
 #[test]
 fn zen_cache_cleanup_preserves_sessions_and_adjacent_profile_data() {
     let _lock = crate::shared::operation::test_operation_lock();

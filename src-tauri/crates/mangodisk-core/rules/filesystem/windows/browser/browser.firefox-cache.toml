@@ -1,6 +1,6 @@
 id = "browser.firefox-cache"
 schema_version = 3
-rule_version = 1
+rule_version = 2
 platform = "windows"
 category = "browser"
 risk = "safe"
@@ -20,6 +20,12 @@ kind = "childDirectories"
 include_all_children = true
 suffixes = ["cache2", "startupCache", "shader-cache"]
 
+[[roots]]
+template = "${roaming_app_data}/Mozilla/Firefox/Profiles"
+kind = "childDirectories"
+include_all_children = true
+suffixes = ["shader-cache"]
+
 [matcher]
 kind = "all"
 
@@ -29,10 +35,12 @@ requires_app_close = true
 
 [verification]
 lifecycle = "verified"
-evidence = "Firefox keeps disk cache and other temporary profile data under Local AppData, separate from the Roaming profile that contains bookmarks, credentials, history, and settings; the rule selects only cache2, startupCache, and shader-cache"
-verified_at = "2026-07-18"
+evidence = "Firefox keeps cache2/startupCache in Local and WebRender shader-cache in the main profile. Official implementation and isolated deletion tests cover these leaves; credentials, sessions, settings, and all other Roaming data are excluded"
+verified_at = "2026-10-25"
 verified_platform = "windows"
 references = [
   "https://support.mozilla.org/en-US/kb/how-clear-firefox-cache",
   "https://support.mozilla.org/en-US/kb/profiles-where-firefox-stores-user-data",
+  "https://github.com/mozilla/gecko-dev/blob/5836a062726f715fda621338a17b51aff30d0a8c/gfx/thebes/gfxPlatform.cpp#L829-L839",
+  "https://github.com/mozilla/gecko-dev/blob/5836a062726f715fda621338a17b51aff30d0a8c/gfx/webrender_bindings/src/program_cache.rs#L63-L76",
 ]
