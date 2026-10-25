@@ -5,6 +5,7 @@ import MdIcon from '@/components/icons/md-icon.vue';
 import { ICON_NAMES } from '@/lib/models/presentation/ui';
 import { computed } from 'vue';
 import MdResourceTrend from './md-resource-trend.vue';
+import MdResourceCard from './md-resource-card.vue';
 import MdMemoryPressure from './md-memory-pressure.vue';
 import MdCpuTemperature from './md-cpu-temperature.vue';
 import MdResourceTemperature from './md-resource-temperature.vue';
@@ -107,7 +108,7 @@ const rates = computed(() =>
 </script>
 
 <template>
-  <section class="resource-overview" :data-metric="metric" :aria-label="heading ?? t(METRIC_LABEL_KEYS[metric])">
+  <MdResourceCard class="resource-overview" :data-metric="metric" :aria-label="heading ?? t(METRIC_LABEL_KEYS[metric])">
     <button
       v-if="interactive"
       type="button"
@@ -250,22 +251,17 @@ const rates = computed(() =>
         <span v-else>{{ t('systemStatus.lastMinute') }}</span>
       </template>
     </div>
-  </section>
+  </MdResourceCard>
 </template>
 
 <style scoped>
 @reference "@assets/main.css";
 .resource-overview {
-  @apply rounded-xl border border-border bg-card;
   height: var(--resource-summary-height, 104px);
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   position: relative;
-  padding: 10px 12px;
-  min-width: 0;
-  flex: none;
 }
 header,
 .resource-meta {

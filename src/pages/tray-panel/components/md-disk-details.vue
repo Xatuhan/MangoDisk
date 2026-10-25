@@ -200,6 +200,7 @@ const activities = computed(() => {
 }
 .disk-health {
   @apply border-t border-border;
+  padding-inline: 0;
 }
 header {
   display: flex;
@@ -275,7 +276,7 @@ h2 {
   white-space: nowrap;
 }
 .disk-activity {
-  @apply rounded-lg bg-muted/30;
+  @apply rounded-lg bg-muted/40;
   gap: 8px;
 }
 .disk-health .health-metadata {

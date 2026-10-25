@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { TrendPoint } from '@/lib/models/system-resources/system-resources';
 import MdResourceTrend from './md-resource-trend.vue';
+import MdResourceCard from './md-resource-card.vue';
 defineProps<{ history: TrendPoint[]; observedAtMs: number; active: boolean; label: string; identity: string }>();
 </script>
 <template>
-  <section class="temperature-details">
+  <MdResourceCard class="temperature-details">
     <slot />
     <div class="temperature-chart">
       <slot name="placeholder">
@@ -19,15 +20,11 @@ defineProps<{ history: TrendPoint[]; observedAtMs: number; active: boolean; labe
         />
       </slot>
     </div>
-  </section>
+  </MdResourceCard>
 </template>
 <style scoped>
 @reference "@assets/main.css";
 .temperature-details {
-  @apply rounded-xl border border-border bg-card;
-  min-width: 0;
-  padding: 10px 12px;
-  flex: none;
   height: 90px;
   display: flex;
   flex-direction: column;

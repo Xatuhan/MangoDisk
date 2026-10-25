@@ -207,7 +207,7 @@ const interfaceFacts = computed(() => {
 <style scoped>
 @reference "@assets/main.css";
 .network-details {
-  padding: 12px;
+  padding: 12px 0;
   display: flex;
   flex-direction: column;
   flex: none;

@@ -17,6 +17,7 @@ import { METRIC_STATUS_KEYS, type ResourceReadings } from '@/lib/models/system-r
 import { ByteSizeService } from '@/lib/services/settings/byte-size-service';
 import { useResidentSettingsStore } from '@/stores/resident-settings-store';
 import MdResourceTrend from './md-resource-trend.vue';
+import MdResourceCard from './md-resource-card.vue';
 import MdTemperatureDetails from './md-temperature-details.vue';
 import MdResourceTemperature from './md-resource-temperature.vue';
 const props = defineProps<{ reading: ResourceReadings; active: boolean }>();
@@ -166,7 +167,7 @@ onMounted(() => {
 </script>
 <template>
   <div class="gpu-details">
-    <section class="gpu-summary">
+    <MdResourceCard class="gpu-summary">
       <div class="gpu-usage">
         <header>
           <Select
@@ -219,7 +220,7 @@ onMounted(() => {
           {{ t(METRIC_STATUS_KEYS[reading.gpuDetails.status === 'ready' ? 'loading' : reading.gpuDetails.status]) }}
         </p>
       </div>
-    </section>
+    </MdResourceCard>
     <MdTemperatureDetails
       v-if="reading.gpuAdapters.length > 0 || temperatureReading.status !== 'unsupported'"
       :history="temperatureHistory"
@@ -384,14 +385,9 @@ onMounted(() => {
   opacity: 0.55;
 }
 .gpu-summary {
-  @apply border border-border rounded-xl bg-card;
   height: var(--resource-summary-height, 104px);
-  box-sizing: border-box;
-  flex: none;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  padding: 10px 12px;
 }
 .gpu-usage {
   display: flex;

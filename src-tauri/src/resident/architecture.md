@@ -1555,6 +1555,13 @@ tracking rectangles, and overriding them can destabilize pointer handling.
 
 ### Power page
 
+Resource-panel primary cards share the page-local `MdResourceCard` surface:
+semantic card background and border, the same rounded corners, and 10px/12px
+vertical/horizontal insets. Metric components own content layout and sampling
+presentation. Standalone section headings align with the panel's content edge;
+they do not add another horizontal inset. Auxiliary fact surfaces retain the
+muted background to distinguish them from primary cards.
+
 Panel navigation uses `PanelPage`, independently of the five sampling metric IDs.
 The `resident_get_panel_page` and `resident_select_panel_page` commands and
 `resident-panel-page` event share the same enum, including `overview` and `power`.

@@ -17,6 +17,7 @@ import type { MemoryReleaseResult } from '@/lib/models/resident/resident';
 import type { MemoryOverview, MetricStatus } from '@/lib/models/system-resources/system-resources';
 import { ByteSizeService } from '@/lib/services/settings/byte-size-service';
 import MdMemoryPressure from './md-memory-pressure.vue';
+import MdResourceCard from './md-resource-card.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -96,7 +97,7 @@ const shortLabel = computed(() => {
 </script>
 
 <template>
-  <section class="memory-overview" :aria-label="t('monitoring.memory')">
+  <MdResourceCard class="memory-overview" :aria-label="t('monitoring.memory')">
     <header class="memory-heading">
       <div class="memory-title">
         <span>{{ t('monitoring.memory') }}</span>
@@ -190,16 +191,11 @@ const shortLabel = computed(() => {
     <span v-if="releaseAvailable && resultMessage" class="sr-only" role="status" aria-live="polite">{{
       resultMessage
     }}</span>
-  </section>
+  </MdResourceCard>
 </template>
 
 <style scoped>
 @reference "@assets/main.css";
-.memory-overview {
-  @apply rounded-xl border border-border bg-card;
-  padding: 10px 12px;
-  flex: none;
-}
 .memory-heading,
 .memory-footer {
   display: flex;

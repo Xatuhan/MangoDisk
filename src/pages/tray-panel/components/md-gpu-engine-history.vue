@@ -16,7 +16,7 @@ defineProps<{ history: TrendPoint[]; observedAtMs: number; active: boolean; labe
 <style scoped>
 @reference "@assets/main.css";
 .engine-history {
-  @apply rounded-lg bg-muted/30;
+  @apply rounded-lg bg-muted/40;
   position: relative;
   padding: 8px 8px 8px 30px;
   margin-top: 6px;
