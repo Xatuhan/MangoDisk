@@ -6,6 +6,21 @@ an executable registration was accepted. Catalogs are transient snapshots:
 rebuild them after upgrading instead of reusing an earlier scan schema.
 Uninstall plans, inspection schemas, and persisted history are unchanged.
 
+## macOS diagnostic associations
+
+Bundle associations require an exact identifier verified against the selected
+application's Info.plist. Besides direct bundle-ID data, uninstall recognizes
+the default per-bundle diagnostic leaves documented by
+[PLCrashReporter](https://github.com/microsoft/plcrashreporter/blob/0254f941c646b1ed17b243654723d0f071e990d0/Source/PLCrashReporter.m)
+and [Bugsnag](https://github.com/bugsnag/bugsnag-cocoa/blob/6f0dfc7e01b46afaf3224570ae7f495bc34233fb/Bugsnag/Storage/BSGFileLocations.m):
+`Library/Caches/com.plausiblelabs.crashreporter.data/<bundle-id>` and
+`Library/Application Support/com.bugsnag.Bugsnag/<bundle-id>`.
+They are rebuildable diagnostics selected by default during application
+uninstall, not new deep-cleanup rules. Shared parents, neighboring bundle IDs,
+custom SDK paths, and process/display-name fallbacks remain outside the selection.
+Existing link protection, snapshots, preflight, and permanent-deletion
+verification apply to each leaf.
+
 ## Investigating a disabled or failed application
 
 1. Find `application_uninstall_details_opened` when the user expands an item.

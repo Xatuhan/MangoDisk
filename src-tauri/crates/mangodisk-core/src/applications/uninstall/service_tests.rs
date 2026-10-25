@@ -762,6 +762,7 @@ fn cancelled_applications_mark_batch_history_without_counting_as_failures() {
 #[test]
 #[ignore = "permanently uninstalls only the explicitly named disposable macOS bundle"]
 fn real_macos_bundle_fixture_completes_the_full_uninstall_workflow() {
+    init_real_fixture_logger();
     let application_name = std::env::var("MANGODISK_TEST_MACOS_UNINSTALL_NAME")
         .expect("set MANGODISK_TEST_MACOS_UNINSTALL_NAME to a disposable application bundle");
     assert!(
@@ -1151,7 +1152,7 @@ fn real_package_fixture_completes_the_full_uninstall_workflow(
     );
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 fn init_real_fixture_logger() {
     struct FixtureLogger;
 

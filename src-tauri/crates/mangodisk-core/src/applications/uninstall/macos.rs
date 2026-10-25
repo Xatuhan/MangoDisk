@@ -630,6 +630,24 @@ fn exact_bundle_associations(home: &Path, identifier: &str) -> Vec<Association> 
             library.join("HTTPStorages").join(identifier),
             true,
         ),
+        // Official SDK storage layouts key these diagnostic leaves by bundle ID.
+        // Never select their shared parent or fall back to a display/process name.
+        (
+            ApplicationUninstallComponentKind::Cache,
+            ApplicationUninstallRisk::Rebuildable,
+            library
+                .join("Caches/com.plausiblelabs.crashreporter.data")
+                .join(identifier),
+            true,
+        ),
+        (
+            ApplicationUninstallComponentKind::Logs,
+            ApplicationUninstallRisk::Rebuildable,
+            library
+                .join("Application Support/com.bugsnag.Bugsnag")
+                .join(identifier),
+            true,
+        ),
     ]
     .into_iter()
     .map(|(kind, risk, path, default_selected)| Association {
@@ -1054,6 +1072,61 @@ mod tests {
             .path
             .to_string_lossy()
             .contains("com.example.Editor")));
+    }
+
+    #[test]
+    fn diagnostic_associations_select_only_exact_sdk_bundle_leaves() {
+        let root = TestDirectory::new("diagnostic-ownership");
+        let home = fs::canonicalize(root.path()).unwrap();
+        let identifier = "com.example.Editor";
+        let expected = [
+            home.join("Library/Caches/com.plausiblelabs.crashreporter.data")
+                .join(identifier),
+            home.join("Library/Application Support/com.bugsnag.Bugsnag")
+                .join(identifier),
+        ];
+        let associations = exact_bundle_associations(&home, identifier);
+        for path in &expected {
+            fs::create_dir_all(path).unwrap();
+            fs::write(path.join("report"), b"owned diagnostic").unwrap();
+            let neighbor = path.with_file_name("com.example.EditorOther");
+            fs::create_dir_all(&neighbor).unwrap();
+            fs::write(neighbor.join("report"), b"other application").unwrap();
+            let selected = associations
+                .iter()
+                .filter(|item| item.path == *path)
+                .collect::<Vec<_>>();
+            assert_eq!(selected.len(), 1);
+            assert!(selected[0].default_selected);
+            assert_eq!(selected[0].risk, ApplicationUninstallRisk::Rebuildable);
+            assert!(safe_user_association_path(&home, path));
+            let snapshot = snapshot_path(path);
+            assert!(snapshot.complete);
+            assert_eq!(snapshot.bytes, b"owned diagnostic".len() as u64);
+            assert_eq!(snapshot.file_count, 1);
+            assert!(!associations
+                .iter()
+                .any(|item| item.path == neighbor || Some(item.path.as_path()) == path.parent()));
+        }
+    }
+
+    #[test]
+    fn diagnostic_associations_reject_linked_sdk_parents() {
+        let root = TestDirectory::new("diagnostic-links");
+        let home = fs::canonicalize(root.path()).unwrap();
+        let outside = TestDirectory::new("diagnostic-link-target");
+        for parent in [
+            "Library/Caches/com.plausiblelabs.crashreporter.data",
+            "Library/Application Support/com.bugsnag.Bugsnag",
+        ] {
+            let linked = home.join(parent);
+            fs::create_dir_all(linked.parent().unwrap()).unwrap();
+            symlink(outside.path(), &linked).unwrap();
+            assert!(!safe_user_association_path(
+                &home,
+                &linked.join("com.example.Editor")
+            ));
+        }
     }
 
     #[test]
