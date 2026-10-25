@@ -1,3 +1,5 @@
+mod comfyui;
+
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     env, fs,
@@ -179,6 +181,7 @@ struct ModelSnapshot {
 }
 
 pub(super) fn preview_all(
+    project_roots: &[String],
     is_cancelled: &(dyn Fn() -> bool + Sync),
     report_path: &(dyn Fn(&Path) + Sync),
     report_files: &(dyn Fn(&Path, u64, u64) + Sync),
@@ -188,7 +191,7 @@ pub(super) fn preview_all(
     };
     let process_snapshot = ProcessSnapshot::capture();
 
-    PROVIDERS
+    let mut results: Vec<_> = PROVIDERS
         .iter()
         .map(|provider| {
             let started = Instant::now();
@@ -245,11 +248,19 @@ pub(super) fn preview_all(
                 started.elapsed().as_millis() as u64,
             )
         })
-        .collect()
+        .collect();
+    results.push(comfyui::preview(
+        &home,
+        project_roots,
+        is_cancelled,
+        report_path,
+        report_files,
+    ));
+    results
 }
 
 pub(super) fn preview_limited_all() -> Vec<ScanRuleResult> {
-    PROVIDERS
+    let mut results: Vec<_> = PROVIDERS
         .iter()
         .map(|provider| {
             // A failed scan must revoke the previous source snapshot. Keeping
@@ -258,20 +269,23 @@ pub(super) fn preview_limited_all() -> Vec<ScanRuleResult> {
             replace_preview(provider.id, None);
             unavailable_rule(provider, ScanItemStatus::Limited, 0)
         })
-        .collect()
+        .collect();
+    results.push(comfyui::limited());
+    results
 }
 
 pub(super) fn contains(id: &str) -> bool {
-    PROVIDERS.iter().any(|provider| provider.id == id)
+    id == comfyui::CLEANER_ID || PROVIDERS.iter().any(|provider| provider.id == id)
 }
 
 pub(super) fn count() -> usize {
-    PROVIDERS.len()
+    PROVIDERS.len() + 1
 }
 
 pub(super) fn catalog_digest() -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(CLEANER_REVISION.as_bytes());
+    hasher.update(comfyui::CLEANER_REVISION.as_bytes());
     for provider in PROVIDERS {
         update_digest_field(&mut hasher, provider.id.as_bytes());
         update_root_digest(&mut hasher, provider.root);
@@ -339,6 +353,9 @@ pub(super) fn execute(
     dry_run: bool,
     operation: &OperationGuard,
 ) -> CleanupActionResult {
+    if id == comfyui::CLEANER_ID {
+        return comfyui::execute(source_scope, dry_run, operation);
+    }
     let Some(provider) = PROVIDERS.iter().find(|provider| provider.id == id) else {
         return failed_action(id, 0, CleanupActionReason::CleanerUnavailable);
     };

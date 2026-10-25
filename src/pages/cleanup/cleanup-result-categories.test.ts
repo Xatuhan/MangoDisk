@@ -37,6 +37,18 @@ function rule(
 }
 
 describe('buildCleanupResultCategories', () => {
+  it.each(['requiresClose', 'limited'] as const)('keeps discovered but blocked models visible with %s', status => {
+    const blocked = {
+      ...rule('special.ai-model-comfyui', 'ai', 30, false),
+      status,
+      defaultSelected: false,
+      recommendedSelected: false,
+    };
+    const categories = buildCleanupResultCategories([blocked], [], []);
+    expect(categories).toHaveLength(1);
+    expect(categories[0]).toMatchObject({ bytes: 30, selectedBytes: 0, selection: 'none', rules: [blocked] });
+  });
+
   it('keeps exclusion-skipped rules visible without selecting or counting them', () => {
     const skipped = { ...rule('special.fixture', 'system', 0, false), status: 'excluded' as const };
     const categories = buildCleanupResultCategories([skipped], [], []);

@@ -3541,6 +3541,11 @@
         "description": "GPT4All 默认下载目录中的 GGUF 大语言模型",
         "impact": "请先关闭 GPT4All；只会移除你明确勾选的模型，不会清理聊天或本地文档。"
       },
+      "special.ai-model-comfyui": {
+        "name": "ComfyUI 本地模型",
+        "description": "ComfyUI 各安装实例、共享模型库和自定义路径中的模型权重与完整模型包。",
+        "impact": "仅永久删除勾选的模型；可能影响运行中的任务及使用共享模型的其他应用。因占用或权限不足而删除失败的文件会跳过。请备份自行训练的权重；保留输入、输出和工作流。"
+      },
       "special.ai-model-jan": {
         "name": "Jan 本地模型",
         "description": "Jan 数据目录中由应用管理的本地模型",

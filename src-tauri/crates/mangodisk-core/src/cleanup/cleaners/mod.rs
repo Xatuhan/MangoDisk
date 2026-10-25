@@ -249,6 +249,7 @@ pub(super) fn preview_all(request: CleanerPreviewRequest<'_>) -> CleanerScanPrev
     );
     let ai_model_started = Instant::now();
     results.extend(ai_model_storage::preview_all(
+        project_roots,
         &is_cancelled,
         report_path,
         report_files,
@@ -875,6 +876,7 @@ mod tests {
         assert!(contains("special.docker-build-cache"));
         assert!(contains("special.ai-model-hugging-face"));
         assert!(contains("special.ai-model-ollama"));
+        assert!(contains("special.ai-model-comfyui"));
         assert!(contains(codex_archived_sessions::CLEANER_ID));
         assert!(contains(rust_toolchains::CLEANER_ID));
         assert!(contains(macos_universal_binaries::CLEANER_ID));

@@ -3541,6 +3541,11 @@
         "description": "GPT4All 기본 다운로드 디렉터리에 저장된 GGUF 언어 모델입니다.",
         "impact": "먼저 GPT4All을 닫으세요. 선택한 모델만 제거되며, 채팅과 LocalDocs는 유지됩니다."
       },
+      "special.ai-model-comfyui": {
+        "name": "ComfyUI 로컬 모델",
+        "description": "ComfyUI 설치 환경, 공유 폴더 및 사용자 지정 경로의 모델 가중치와 전체 모델 패키지입니다.",
+        "impact": "선택한 모델만 영구 삭제하며, 실행 중인 작업과 공유 모델을 사용하는 다른 앱에 영향을 줄 수 있습니다. 사용 중이거나 권한이 없어 삭제할 수 없는 파일은 건너뜁니다. 직접 학습한 가중치는 백업하세요. 입력, 출력 및 워크플로는 유지됩니다."
+      },
       "special.ai-model-jan": {
         "name": "Jan 로컬 모델",
         "description": "Jan 데이터 폴더 안에서 관리되는 로컬 모델입니다.",

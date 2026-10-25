@@ -110,14 +110,18 @@ const localeChunkLimitOverrides = new Map([
   // The shared elevation notice adds three strings. Largest measured raw/gzip
   // sizes are 413453/73385 (ru); allow only 64 gzip bytes and 128–256 raw bytes
   // above the previous locale budgets. Application budgets stay fixed.
-  ['fr-fr', { bytes: 331392, gzipBytes: 66304 }],
-  ['de-de', { bytes: 320768, gzipBytes: 66944 }],
-  ['es-es', { bytes: 322944, gzipBytes: 64768 }],
-  ['pt-br', { bytes: 316160, gzipBytes: 63808 }],
-  ['ko-kr', { bytes: 315136, gzipBytes: 62976 }],
-  ['ja-jp', { bytes: 344832, gzipBytes: 65536 }],
-  ['ru-ru', { bytes: 416640, gzipBytes: 74560 }],
-  ['tr-tr', { bytes: 311296, gzipBytes: 62464 }],
+  // ComfyUI adds a model label, description, and permanent-deletion warning.
+  // Measured de/es/fr/ja/ko/pt/ru raw bytes: 318835/320765/329304/342789/313072/314077/414048;
+  // gzip bytes: 66227/64052/65661/65110/62575/63115/73473 (tr: 61816).
+  // Keep only small locale-specific margins; application chunk budgets remain unchanged.
+  ['fr-fr', { bytes: 331904, gzipBytes: 66464 }],
+  ['de-de', { bytes: 321280, gzipBytes: 67072 }],
+  ['es-es', { bytes: 323328, gzipBytes: 64896 }],
+  ['pt-br', { bytes: 316608, gzipBytes: 63936 }],
+  ['ko-kr', { bytes: 315712, gzipBytes: 63104 }],
+  ['ja-jp', { bytes: 345344, gzipBytes: 65664 }],
+  ['ru-ru', { bytes: 417344, gzipBytes: 74688 }],
+  ['tr-tr', { bytes: 311552, gzipBytes: 62592 }],
 ]);
 
 function fail(message) {

@@ -3541,6 +3541,11 @@
         "description": "GPT4All'ın varsayılan indirme dizininde saklanan GGUF dil modelleri.",
         "impact": "Önce GPT4All'ı kapatın. Yalnızca seçili modeller kaldırılır; sohbetler ve LocalDocs korunur."
       },
+      "special.ai-model-comfyui": {
+        "name": "ComfyUI yerel modelleri",
+        "description": "ComfyUI kurulumları ile paylaşılan veya özel model klasörlerindeki ağırlıklar ve tam model paketleri.",
+        "impact": "Yalnızca seçilen modelleri kalıcı olarak siler; çalışan görevler ve ortak modelleri kullanan diğer uygulamalar etkilenebilir. Kullanımda olduğu veya izin verilmediği için silinemeyen dosyalar atlanır. Özel ağırlıkları yedekleyin. Girdiler, çıktılar ve iş akışları korunur."
+      },
       "special.ai-model-jan": {
         "name": "Jan yerel modelleri",
         "description": "Jan veri klasörü içinde yönetilen yerel modeller.",

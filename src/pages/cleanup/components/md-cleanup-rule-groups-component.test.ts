@@ -35,6 +35,53 @@ const rule: PresentedScanRuleResult = {
   categoryLabel: 'Projects',
 };
 
+it.each(['requiresClose', 'limited'] as const)(
+  'shows blocked ComfyUI models without enabling cleanup for %s',
+  async status => {
+    const blocked: PresentedScanRuleResult = {
+      ...rule,
+      ruleId: 'special.ai-model-comfyui',
+      name: 'ComfyUI local models',
+      category: 'ai',
+      group: 'ai',
+      selectable: false,
+      status,
+      runningProcesses: status === 'requiresClose' ? ['python3'] : [],
+      sources: [
+        { path: '/fixture/model.safetensors', bytes: 200, fileCount: 1, modifiedAtMs: null, blockReason: null },
+      ],
+    };
+    const wrapper = mount(MdCleanupRuleGroups, {
+      props: {
+        busy: false,
+        leftovers: null,
+        rules: [blocked],
+        selectedLeftoverIds: [],
+        selectedRuleIds: [],
+        sourceSelections: [],
+        privilegedScanRuleId: null,
+      },
+      global: {
+        plugins: [createPinia(), i18n],
+        stubs: {
+          MdResultTable: { methods: { scrollTo() {} }, template: '<div><slot name="header" /><slot /></div>' },
+          MdAiAction: true,
+        },
+      },
+    });
+    await flushPromises();
+    expect(wrapper.text()).toContain(blocked.name);
+    expect(wrapper.findComponent(MdResultItemContent).props('valueDetail')).toBe(
+      i18n.global.t(status === 'limited' ? 'cleanup.sourceAccessLimited' : 'cleanup.sourceRequiresClose')
+    );
+    for (const checkbox of wrapper.findAllComponents(MdResultCheckbox)) {
+      expect(checkbox.props('disabled')).toBe(true);
+    }
+    expect(wrapper.emitted('selectAll')).toBeUndefined();
+    wrapper.unmount();
+  }
+);
+
 it('shares one category restart action and reserves admin check for previous installations', async () => {
   const wrapper = mount(MdCleanupRuleGroups, {
     props: {

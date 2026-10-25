@@ -3541,6 +3541,11 @@
         "description": "GGUF-Sprachmodelle werden im Standard-Download-Verzeichnis von GPT4All gespeichert",
         "impact": "Schließen Sie zuerst GPT4All. Es werden nur ausgewählte Modelle entfernt; Chats und LocalDocs bleiben erhalten"
       },
+      "special.ai-model-comfyui": {
+        "name": "Lokale ComfyUI-Modelle",
+        "description": "Modellgewichte und vollständige Modellpakete in ComfyUI-Installationen sowie gemeinsamen und eigenen Modellordnern.",
+        "impact": "Entfernt nur ausgewählte Modelle dauerhaft; laufende Aufgaben und andere Apps mit gemeinsam genutzten Modellen können betroffen sein. Bei Nutzung oder fehlenden Rechten nicht löschbare Dateien werden übersprungen. Eigene Gewichte sichern. Eingaben, Ausgaben und Workflows bleiben erhalten."
+      },
       "special.ai-model-jan": {
         "name": "Lokale Jan-Modelle",
         "description": "Lokale Modelle, die im Jan-Datenordner verwaltet werden",

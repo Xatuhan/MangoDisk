@@ -19,6 +19,7 @@ const CLEANUP_GROUP_ICONS: Readonly<Record<CleanupResultGroup, IconName>> = {
 // from localized labels and private filesystem paths. Unknown rules deliberately
 // fall back to their domain icon instead of guessing a visually similar brand.
 const CLEANUP_RULE_ICONS: Readonly<Record<string, IconName>> = {
+  [CLEANUP_RULE_IDS.aiModelComfyui]: ICON_NAMES.cleanupAiModelCache,
   'system.user-temp': ICON_NAMES.cleanupTemporaryFiles,
   'system.darwin-user-cache': ICON_NAMES.cleanupStaleCache,
   'system.old-diagnostic-logs': ICON_NAMES.cleanupDiagnosticLogs,

@@ -65,6 +65,7 @@ export const CLEANUP_RULE_IDS = {
   aiModelGpt4All: 'special.ai-model-gpt4all',
   aiModelHuggingFace: 'special.ai-model-hugging-face',
   aiModelJan: 'special.ai-model-jan',
+  aiModelComfyui: 'special.ai-model-comfyui',
   aiModelKeras: 'special.ai-model-keras',
   aiModelLmStudio: 'special.ai-model-lm-studio',
   aiModelModelScope: 'special.ai-model-modelscope',

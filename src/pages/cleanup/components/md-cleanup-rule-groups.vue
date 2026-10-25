@@ -198,6 +198,8 @@ function ruleValueDetail(
   selectedRuleBytes: number
 ): string | undefined {
   if (rule.status === 'excluded') return t('storageScanExclusions.unsupportedCleaner');
+  if (rule.status === 'limited') return t('cleanup.sourceAccessLimited');
+  if (rule.status === 'requiresClose' && !rule.selectable) return t('cleanup.sourceRequiresClose');
   if (rule.status === 'requiresElevation') {
     return requiresAdministratorRestart(rule) ? undefined : t('cleanup.privilegedScan.sizePending');
   }

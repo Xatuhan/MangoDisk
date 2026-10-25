@@ -35,7 +35,7 @@ const MAX_PARALLEL_DELETE_WORKERS: usize = 4;
 #[cfg(target_os = "linux")]
 const MAX_PARALLEL_DELETE_WORKERS: usize = 4;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct PhysicalPathIdentity {
     volume: u64,
     index: u64,

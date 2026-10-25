@@ -201,6 +201,28 @@ The home root, Downloads, Documents, Desktop, project directories, repositories,
 
 AI models are high-value downloadable data. Ordinary filesystem rules must not target project directories, Ollama model stores, LM Studio data, or user-managed model directories. The dedicated AI model cleaner validates official store layouts, shared blobs, links, and each model immediately before execution.
 
+ComfyUI models use the dedicated `special.ai-model-comfyui` adapter. It reads current
+Desktop shared/per-install model directories, legacy Desktop `basePath` and model-path YAML,
+and marker-verified manual installations found by the existing project scan/index. YAML
+paths resolve relative to their configuration file; model-directory settings must identify
+explicit locations. Discovery does not execute Python, launch scripts, or YAML tags.
+
+Only weight files and complete Diffusers packages are selectable, never an installation or
+shared-data root. Inputs, outputs, workflows, datasets, custom nodes, partial downloads, and
+links/reparse points are excluded. Models remain opt-in; shared or user-trained weights
+may have no downloadable replacement. Running ComfyUI or Python processes do not block
+selection or deletion and are never terminated by this cleaner. Deletion may affect running
+tasks or later model loads. Files that cannot be removed are skipped with native diagnostics;
+other selected models continue. Execution rechecks
+configuration membership, physical identities, and metadata snapshots before mutation.
+Configuration reads and model traversal are bounded; incomplete evidence blocks cleanup.
+Explicit Diffusers directories retain whole-package selection when general model roots
+duplicate or contain them; incomplete packages never become individual weight sources.
+Regular Finder `.DS_Store` metadata is included in selected packages; temporary downloads,
+unknown hidden data, links, and directories using that metadata name remain excluded.
+See the [official model-path documentation](https://docs.comfy.org/basic-concepts/models)
+and [Desktop data locations](https://docs.comfy.org/installation/desktop/macos).
+
 ## Project artifact rules
 
 Project artifact rules use schema version 1 and describe rebuildable output inside a recognized source project. They are always recoverable and opt-in.

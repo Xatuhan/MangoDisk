@@ -3541,6 +3541,11 @@
         "description": "Modelos de lenguaje GGUF guardados en el directorio de descarga predeterminado de GPT4All",
         "impact": "Primero cierra GPT4All. Sólo se eliminan los modelos seleccionados; Se mantienen los chats y LocalDocs"
       },
+      "special.ai-model-comfyui": {
+        "name": "Modelos locales de ComfyUI",
+        "description": "Pesos y paquetes completos de modelos en instalaciones de ComfyUI y carpetas compartidas o personalizadas.",
+        "impact": "Elimina permanentemente solo los modelos seleccionados; puede afectar a tareas en curso y a otras apps que comparten modelos. Omite archivos que no puedan borrarse por estar en uso o por permisos. Guarda una copia de los pesos propios. Conserva entradas, salidas y flujos de trabajo."
+      },
       "special.ai-model-jan": {
         "name": "Modelos locales de Jan",
         "description": "Modelos locales administrados dentro de la carpeta de datos de Jan",
